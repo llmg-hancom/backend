@@ -1,8 +1,16 @@
+from typing import Annotated
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
-from core.config import settings
+from sqlmodel import Session
 import jwt
+
+from models.user import User
+from db.session import get_db
+from core.config import settings
+from errors.auth import UserNotFoundError
 
 hash = PasswordHash.recommended()
 
@@ -29,3 +37,26 @@ def create_jwt(user_id: UUID) -> str:
     return jwt.encode(
         payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/token")
+
+
+def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User:
+    try:
+        payload = jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
+        user_id = payload.get("sub")
+
+    except (jwt.InvalidTokenError, ValueError) as e:
+        raise e
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise UserNotFoundError()
+
+    return User.model_validate(user)
