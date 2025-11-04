@@ -1,0 +1,31 @@
+from sqlmodel import Session, select
+from models.user import User, UserRead
+from utils.auth import hash_password
+from dataclasses import dataclass
+
+
+@dataclass
+class LoginSuccess:
+    user: UserRead
+
+
+def register(email: str, password: str, nickname: str, db: Session) -> LoginSuccess:
+    # 중복 확인
+    existing_user = db.exec(select(User).where(User.email == email)).first()
+
+    if existing_user:
+        raise ValueError("이미 가입된 이메일입니다.")
+
+    # 사용자 생성
+    hashed_password = hash_password(password)
+    user = User(
+        email=email,
+        nickname=nickname,
+        hashed_password=hashed_password,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return LoginSuccess(user=UserRead.model_validate(user))

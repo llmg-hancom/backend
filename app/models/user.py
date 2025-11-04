@@ -1,0 +1,33 @@
+from sqlalchemy import UniqueConstraint
+from sqlmodel import Field, SQLModel
+from pydantic import EmailStr
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
+
+
+class UserBase(SQLModel):
+    email: EmailStr = Field(index=True, description="유저 이메일")
+    nickname: str = Field(description="닉네임")
+
+    __table_args__ = (UniqueConstraint("email"),)
+
+
+class User(UserBase, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True, description="유저 ID")
+    hashed_password: str = Field(description="해시된 비밀번호")
+    is_active: bool = Field(default=True, description="활성화 여부")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
+        description="유저 생성 시간",
+    )
+
+
+class UserRead(UserBase):
+    id: UUID = Field(description="유저 ID")
+    created_at: datetime = Field(description="유저 생성 시간")
+
+
+class UserWrite(UserBase):
+    email: EmailStr = Field(description="유저 이메일")
+    nickname: str = Field(description="닉네임")
+    hashed_password: str = Field(description="해시된 비밀번호")

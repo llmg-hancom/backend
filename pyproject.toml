@@ -1,0 +1,19 @@
+[project]
+name = "hwp-qna-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "datetime>=5.5",
+    "fastapi[standard]>=0.120.3",
+    "psycopg2-binary>=2.9.11",
+    "pwdlib[argon2]>=0.3.0",
+    "pydantic>=2.12.3",
+    "pyjwt>=2.10.1",
+    "python-dotenv>=1.2.1",
+    "python-multipart>=0.0.20",
+    "sqlmodel>=0.0.27",
+    "uuid>=1.30",
+    "valkey>=6.1.1",
+]
