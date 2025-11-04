@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, DateTime
 from enum import Enum
 from datetime import datetime, timezone
 import uuid
@@ -19,4 +20,7 @@ class SocialAccount(SocialAccountBase, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id")
     provider: SocialAccountProvider = Field(default=SocialAccountProvider.GOOGLE)
     provider_id: str = Field()
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )

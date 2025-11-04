@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+from sqlalchemy import Column, DateTime
 from datetime import datetime, timezone
 import uuid
 
@@ -15,4 +16,7 @@ class ChatSpaceDocument(ChatSpaceDocumentBase, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     added_user: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
-    added_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    added_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )

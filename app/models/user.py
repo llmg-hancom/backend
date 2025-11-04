@@ -1,5 +1,6 @@
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
+from sqlalchemy import Column, DateTime
 from pydantic import EmailStr
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
@@ -18,6 +19,7 @@ class User(UserBase, table=True):
     is_active: bool = Field(default=True, description="활성화 여부")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         description="유저 생성 시간",
     )
 

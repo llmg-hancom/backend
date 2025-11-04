@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, DateTime
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from enum import Enum
@@ -19,7 +20,10 @@ class Document(DocumentBase, table=True):
     file_path: str = Field()
     owner: UUID = Field(foreign_key="user.id", ondelete="CASCADE")
     status: DocumentStatus = Field(default=DocumentStatus.PENDING)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
 
 
 class DocumentRead(DocumentBase):
