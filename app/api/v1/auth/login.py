@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
@@ -22,14 +23,17 @@ router = APIRouter()
         }
     },
 )
-async def login(body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
+async def login(
+    form_data: Annotated[LoginRequest, Depends()],
+    db: Annotated[Session, Depends(get_db)],
+) -> LoginResponse:
     """
-    이메일과 비밀번호를 확인해 올바른 경우 JWTmn 토큰을 발급합니다.
+    이메일과 비밀번호를 확인해 올바른 경우 JWT 토큰을 발급합니다.
     """
     try:
-        result = login_service(body.email, body.password, db)
+        result = login_service(form_data.username, form_data.password, db)
         return LoginResponse(
-            token=result.token, token_type=result.token_type, user=result.user
+            access_token=result.token, token_type=result.token_type, user=result.user
         )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

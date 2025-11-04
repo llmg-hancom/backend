@@ -1,14 +1,19 @@
+from typing import Annotated
+from fastapi import Form
 from pydantic import BaseModel, EmailStr, Field
 from models.user import UserRead
 
 
-class LoginRequest(BaseModel):
-    email: EmailStr = Field(description="사용자의 이메일 주소")
-    password: str = Field(description="사용자의 비밀번호")
+class LoginRequest:
+    def __init__(
+        self, username: Annotated[EmailStr, Form()], password: Annotated[str, Form()]
+    ):
+        self.username = username
+        self.password = password
 
 
 class LoginResponse(BaseModel):
-    token: str = Field(description="토큰 (JWT)")
+    access_token: str = Field(description="토큰 (JWT)")
     token_type: str = Field(description="토큰 타입")
     user: UserRead = Field(description="로그인한 사용자 정보")
 
