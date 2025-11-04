@@ -1,5 +1,5 @@
 from sqlmodel import create_engine, SQLModel, Session
-from os import environ as env
+from core.config import settings
 
 # models
 from models.user import User
@@ -12,14 +12,8 @@ from models.chat_session import ChatSession
 from models.chat_space_document import ChatSpaceDocument
 
 
-DB_USER = env.get("POSTGRES_USER")
-DB_PASSWORD = env.get("POSTGRES_PASSWORD")
-DB_HOST = env.get("POSTGRES_HOST")
-DB_PORT = env.get("POSTGRES_PORT")
-DB_NAME = env.get("POSTGRES_NAME")
-
-db_url = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-engine = create_engine(db_url, echo=True)
+# settings에서 database_url 프로퍼티 사용
+engine = create_engine(settings.database_url, echo=True)
 SQLModel.metadata.create_all(engine)
 
 

@@ -4,7 +4,7 @@ from sqlmodel import Session
 from typing import Annotated
 from models.user import UserRead, User
 from db.session import get_db
-from os import environ as env
+from core.config import settings
 from jwt import InvalidTokenError
 import jwt
 
@@ -25,12 +25,9 @@ def get_user_info(
     )
 
     try:
-        SECRET_KEY = env.get("JWT_SECRET_KEY")
-
-        if SECRET_KEY is None:
-            raise InvalidTokenError("Missing JWT_SECRET_KEY")
-
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
         user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception

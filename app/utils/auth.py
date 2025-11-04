@@ -1,7 +1,7 @@
 from pwdlib import PasswordHash
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
-from os import environ as env
+from core.config import settings
 import jwt
 
 hash = PasswordHash.recommended()
@@ -19,13 +19,13 @@ def verify_password(password: str | bytes, hashed_password: str) -> bool:
 
 def create_jwt(user_id: UUID) -> str:
     """사용자를 위한 JWT 토큰을 생성합니다."""
-    SECRET_KEY = env.get("JWT_SECRET_KEY")
-
     now = datetime.now(tz=timezone.utc)
 
     payload = {
         "sub": str(user_id),
         "iat": now,
-        "exp": now + timedelta(days=7),
+        "exp": now + timedelta(days=settings.JWT_EXPIRE_DAYS),
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
