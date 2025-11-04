@@ -16,3 +16,6 @@ Thumbs.db
 # environment variables
 .env*
 !.env.example
+
+# mise (https://mise.jdx.dev) config file
+mise.local.toml
