@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlmodel import Session
 from starlette import status
@@ -23,7 +24,7 @@ router = APIRouter()
     },
 )
 async def register(
-    body: RegisterRequest = Body(...), db: Session = Depends(get_db)
+    body: Annotated[RegisterRequest, Body()], db: Annotated[Session, Depends(get_db)]
 ) -> UserRead:
     """
     회원가입
