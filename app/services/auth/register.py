@@ -5,11 +5,11 @@ from dataclasses import dataclass
 
 
 @dataclass
-class LoginSuccess:
+class RegisterSuccess:
     user: UserRead
 
 
-def register(email: str, password: str, nickname: str, db: Session) -> LoginSuccess:
+def register(email: str, password: str, nickname: str, db: Session) -> RegisterSuccess:
     # 중복 확인
     existing_user = db.exec(select(User).where(User.email == email)).first()
 
@@ -28,4 +28,4 @@ def register(email: str, password: str, nickname: str, db: Session) -> LoginSucc
     db.commit()
     db.refresh(user)
 
-    return LoginSuccess(user=UserRead.model_validate(user))
+    return RegisterSuccess(user=UserRead.model_validate(user))
