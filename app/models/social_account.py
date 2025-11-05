@@ -1,8 +1,12 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import Relationship, SQLModel, Field
 from sqlalchemy import Column, DateTime
 from enum import Enum
 from datetime import datetime, timezone
 import uuid
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from models.user import User
 
 
 class SocialAccountProvider(str, Enum):
@@ -24,3 +28,5 @@ class SocialAccount(SocialAccountBase, table=True):
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
+
+    user: "User" = Relationship(back_populates="social_accounts")
