@@ -1,3 +1,4 @@
+from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +32,12 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
     GOOGLE_REDIRECT_URI: str | None = None
+
+    # Frontend
+    FRONTEND_URL: str = "http://localhost:3000"  # 프론트엔드 URL
+
+    # Environment
+    ENVIRONMENT: Literal["development", "production"] = "development"
 
     @property
     def database_url(self) -> str:
