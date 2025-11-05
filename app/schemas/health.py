@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
 
 
-class LivenessResponse(BaseModel):
+class HealthResponse(BaseModel):
     status: str = Field(default="ok", description="서버 상태")
