@@ -22,7 +22,7 @@ def user_inactive_error(_req: Request, _e: UserInactiveError):
 
 def user_not_found_error(_req: Request, _e: UserNotFoundError):
     return JSONResponse(
-        status_code=401, content={"detail": "사용자를 찾을 수 없습니다."}
+        status_code=404, content={"detail": "사용자를 찾을 수 없습니다."}
     )
 
 
