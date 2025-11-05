@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from db.session import get_db
@@ -14,10 +14,21 @@ router = APIRouter()
     summary="로그인",
     responses={
         401: {
-            "description": "이메일 또는 비밀번호가 일치하지 않는 경우",
+            "description": "이메일 또는 비밀번호가 일치하지 않거나 계정이 비활성화된 경우",
             "content": {
                 "application/json": {
-                    "example": {"detail": "이메일 또는 비밀번호가 일치하지 않습니다."}
+                    "examples": {
+                        "invalid_credentials": {
+                            "summary": "잘못된 인증 정보",
+                            "value": {
+                                "detail": "아이디 또는 비밀번호가 잘못되었습니다."
+                            },
+                        },
+                        "user_inactive": {
+                            "summary": "비활성화된 계정",
+                            "value": {"detail": "사용자 계정이 비활성화되었습니다."},
+                        },
+                    }
                 }
             },
         }
