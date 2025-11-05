@@ -1,4 +1,5 @@
 from sqlmodel import Session, select
+from errors.auth import EmailAlreadyExistError
 from models.user import User, UserRead
 from utils.auth import hash_password
 from dataclasses import dataclass
@@ -14,7 +15,7 @@ def register(email: str, password: str, nickname: str, db: Session) -> RegisterS
     existing_user = db.exec(select(User).where(User.email == email)).first()
 
     if existing_user:
-        raise ValueError("이미 가입된 이메일입니다.")
+        raise EmailAlreadyExistError()
 
     # 사용자 생성
     hashed_password = hash_password(password)
