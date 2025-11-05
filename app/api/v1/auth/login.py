@@ -30,10 +30,7 @@ async def login(
     """
     이메일과 비밀번호를 확인해 올바른 경우 JWT 토큰을 발급합니다.
     """
-    try:
-        result = login_service(form_data.username, form_data.password, db)
-        return LoginResponse(
-            access_token=result.token, token_type=result.token_type, user=result.user
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+    result = login_service(form_data.username, form_data.password, db)
+    return LoginResponse(
+        access_token=result.token, token_type=result.token_type, user=result.user
+    )

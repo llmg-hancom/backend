@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 from sqlmodel import Session
 from starlette import status
 
@@ -30,10 +30,7 @@ async def register(
     회원가입
     """
 
-    try:
-        result = register_service(
-            email=body.email, password=body.password, nickname=body.nickname, db=db
-        )
-        return UserRead.model_validate(result.user)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    result = register_service(
+        email=body.email, password=body.password, nickname=body.nickname, db=db
+    )
+    return UserRead.model_validate(result.user)
