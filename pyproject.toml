@@ -17,3 +17,9 @@ dependencies = [
     "sqlmodel>=0.0.27",
     "uuid>=1.30",
 ]
+
+[tool.basedpyright]
+pythonVersion = "3.13"
+executionEnvironments = [
+    { root = "app" }
+]
