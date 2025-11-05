@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
-    POSTGRES_NAME: str
+    POSTGRES_DB: str
 
     # JWT
     JWT_SECRET_KEY: str
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """PostgreSQL 연결 URL 생성"""
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_NAME}"
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 
 settings = Settings()
