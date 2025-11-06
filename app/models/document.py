@@ -1,14 +1,15 @@
-from typing import Optional, TYPE_CHECKING
-
-from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, TIMESTAMP, func, Enum as SaEnum
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import TIMESTAMP, Column, func
+from sqlalchemy import Enum as SaEnum
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from models.user import User
     from models.chat_space_document import ChatSpaceDocument
     from models.document_chunk import DocumentChunk
+    from models.user import User
 
 
 class DocumentStatus(str, Enum):

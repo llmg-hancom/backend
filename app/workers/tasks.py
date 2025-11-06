@@ -1,15 +1,17 @@
-import jpype
-import jpype.imports
+import logging
 import os
 from pathlib import Path
-import logging
+
+import jpype
+import jpype.imports
 
 # from workers.celery_app import celery_app
 # from db.session import SessionLocal
 # from models.document import Documents
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
-from rag.cleaning import clean_rag_text, clean_common_noise
+from rag.cleaning import clean_common_noise, clean_rag_text
+
 # (Chunking 로직은 별도 파일로 분리하거나 여기에 구현해야 함)
 # from rag.chunking import get_chunks_from_structured_data
 
@@ -36,9 +38,9 @@ try:
     # 2. JVM 시작 후 Java 클래스 임포트 후 인스턴스화
     from kr.dogfoot.hwpxlib.reader import HWPXReader
     from kr.dogfoot.hwpxlib.tool.textextractor import (
+        TextExtractMethod,
         TextExtractor,
         TextMarks,
-        TextExtractMethod,
     )
 
     text_extract_method = TextExtractMethod.InsertControlTextBetweenParagraphText
