@@ -22,8 +22,40 @@ dependencies = [
     "uuid>=1.30",
 ]
 
+[dependency-groups]
+lint = [
+    "ruff>=0.14.3",
+]
+
+
 [tool.basedpyright]
 pythonVersion = "3.13"
 executionEnvironments = [
     { root = "app" }
 ]
+
+[tool.ruff.lint.isort]
+# 섹션 순서 정의
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+    "models",
+]
+
+no-lines-before = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+sections = { models = ["models"], routers = ["routers"] }
+known-first-party = [
+    "api",
+    "core",
+    "db",
+    "errors",
+    "models",
+    "schemas",
+    "services",
+    "utils",
+]
+lines-between-types = 1
+lines-after-imports = 2
