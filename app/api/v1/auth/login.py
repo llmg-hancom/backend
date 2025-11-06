@@ -45,5 +45,8 @@ async def login(
     """
     result = login_service(form_data.username, form_data.password, db)
     return LoginResponse(
-        access_token=result.token, token_type=result.token_type, user=result.user
+        access_token=result.token,
+        refresh_token=result.refresh_token,
+        token_type=result.token_type,
+        user=result.user
     )

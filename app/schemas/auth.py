@@ -16,6 +16,7 @@ class LoginRequest:
 
 class LoginResponse(BaseModel):
     access_token: str = Field(description="토큰 (JWT)")
+    refresh_token: str = Field(description="리프레시 토큰")
     token_type: str = Field(description="토큰 타입")
     user: UserRead = Field(description="로그인한 사용자 정보")
 
