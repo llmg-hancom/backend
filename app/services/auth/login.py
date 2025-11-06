@@ -1,8 +1,9 @@
-from sqlmodel import Session, select
 from dataclasses import dataclass
+
 from errors.auth import InvalidCridentialError, UserInactiveError
 from models.user import User, UserRead
-from utils.auth import verify_password, create_jwt
+from sqlmodel import Session, select
+from utils.auth import create_jwt, verify_password
 
 
 @dataclass

@@ -1,13 +1,13 @@
-from typing import Optional, TYPE_CHECKING
-
-from sqlmodel import SQLModel, Field, Relationship, ForeignKey
-from sqlalchemy import Column, TIMESTAMP, func
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import TIMESTAMP, Column, func
+from sqlmodel import Field, ForeignKey, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from models.chat_message import ChatMessage
     from models.chat_space import ChatSpace
     from models.user import User
-    from models.chat_message import ChatMessage
 
 
 class ChatSessionBase(SQLModel):

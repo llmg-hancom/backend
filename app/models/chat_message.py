@@ -1,10 +1,11 @@
-from typing import Optional, Any, TYPE_CHECKING
-
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, Text, TIMESTAMP, func, Enum as SaEnum
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING, Any, Optional
+
+from sqlalchemy import TIMESTAMP, Column, Text, func
+from sqlalchemy import Enum as SaEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from models.chat_session import ChatSession

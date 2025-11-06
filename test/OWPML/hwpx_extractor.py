@@ -1,7 +1,8 @@
+import argparse
+
 import jpype
 import jpype.imports
-import argparse
-from rag.cleaning import clean_rag_text, clean_common_noise
+from rag.cleaning import clean_common_noise, clean_rag_text
 
 
 def hwpx_extract(file_path):
@@ -12,9 +13,9 @@ def hwpx_extract(file_path):
         ## java package 가져오기
         from kr.dogfoot.hwpxlib.reader import HWPXReader
         from kr.dogfoot.hwpxlib.tool.textextractor import (
+            TextExtractMethod,
             TextExtractor,
             TextMarks,
-            TextExtractMethod,
         )
 
         hwpx_file = HWPXReader.fromFilepath(file_path)
