@@ -1,14 +1,13 @@
 import re
 import unicodedata
-from typing import Set
 
 # RAG/LLM 성능을 저해하는 유니코드 "제어" 및 "포맷" 문자 카테고리
 # Cc (Control), Cf (Format), Co (Private Use), Cs (Surrogate)
-BLACKLISTED_CATEGORIES: Set[str] = {"Cc", "Cf", "Co", "Cs"}
+BLACKLISTED_CATEGORIES: set[str] = {"Cc", "Cf", "Co", "Cs"}
 
 # Cc 카테고리(제어 문자)에 속하지만,
 # RAG의 구조(문단, 탭)를 위해 "반드시 보존해야 하는" 예외 문자
-WHITELISTED_CONTROL_CHARS: Set[str] = {
+WHITELISTED_CONTROL_CHARS: set[str] = {
     "\n",  # 줄바꿈 (Line Feed)
     "\t",  # 탭 (Tab)
     "\r",  # 캐리지 리턴 (Carriage Return)

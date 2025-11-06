@@ -17,8 +17,8 @@ class ChatRole(str, Enum):
 
 
 class ChatMessageBase(SQLModel):
-    role: ChatRole = Field()
-    message: str = Field()
+    role: ChatRole = Field(sa_column=Column(SaEnum(ChatRole), nullable=False))
+    content: str = Field(sa_column=Column(Text, nullable=False))
 
 
 class ChatMessage(ChatMessageBase, table=True):
@@ -30,9 +30,6 @@ class ChatMessage(ChatMessageBase, table=True):
     session_id: int = Field(
         foreign_key="chat_sessions.session_id", nullable=False, index=True
     )
-    role: ChatRole = Field(sa_column=Column(SaEnum(ChatRole), nullable=False))
-    content: str = Field(sa_column=Column(Text, nullable=False))
-
     # [RAG 핵심] 답변의 근거가 된 출처 (JSONB)
     sources: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSONB))
 
