@@ -30,6 +30,8 @@ lint = [
 
 [tool.basedpyright]
 pythonVersion = "3.13"
+reportUnusedImport = false
+reportUnusedVariable = false
 executionEnvironments = [
     { root = "app" }
 ]
@@ -42,11 +44,8 @@ section-order = [
     "third-party",
     "first-party",
     "local-folder",
-    "models",
 ]
 
-no-lines-before = ["future", "standard-library", "third-party", "first-party", "local-folder"]
-sections = { models = ["models"], routers = ["routers"] }
 known-first-party = [
     "api",
     "core",
@@ -57,5 +56,8 @@ known-first-party = [
     "services",
     "utils",
 ]
+
 lines-between-types = 1
 lines-after-imports = 2
+force-sort-within-sections = true
+split-on-trailing-comma = true
