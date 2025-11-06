@@ -24,7 +24,6 @@ class UserBase(SQLModel):
     )
     nickname: str = Field(
         max_length=100,
-        sa_column_kwargs={"unique": True},
         index=True,
         description="닉네임",
     )
