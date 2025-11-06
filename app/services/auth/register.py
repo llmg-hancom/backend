@@ -24,7 +24,7 @@ def register(email: str, password: str, nickname: str, db: Session) -> RegisterS
     user = User(
         email=email,
         nickname=nickname,
-        hashed_password=hashed_password,
+        password_hash=hashed_password,
     )
 
     db.add(user)

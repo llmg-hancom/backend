@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
@@ -44,6 +44,7 @@ class User(UserBase, table=True):
     )
     is_active: bool = Field(default=True, description="활성화 여부")
     created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True),
             server_default=func.now(),  # noqa: F821

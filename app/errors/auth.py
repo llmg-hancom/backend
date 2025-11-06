@@ -20,3 +20,15 @@ class EmailAlreadyExistError(Exception):
     """회원 가입 중 이미 존재하는 이메일"""
 
     pass
+
+
+class RefreshTokenNotFoundError(Exception):
+    """리프레시 토큰이 존재하지 않음"""
+
+    pass
+
+
+class RefreshTokenExpiredError(Exception):
+    """리프레시 토큰이 만료되었음"""
+
+    pass
