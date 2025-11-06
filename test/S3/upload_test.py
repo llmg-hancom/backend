@@ -1,9 +1,10 @@
-import boto3
 import os
-import sys
-from dotenv import load_dotenv
-from botocore.exceptions import NoCredentialsError, ClientError
 from pathlib import Path
+import sys
+
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+from dotenv import load_dotenv
 
 
 def test_s3_upload():
@@ -31,7 +32,12 @@ def test_s3_upload():
 
     # --- 3. 설정 값 검증 ---
     if not all(
-        [aws_access_key_id, aws_secret_access_key, aws_s3_bucket_name, aws_region]
+        [
+            aws_access_key_id,
+            aws_secret_access_key,
+            aws_s3_bucket_name,
+            aws_region,
+        ]
     ):
         print("\n--- [오류] ---")
         print("필수 .env 변수 중 일부가 설정되지 않았습니다.")
@@ -110,6 +116,7 @@ def test_s3_upload():
     #     if os.path.exists(local_file_path):
     #         os.remove(local_file_path)
     #         print(f"\n로컬 테스트 파일 삭제: {local_file_path}")
+
 
 if __name__ == "__main__":
     test_s3_upload()

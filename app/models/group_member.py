@@ -1,13 +1,15 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Column, TIMESTAMP, func
-from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint, Enum as SaEnum
+from sqlalchemy import TIMESTAMP, Column, func
+from sqlmodel import Enum as SaEnum
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
+
 
 if TYPE_CHECKING:
-    from models.user import User
     from models.group import Group
+    from models.user import User
 
 
 class UserRole(str, Enum):
