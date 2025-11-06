@@ -1,6 +1,7 @@
 services:
   db:
-    image: pgvector/pgvector:pg18-trixie
+    build:
+      dockerfile: Dockerfile.pgvector
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -8,7 +9,8 @@ services:
       - "5432:5432"
 
   backend:
-    image: hwp-qna-backend:latest
+    build:
+      dockerfile: Dockerfile
     depends_on:
       - db
     env_file: .env
@@ -18,4 +20,4 @@ services:
       - "8000:8000"
 
 volumes:
-  postgres_data: {}
+  postgres_data: { }

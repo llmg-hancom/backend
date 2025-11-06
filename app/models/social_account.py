@@ -1,9 +1,9 @@
-from sqlmodel import Relationship, SQLModel, Field
-from sqlalchemy import Column, DateTime
+from datetime import datetime
 from enum import Enum
-from datetime import datetime, timezone
-import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import TIMESTAMP, Column, UniqueConstraint, func
+from sqlmodel import Field, Relationship, SQLModel, Enum as SaEnum
 
 if TYPE_CHECKING:
     from models.user import User
@@ -18,15 +18,26 @@ class SocialAccountBase(SQLModel):
 
 
 class SocialAccount(SocialAccountBase, table=True):
-    __tablename__ = "social_account"
+    __tablename__ = "social_accounts"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "provider_id", name="social_accounts_provider_provider_id_key"
+        ),
+    )
 
-    social_account_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="user.id")
-    provider: SocialAccountProvider = Field(default=SocialAccountProvider.GOOGLE)
-    provider_id: str = Field()
+    social_account_id: Optional[int] = Field(
+        default=None, primary_key=True, description="소셜 로그인 아이디"
+    )
+    user_id: int = Field(foreign_key="users.user_id", nullable=False)
+    provider: SocialAccountProvider = Field(
+        default=SocialAccountProvider.GOOGLE,
+        sa_column=Column(SaEnum(SocialAccountProvider)),
+    )
+    provider_id: str = Field(max_length=255, nullable=False)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        sa_column=Column(
+            TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+        )
     )
 
     user: "User" = Relationship(back_populates="social_accounts")

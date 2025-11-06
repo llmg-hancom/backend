@@ -1,15 +1,44 @@
-from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
-import uuid
+from datetime import datetime
+from enum import Enum
+from typing import Optional, TYPE_CHECKING
+
+from sqlalchemy import Column, TIMESTAMP, func
+from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint, Enum as SaEnum
+
+if TYPE_CHECKING:
+    from models.user import User
+    from models.group import Group
+
+
+class UserRole(str, Enum):
+    admin = "admin"
+    member = "member"
 
 
 class GroupMemberBase(SQLModel):
-    group_id: uuid.UUID = Field(foreign_key="group.id", ondelete="CASCADE")
-    user_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+    group_member_id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.user_id", nullable=False)
+    group_id: int = Field(foreign_key="groups.group_id", nullable=False)
 
 
 class GroupMember(GroupMemberBase, table=True):
-    __tablename__ = "group_member"
-    __table_args__ = (UniqueConstraint("group_id", "user_id"),)
+    """2.2. GroupMembers (그룹 멤버)"""
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    create_user_id: uuid.UUID = Field(foreign_key="user.id")
+    __tablename__ = "group_members"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "group_id", name="group_members_user_id_group_id_key"
+        ),
+    )
+    role: UserRole = Field(
+        default=UserRole.member, sa_column=Column(SaEnum(UserRole), nullable=False)
+    )
+    joined_at: datetime = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+        )
+    )
+
+    # Relationships
+    user: "User" = Relationship(back_populates="group_memberships")
+    group: "Group" = Relationship(back_populates="members")
