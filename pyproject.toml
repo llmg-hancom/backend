@@ -8,6 +8,7 @@ dependencies = [
     "boto3>=1.40.66",
     "datetime>=5.5",
     "fastapi[standard]>=0.120.3",
+    "jpype1>=1.6.0",
     "langchain-postgres>=0.0.16",
     "pgvector<0.4",
     "psycopg>=3.2.12",

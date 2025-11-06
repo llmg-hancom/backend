@@ -48,6 +48,9 @@ class User(UserBase, table=True):
         ),
         description="유저 생성 시간",
     )
+    deleted_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(TIMESTAMP(timezone=True), index=True)
+    )
 
     # Relationships
     social_accounts: list["SocialAccount"] = Relationship(
