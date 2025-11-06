@@ -1,0 +1,22 @@
+# 1. 사용할 PostgreSQL 이미지 버전을 기반으로 합니다.
+FROM pgvector/pgvector:pg18-trixie
+
+# 2. 로캘 설정을 위해 필요한 패키지를 설치합니다.
+# (Debian/Ubuntu 기반 이미지 기준)
+# 'locales-all'을 설치하면 모든 로캘이 설치되어 편리하지만 이미지 크기가 커집니다.
+# 여기서는 'locales'만 설치하고 한국어를 직접 생성합니다.
+RUN apt update && \
+    apt install -y locales && \
+    rm -rf /var/lib/apt/lists/*
+
+# 3. /etc/locale.gen 파일에서 한국어 로캘의 주석을 제거합니다.
+# (또는 직접 추가합니다)
+RUN sed -i -e 's/# ko_KR.UTF-8 UTF-8/ko_KR.UTF-8 UTF-8/' /etc/locale.gen
+
+# 4. locale-gen 명령어로 로캘을 생성(빌드)합니다.
+RUN locale-gen ko_KR.UTF-8
+
+# 5. 이 이미지를 사용할 때 기본 언어 환경 변수로 설정합니다.
+ENV LANG=ko_KR.UTF-8
+ENV LANGUAGE=ko_KR.UTF-8
+ENV LC_ALL=ko_KR.UTF-8

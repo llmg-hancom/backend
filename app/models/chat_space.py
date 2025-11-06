@@ -1,20 +1,49 @@
+from typing import Optional, TYPE_CHECKING
+
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, DateTime
-from datetime import datetime, timezone
-import uuid
+from sqlalchemy import Column, CheckConstraint, TIMESTAMP, func
+from datetime import datetime
+
+if TYPE_CHECKING:
+    from models.group import Group
+    from models.user import User
+    from models.chat_space_document import ChatSpaceDocument
+    from models.chat_session import ChatSession
 
 
 class ChatSpaceBase(SQLModel):
-    name: str = Field()
+    name: str = Field(max_length=255, nullable=False)
 
 
 class ChatSpace(ChatSpaceBase, table=True):
-    __tablename__ = "chat_space"
+    """3.2. ChatSpaces (채팅 공간)"""
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_id: uuid.UUID | None = Field(foreign_key="user.id", ondelete="SET NULL")
-    group_id: uuid.UUID = Field(foreign_key="group.id", ondelete="CASCADE")
+    __tablename__ = "chat_spaces"
+    __table_args__ = (
+        CheckConstraint(
+            "(owner_user_id IS NOT NULL AND group_id IS NULL) OR (owner_user_id IS NULL AND group_id IS NOT NULL)",
+            name="chk_space_owner",
+        ),
+    )
+    space_id: Optional[int] = Field(default=None, primary_key=True)
+
+    owner_user_id: Optional[int] = Field(default=None, foreign_key="users.user_id")
+    group_id: Optional[int] = Field(default=None, foreign_key="groups.group_id")
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        sa_column=Column(
+            TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+        )
+    )
+    deleted_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(TIMESTAMP(timezone=True))
+    )
+
+    # Relationships
+    owner_user: Optional["User"] = Relationship(back_populates="owned_chat_spaces")
+    group: Optional["Group"] = Relationship(back_populates="chat_spaces")
+    documents: list["ChatSpaceDocument"] = Relationship(
+        back_populates="space", sa_relationship_kwargs={"cascade": "all, delete"}
+    )
+    sessions: list["ChatSession"] = Relationship(
+        back_populates="space", sa_relationship_kwargs={"cascade": "all, delete"}
     )
