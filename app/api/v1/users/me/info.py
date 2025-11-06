@@ -1,7 +1,10 @@
-from fastapi import Depends, APIRouter
 from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from models.user import User, UserRead
 from utils.auth import get_current_user
-from models.user import UserRead, User
+
 
 router = APIRouter()
 

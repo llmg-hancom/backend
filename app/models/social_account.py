@@ -3,7 +3,9 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import TIMESTAMP, Column, UniqueConstraint, func
-from sqlmodel import Field, Relationship, SQLModel, Enum as SaEnum
+from sqlmodel import Enum as SaEnum
+from sqlmodel import Field, Relationship, SQLModel
+
 
 if TYPE_CHECKING:
     from models.user import User

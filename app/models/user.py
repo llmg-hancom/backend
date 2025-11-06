@@ -6,6 +6,7 @@ from pydantic import EmailStr
 from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Field, Relationship, SQLModel
 
+
 if TYPE_CHECKING:
     from models.chat_session import ChatSession
     from models.chat_space import ChatSpace

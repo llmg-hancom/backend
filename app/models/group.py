@@ -1,13 +1,14 @@
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Column, TIMESTAMP, func
-from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, TYPE_CHECKING
+from sqlalchemy import TIMESTAMP, Column, func
+from sqlmodel import Field, Relationship, SQLModel
+
 
 if TYPE_CHECKING:
-    from models.user import User
-    from models.group_member import GroupMember
     from models.chat_space import ChatSpace
+    from models.group_member import GroupMember
+    from models.user import User
 
 
 class GroupBase(SQLModel):

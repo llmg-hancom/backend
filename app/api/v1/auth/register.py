@@ -1,4 +1,5 @@
 from typing import Annotated
+
 from fastapi import APIRouter, Body, Depends
 from sqlmodel import Session
 from starlette import status
@@ -7,6 +8,7 @@ from db.session import get_db
 from models.user import UserRead
 from schemas.auth import RegisterRequest
 from services.auth.register import register as register_service
+
 
 router = APIRouter()
 

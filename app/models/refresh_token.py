@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import TIMESTAMP, Column, Field, Relationship, SQLModel, func
 
+
 if TYPE_CHECKING:
     from models.user import User
 

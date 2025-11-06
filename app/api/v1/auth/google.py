@@ -1,12 +1,13 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends
 from urllib.parse import urlencode
 
+from fastapi import APIRouter, Depends
 from fastapi.responses import RedirectResponse
-from core.config import settings
-from schemas.auth import LoginWithGoogleCallbackParam
 from sqlmodel import Session
+
+from core.config import settings
 from db.session import get_db
+from schemas.auth import LoginWithGoogleCallbackParam
 from services.auth.google import (
     login_with_google_callback as google_callback_service,
 )

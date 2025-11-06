@@ -1,8 +1,9 @@
-from typing import Optional, TYPE_CHECKING
-
-from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
-from sqlalchemy import Column, TIMESTAMP, func
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import TIMESTAMP, Column, func
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
+
 
 if TYPE_CHECKING:
     from models.chat_space import ChatSpace

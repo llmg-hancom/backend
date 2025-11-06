@@ -1,16 +1,18 @@
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from uuid import UUID
+
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from pwdlib import PasswordHash
-from uuid import UUID
-from datetime import datetime, timedelta, timezone
-from sqlmodel import Session
 import jwt
+from pwdlib import PasswordHash
+from sqlmodel import Session
 
-from models.user import User
-from db.session import get_db
 from core.config import settings
+from db.session import get_db
 from errors.auth import UserNotFoundError
+from models.user import User
+
 
 hash = PasswordHash.recommended()
 
@@ -25,7 +27,7 @@ def verify_password(password: str | bytes, hashed_password: str) -> bool:
     return hash.verify(password, hashed_password)
 
 
-def create_jwt(user_id: UUID) -> str:
+def create_jwt(user_id: int) -> str:
     """사용자를 위한 JWT 토큰을 생성합니다."""
     now = datetime.now(tz=timezone.utc)
 

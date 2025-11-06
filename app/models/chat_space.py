@@ -1,14 +1,15 @@
-from typing import Optional, TYPE_CHECKING
-
-from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, CheckConstraint, TIMESTAMP, func
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import TIMESTAMP, CheckConstraint, Column, func
+from sqlmodel import Field, Relationship, SQLModel
+
 
 if TYPE_CHECKING:
+    from models.chat_session import ChatSession
+    from models.chat_space_document import ChatSpaceDocument
     from models.group import Group
     from models.user import User
-    from models.chat_space_document import ChatSpaceDocument
-    from models.chat_session import ChatSession
 
 
 class ChatSpaceBase(SQLModel):
