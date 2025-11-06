@@ -1,12 +1,13 @@
-from pydantic import EmailStr
-from core.config import settings
+from dataclasses import dataclass
 from urllib.parse import urlencode
-from sqlmodel import Session, select
+
+import requests
+from core.config import settings
 from models.social_account import SocialAccount, SocialAccountProvider
 from models.user import User, UserRead
-from dataclasses import dataclass
+from pydantic import EmailStr
+from sqlmodel import Session, select
 from utils.auth import create_jwt
-import requests
 
 
 @dataclass
