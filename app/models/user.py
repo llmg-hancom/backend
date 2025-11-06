@@ -1,18 +1,18 @@
-from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy import Column, TIMESTAMP, func
-from pydantic import EmailStr
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from enum import Enum
+
+from pydantic import EmailStr
+from sqlalchemy import TIMESTAMP, Column, func
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from models.social_account import SocialAccount
+    from models.chat_session import ChatSession
+    from models.chat_space import ChatSpace
+    from models.chat_space_document import ChatSpaceDocument
     from models.document import Document
     from models.group import Group
     from models.group_member import GroupMember
-    from models.chat_space import ChatSpace
-    from models.chat_session import ChatSession
-    from models.chat_space_document import ChatSpaceDocument
+    from models.social_account import SocialAccount
 
 
 class UserBase(SQLModel):

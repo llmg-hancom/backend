@@ -1,16 +1,16 @@
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from uuid import UUID
+
+import jwt
+from core.config import settings
+from db.session import get_db
+from errors.auth import UserNotFoundError
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from pwdlib import PasswordHash
-from uuid import UUID
-from datetime import datetime, timedelta, timezone
-from sqlmodel import Session
-import jwt
-
 from models.user import User
-from db.session import get_db
-from core.config import settings
-from errors.auth import UserNotFoundError
+from pwdlib import PasswordHash
+from sqlmodel import Session
 
 hash = PasswordHash.recommended()
 

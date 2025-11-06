@@ -1,5 +1,5 @@
-import unicodedata
 import re
+import unicodedata
 from typing import Set
 
 # RAG/LLM 성능을 저해하는 유니코드 "제어" 및 "포맷" 문자 카테고리

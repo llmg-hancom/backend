@@ -1,9 +1,10 @@
-import boto3
 import os
 import sys
-from dotenv import load_dotenv
-from botocore.exceptions import NoCredentialsError, ClientError
 from pathlib import Path
+
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+from dotenv import load_dotenv
 
 
 def test_s3_upload():
@@ -102,7 +103,7 @@ def test_s3_upload():
             print(f"Boto3 클라이언트 오류가 발생했습니다: {e}")
 
     except Exception as e:
-        print(f"\n--- [알 수 없는 오류] ---")
+        print("\n--- [알 수 없는 오류] ---")
         print(f"예상치 못한 오류가 발생했습니다: {e}")
 
     # finally:

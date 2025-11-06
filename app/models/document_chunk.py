@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import Optional, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import Column, Text, TIMESTAMP, func
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import SQLModel, Field, Relationship
 from pgvector.sqlalchemy import Vector  # pgvector 확장 기능 사용
+from sqlalchemy import TIMESTAMP, Column, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from models.document import Document
