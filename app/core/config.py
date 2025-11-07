@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     # JWT
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_DAYS: int = 7
+    JWT_EXPIRE_HOURS: int = 24
+
+    # Refresh Token
+    REFRESH_TOKEN_EXPIRE_DAY: int = 7
 
     # Google OAuth (optional)
     GOOGLE_CLIENT_ID: str | None = None
