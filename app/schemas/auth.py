@@ -1,8 +1,9 @@
 from typing import Annotated
 
 from fastapi import Form
-from models.user import UserRead
 from pydantic import BaseModel, EmailStr, Field
+
+from models.user import UserRead
 
 
 class LoginRequest:
@@ -29,3 +30,7 @@ class RegisterRequest(BaseModel):
 class LoginWithGoogleCallbackParam(BaseModel):
     code: str = Field(description="Google OAuth2 인증 코드")
     scope: str = Field(description="Google OAuth2 인증 범위")
+
+
+class TokenRefreshRequest(BaseModel):
+    refresh_token: str = Field(description="리프레시 토큰")
