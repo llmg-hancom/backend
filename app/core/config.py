@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Refresh Token
     REFRESH_TOKEN_EXPIRE_DAY: int = 7
-
+    COOKIE_SECURE:bool=True
     # Google OAuth (optional)
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
