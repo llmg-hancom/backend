@@ -4,6 +4,12 @@ class InvalidCridentialError(Exception):
     pass
 
 
+class InvalidTokenError(Exception):
+    """토큰이 유효하지 않거나 만료되었음"""
+
+    pass
+
+
 class UserInactiveError(Exception):
     """사용자 계정이 비활성화 상태"""
 
