@@ -11,7 +11,7 @@ from schemas.auth import LoginWithGoogleCallbackParam
 from services.auth.google import (
     login_with_google_callback as google_callback_service,
 )
-
+from starlette import status
 
 router = APIRouter()
 
@@ -34,22 +34,33 @@ async def login_with_google():
 
 @router.get("/google/callback", summary="구글 계정 로그인 콜백")
 def login_with_google_callback(
+    response: RedirectResponse,  # ⬅️ Response 주입
     param: Annotated[LoginWithGoogleCallbackParam, Depends()],
     db: Annotated[Session, Depends(get_db)],
 ) -> RedirectResponse:
-    """
-    구글로부터 전달받은 코드를 사용하여 사용자의 이름과 이메일을 가져옵니다.
+    # 1. (login_service와 유사하게) 토큰과 유저 정보가 포함된 result 반환
+    login_result = google_callback_service(param.code, db)
 
-    만약 사용자가 이미 가입되어 있다면, 로그인을 진행합니다.
-    그렇지 않다면 Google로부터 받은 이름과 이메일로 User 테이블에 추가합니다.
+    # 2. 🚨 백엔드 응답에 직접 쿠키 설정
+    response.set_cookie(
+        key="access_token",
+        value=login_result.access_token,
+        httponly=True,
+        # ... (login.py와 동일한 옵션) ...
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=login_result.refresh_token,
+        httponly=True,
+        # ... (login.py와 동일한 옵션) ...
+    )
 
-    로그인이 완료되면 프론트엔드의 메인 페이지로 리다이렉트됩니다.
+    # 3. 💡 프론트엔드의 로그인 페이지(/auth/callback)가 아닌,
+    #    로그인 후 페이지(예: /dashboard)로 바로 리다이렉트
+    frontend_url = f"{settings.FRONTEND_URL}/dashboard"
 
-    TODO: 응답을 어떻게 프론트엔드로 전달할지는 아직 결정하지 못함
-    """
-    login = google_callback_service(param.code, db)
-
-    # 프론트엔드로 리다이렉트
-    response = RedirectResponse(url=settings.FRONTEND_URL, status_code=303)
-
-    return response
+    # ❗️ RedirectResponse를 직접 생성하지 않고, response 객체를 사용해야 쿠키가 설정됩니다.
+    #    따라서 RedirectResponse를 반환하는 대신, response의 헤더와 상태 코드를 설정합니다.
+    response.status_code = status.HTTP_303_SEE_OTHER
+    response.headers["Location"] = frontend_url
+    return response # ⬅️ 쿠키가 설정된 response 반환
