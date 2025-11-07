@@ -16,6 +16,7 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: db
+      PYTHONPATH: /app
     ports:
       - "8000:8000"
 
