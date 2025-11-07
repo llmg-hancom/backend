@@ -12,7 +12,7 @@ from sqlmodel import Session
 
 from core.config import settings
 from db.session import get_db
-from errors.auth import UserNotFoundError
+from errors.auth import InvalidCridentialError, InvalidTokenError, UserNotFoundError
 from models.user import User
 
 
@@ -66,8 +66,8 @@ def get_current_user(
         )
         user_id = payload.get("sub")
 
-    except (jwt.InvalidTokenError, ValueError) as e:
-        raise e
+    except jwt.InvalidTokenError:
+        raise InvalidTokenError()
 
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
