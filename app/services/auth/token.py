@@ -14,19 +14,20 @@ class Tokens:
     refresh_token: str
 
 
-def token_regenerate(user_id: int, db: Session) -> Tokens:
+def token_regenerate(user_id: int, token_id: int | None, db: Session) -> Tokens:
     # 액세스 토큰 생성
     access_token = create_jwt(user_id)
 
     # 리프레시 토큰 생성
     refresh_token = create_refresh_token()
 
-    # 기존 리프레시 토큰 전부 revoke
-    _ = db.exec(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user_id)
-        .values(is_revoked=True)
-    )
+    # 사용한 리프레시 토큰을 revoke
+    if token_id is not None:
+        _ = db.exec(
+            update(RefreshToken)
+            .where(RefreshToken.token_id == token_id)
+            .values(is_revoked=True)
+        )
 
     # 생성한 리프레시 토큰을 데이터베이스에 추가
     refresh_token_model = RefreshToken(

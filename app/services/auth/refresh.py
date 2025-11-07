@@ -21,7 +21,10 @@ class RefreshSuccess:
     user: UserRead
 
 def refresh_access_token(refresh_token: str, db: Session):
+    # 사용자로부터 받은 토큰을 해싱
     refresh_token_hash = hash_refresh_token(refresh_token)
+
+    # 토큰이 존재하는지 확인
     refresh_token_model = db.exec(
         select(RefreshToken)
         .where(RefreshToken.token_hash == refresh_token_hash)
@@ -35,8 +38,26 @@ def refresh_access_token(refresh_token: str, db: Session):
     if refresh_token_model.expires_at < datetime.now(timezone.utc):
         raise RefreshTokenExpiredError()
 
+    # 리프레시 토큰이 revoke되었음
+    if refresh_token_model.is_revoked:
+        raise RefreshTokenExpiredError()
+
+    # 토큰 ID가 존재하지 않음
+    #
+    # RefreshToken.token_id는 int | None 타입으로 지정되어 있는데
+    # 데이터베이스에서 조회한 레코드는 항상 기본키를 가지므로
+    # 실제로 운영 환경에서 이 값은 None이 될 수 없음.
+    if refresh_token_model.token_id is None:
+        raise RuntimeError(
+            "데이터베이스에서 조회한 RefreshToken의 token_id가 None입니다.",
+        )
+
     # 토큰 재발급
-    tokens = token_regenerate(refresh_token_model.user_id, db)
+    tokens = token_regenerate(
+        user_id=refresh_token_model.user_id,
+        token_id=refresh_token_model.token_id,
+        db=db
+    )
 
     return RefreshSuccess(
         access_token=tokens.access_token,

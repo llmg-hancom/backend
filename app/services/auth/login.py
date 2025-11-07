@@ -51,7 +51,11 @@ def login(email: str, password: str, db: Session) -> LoginSuccess:
         raise Exception("user name is None")
 
     # 토큰 생성
-    tokens = token_regenerate(user.user_id, db)
+    tokens = token_regenerate(
+        user_id=user.user_id,
+        token_id=None,
+        db=db
+    )
 
     return LoginSuccess(
         token=tokens.access_token,
