@@ -1,6 +1,6 @@
 import os
-import sys
 from pathlib import Path
+import sys
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
@@ -32,7 +32,12 @@ def test_s3_upload():
 
     # --- 3. 설정 값 검증 ---
     if not all(
-        [aws_access_key_id, aws_secret_access_key, aws_s3_bucket_name, aws_region]
+        [
+            aws_access_key_id,
+            aws_secret_access_key,
+            aws_s3_bucket_name,
+            aws_region,
+        ]
     ):
         print("\n--- [오류] ---")
         print("필수 .env 변수 중 일부가 설정되지 않았습니다.")
@@ -103,7 +108,7 @@ def test_s3_upload():
             print(f"Boto3 클라이언트 오류가 발생했습니다: {e}")
 
     except Exception as e:
-        print("\n--- [알 수 없는 오류] ---")
+        print(f"\n--- [알 수 없는 오류] ---")
         print(f"예상치 못한 오류가 발생했습니다: {e}")
 
     # finally:
@@ -111,6 +116,7 @@ def test_s3_upload():
     #     if os.path.exists(local_file_path):
     #         os.remove(local_file_path)
     #         print(f"\n로컬 테스트 파일 삭제: {local_file_path}")
+
 
 if __name__ == "__main__":
     test_s3_upload()

@@ -1,7 +1,10 @@
+from fastapi import FastAPI
+
 from api import router
 from api.exceptions import register_exception_handlers
-from fastapi import FastAPI
+from core.config import settings
 from utils.charset import CharsetMiddleware
+
 
 app = FastAPI()
 

@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import TIMESTAMP, Column, Text, func
+from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Field, Relationship, SQLModel
+
 
 if TYPE_CHECKING:
     from models.chat_space import ChatSpace
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 
 class GroupBase(SQLModel):
     group_name: str = Field(max_length=255, nullable=False)
-    description: Optional[str] = Field(sa_column=Column(Text, nullable=False))
+    description: str | None = Field(default=None)
 
 
 class Group(GroupBase, table=True):
