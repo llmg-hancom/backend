@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+
 from .auth import auth_exception_handler
 from .health import health_exception_handler
 

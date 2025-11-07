@@ -1,9 +1,11 @@
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import EmailStr
 from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Field, Relationship, SQLModel
+
 
 if TYPE_CHECKING:
     from models.chat_session import ChatSession
@@ -12,6 +14,7 @@ if TYPE_CHECKING:
     from models.document import Document
     from models.group import Group
     from models.group_member import GroupMember
+    from models.refresh_token import RefreshToken
     from models.social_account import SocialAccount
 
 
@@ -48,9 +51,6 @@ class User(UserBase, table=True):
         ),
         description="유저 생성 시간",
     )
-    deleted_at: Optional[datetime] = Field(
-        default=None, sa_column=Column(TIMESTAMP(timezone=True), index=True)
-    )
 
     # Relationships
     social_accounts: list["SocialAccount"] = Relationship(
@@ -82,30 +82,6 @@ class User(UserBase, table=True):
         sa_relationship_kwargs={"foreign_keys": "[ChatSpaceDocument.added_by_user_id]"},
     )
     chat_sessions: list["ChatSession"] = Relationship(back_populates="user")
-
-
-class RefreshToken(SQLModel, table=True):
-    """1.3. RefreshTokens (OAuth2용 새로고침 토큰)"""
-
-    __tablename__ = "refresh_tokens"
-
-    token_id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.user_id", nullable=False)
-    token_hash: str = Field(
-        max_length=255, sa_column_kwargs={"unique": True}, nullable=False
-    )
-    expires_at: datetime = Field(
-        sa_column=Column(TIMESTAMP(timezone=True), nullable=False)
-    )
-    created_at: datetime = Field(
-        sa_column=Column(
-            TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
-        )
-    )
-    is_revoked: bool = Field(default=False)
-
-    # Relationship
-    user: User = Relationship(back_populates="refresh_tokens")
 
 
 class UserRead(UserBase):

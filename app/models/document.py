@@ -6,6 +6,7 @@ from sqlalchemy import TIMESTAMP, Column, func
 from sqlalchemy import Enum as SaEnum
 from sqlmodel import Field, Relationship, SQLModel
 
+
 if TYPE_CHECKING:
     from models.chat_space_document import ChatSpaceDocument
     from models.document_chunk import DocumentChunk

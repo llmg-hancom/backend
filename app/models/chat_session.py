@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Field, ForeignKey, Relationship, SQLModel
 
+
 if TYPE_CHECKING:
     from models.chat_message import ChatMessage
     from models.chat_space import ChatSpace

@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 
+from sqlmodel import Session, select
+
 from errors.auth import EmailAlreadyExistError
 from models.user import User, UserRead
-from sqlmodel import Session, select
 from utils.auth import hash_password
 
 

@@ -6,6 +6,7 @@ from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Enum as SaEnum
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
+
 if TYPE_CHECKING:
     from models.group import Group
     from models.user import User

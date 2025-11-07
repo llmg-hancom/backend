@@ -1,9 +1,12 @@
 from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
+
 from db.session import get_db
 from errors.health import NotReadyError
 from schemas.health import HealthResponse
+
 
 router = APIRouter(prefix="/health", tags=["Health Check"])
 
