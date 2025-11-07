@@ -3,22 +3,32 @@ FROM python:3.13-alpine
 RUN addgroup --system --gid 1001 backend
 RUN adduser --system --uid 1001 backend
 
+ENV LANG=C.UTF-8
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+ENV CLASSPATH="/app/resources/*"
+ENV LD_LIBRARY_PATH="${JAVA_HOME}/lib/server:${LD_LIBRARY_PATH}"
+
 WORKDIR /app
 COPY pyproject.toml .
 COPY uv.lock .
 
-RUN apk update --no-cache
-RUN apk upgrade --no-cache
-RUN apk add --no-cache openjdk17-jdk uv build-base
-RUN uv venv
-RUN uv pip install .
-
-RUN apk del build-base
+RUN apk update --no-cache && \
+    apk upgrade --no-cache && \
+    apk add --no-cache openjdk17-jdk uv libstdc++ \
+    && \
+    apk add --no-cache --virtual .build-deps build-base \
+    && \
+    uv venv && \
+    uv pip install . &&\
+    apk del .build-deps
 
 COPY ./app /app
+# 아래 줄은 실제 배포할땐 제거/주석처리
+COPY ./test /app/test
 
 EXPOSE 8000
 
-USER backend
+USER "1001:1001"
 
 ENTRYPOINT [ ".venv/bin/fastapi", "run" ]

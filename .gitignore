@@ -12,10 +12,12 @@ Thumbs.db
 
 # Virtual environments
 .venv
+.idea
 
 # environment variables
 .env*
 !.env.example
+
 
 # mise (https://mise.jdx.dev) config file
 mise.local.toml
