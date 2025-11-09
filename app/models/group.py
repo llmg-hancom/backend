@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import TIMESTAMP, Column, func
@@ -22,6 +22,7 @@ class Group(GroupBase, table=True):
     group_name: str = Field(max_length=255, nullable=False)
     created_by_user_id: int = Field(foreign_key="users.user_id", nullable=False)
     created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
         )
