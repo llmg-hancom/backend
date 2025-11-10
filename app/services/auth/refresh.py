@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlmodel import Session, select
 
@@ -9,8 +9,6 @@ from models.refresh_token import RefreshToken
 from models.user import UserRead
 from services.auth.token import token_regenerate
 from utils.auth import (
-    create_jwt,
-    create_refresh_token,
     hash_refresh_token,
 )
 
@@ -21,14 +19,14 @@ class RefreshSuccess:
     refresh_token: str
     user: UserRead
 
+
 def refresh_access_token(refresh_token: str, db: Session):
     # 사용자로부터 받은 토큰을 해싱
     refresh_token_hash = hash_refresh_token(refresh_token)
 
     # 토큰이 존재하는지 확인
     refresh_token_model = db.exec(
-        select(RefreshToken)
-        .where(RefreshToken.token_hash == refresh_token_hash)
+        select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash)
     ).one_or_none()
 
     # 리프레시 토큰이 존재하지 않음
@@ -55,7 +53,7 @@ def refresh_access_token(refresh_token: str, db: Session):
     tokens = token_regenerate(
         user_id=refresh_token_model.user_id,
         token_id=refresh_token_model.token_id,
-        db=db
+        db=db,
     )
 
     return RefreshSuccess(
