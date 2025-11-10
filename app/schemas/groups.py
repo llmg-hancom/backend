@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from pydantic import EmailStr
+
 from models.group import GroupBase
 from models.user import UserRead
 
@@ -15,3 +17,7 @@ class GroupRead(GroupBase):
     created_by_user: UserRead
 
     members: list[UserRead]
+
+
+class GroupUserInvite(GroupBase):
+    email: EmailStr
