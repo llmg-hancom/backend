@@ -6,6 +6,7 @@ import requests
 from sqlmodel import Session, select
 
 from core.config import settings
+from errors.general import IllegalStateError
 from models.social_account import SocialAccount, SocialAccountProvider
 from models.user import User, UserRead
 from utils.auth import create_jwt, create_refresh_token
@@ -49,7 +50,7 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
         # 데이터베이스에 입력되면 반드시 primary key를 갖기 때문에
         # user_id가 None이 아니어야 한다.
         if user.user_id is None:
-            raise RuntimeError("데이터베이스에서 검색한 User의 user_id가 None입니다.")
+            raise IllegalStateError()
 
         # social_account를 생성한다.
         social_account = SocialAccount(
