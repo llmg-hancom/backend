@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import Session, select
 
 from errors.auth import RefreshTokenExpiredError, RefreshTokenNotFoundError
+from errors.general import IllegalStateError
 from models.refresh_token import RefreshToken
 from models.user import UserRead
 from services.auth.token import token_regenerate
@@ -48,9 +49,7 @@ def refresh_access_token(refresh_token: str, db: Session):
     # 데이터베이스에서 조회한 레코드는 항상 기본키를 가지므로
     # 실제로 운영 환경에서 이 값은 None이 될 수 없음.
     if refresh_token_model.token_id is None:
-        raise RuntimeError(
-            "데이터베이스에서 조회한 RefreshToken의 token_id가 None입니다.",
-        )
+        raise IllegalStateError()
 
     # 토큰 재발급
     tokens = token_regenerate(
