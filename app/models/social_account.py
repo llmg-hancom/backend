@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
@@ -37,6 +37,7 @@ class SocialAccount(SocialAccountBase, table=True):
     )
     provider_id: str = Field(max_length=255, nullable=False)
     created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
         )
