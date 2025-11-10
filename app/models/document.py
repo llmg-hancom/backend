@@ -23,6 +23,7 @@ class DocumentStatus(str, Enum):
 class DocumentScope(str, Enum):
     private = "private"
     public_law = "public_law"
+    precedent = "precedent"
 
 
 class DocumentBase(SQLModel):
