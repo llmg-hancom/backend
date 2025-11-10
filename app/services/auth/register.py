@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from pydantic import EmailStr
 from sqlmodel import Session, select
 
 from errors.auth import EmailAlreadyExistError
@@ -12,7 +13,7 @@ class RegisterSuccess:
     user: UserRead
 
 
-def register(email: str, password: str, nickname: str, db: Session) -> RegisterSuccess:
+def register(email: EmailStr, password: str, nickname: str, db: Session) -> RegisterSuccess:
     # 중복 확인
     existing_user = db.exec(select(User).where(User.email == email)).first()
 

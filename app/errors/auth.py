@@ -1,6 +1,6 @@
 from fastapi import status
 
-from .base import BackendBaseError
+from base import BackendBaseError
 
 
 class InvalidCridentialError(BackendBaseError):
@@ -9,7 +9,7 @@ class InvalidCridentialError(BackendBaseError):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            error_code="INVALID_CRIDENTIAL",
+            error_code="INVALID_CREDENTIAL",
             message="아이디 또는 비밀번호가 일치하지 않습니다."
         )
 

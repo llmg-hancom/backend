@@ -1,8 +1,7 @@
 from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Response
 from sqlmodel import Session
 from starlette import status
 
@@ -36,10 +35,10 @@ async def login_with_google():
 
 @router.get("/google/callback", summary="구글 계정 로그인 콜백")
 def login_with_google_callback(
-    response: RedirectResponse,  # ⬅️ Response 주입
+    response: Response,  # ⬅️ Response 주입
     param: Annotated[LoginWithGoogleCallbackParam, Depends()],
     db: Annotated[Session, Depends(get_db)],
-) -> RedirectResponse:
+) -> Response:
     # 액세스 토큰과 리프레시 토큰 발급
     login_result = google_callback_service(param.code, db)
 
