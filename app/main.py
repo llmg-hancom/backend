@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 
 from api import router
-from api.exceptions import register_exception_handlers
 from core.config import settings
+from errors.base import BackendBaseError
 from utils.charset import CharsetMiddleware
 
 
@@ -18,4 +19,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-register_exception_handlers(app)
+
+@app.exception_handler(BackendBaseError)
+def backend_base_error_handler(_req: Request, e: BackendBaseError):
+    return JSONResponse(
+        status_code=e.status_code,
+        content={
+            "status_code": e.status_code,
+            "error_code": e.error_code,
+            "message": e.message
+        }
+    )
+
+@app.exception_handler(Exception)
+def exception_handler(_req: Request, e: Exception):
+    raise BackendBaseError(message=str(e))

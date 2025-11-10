@@ -6,14 +6,16 @@ import requests
 from sqlmodel import Session, select
 
 from core.config import settings
+from errors.general import IllegalStateError
 from models.social_account import SocialAccount, SocialAccountProvider
 from models.user import User, UserRead
-from utils.auth import create_jwt
+from utils.auth import create_jwt, create_refresh_token
 
 
 @dataclass
 class LoginSuccess:
     token: str
+    refresh_token: str
     token_type: str
     user: UserRead
 
@@ -35,18 +37,28 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
         # user가 없으면 회원가입을 진행한다.
         if user is None:
             user = User(
-                email=user_info.email, nickname=user_info.name, hashed_password=None
+                email=user_info.email,
+                nickname=user_info.name,
+                password_hash=None
             )
+
             db.add(user)
             db.commit()
             db.refresh(user)
+
+        # model에서 정의한 user_id의 타입은 int | None이지만
+        # 데이터베이스에 입력되면 반드시 primary key를 갖기 때문에
+        # user_id가 None이 아니어야 한다.
+        if user.user_id is None:
+            raise IllegalStateError()
 
         # social_account를 생성한다.
         social_account = SocialAccount(
             provider=SocialAccountProvider.GOOGLE,
             provider_id=user_info.id,
-            user_id=user.id,
+            user_id=user.user_id,
         )
+
         db.add(social_account)
         db.commit()
         db.refresh(social_account)
@@ -54,6 +66,7 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
     # user를 반환한다.
     return LoginSuccess(
         token=create_jwt(social_account.user_id),
+        refresh_token=create_refresh_token(),
         token_type="bearer",
         user=UserRead.model_validate(social_account.user),
     )
