@@ -1,5 +1,6 @@
 from sqlmodel import Session
 
+from errors.general import IllegalStateError
 from models.group import Group
 from models.group_member import GroupMember, UserRole
 from models.user import User, UserRead
@@ -12,7 +13,7 @@ def create_group(
     body: GroupCreate
 )-> GroupRead:
     if request_user.user_id is None:
-        raise RuntimeError("데이터베이스에서 불러온 User의 user_id가 None입니다.")
+        raise IllegalStateError()
 
     group = Group(
         group_name=body.group_name,
@@ -26,7 +27,7 @@ def create_group(
     # 그룹이 생성되면서 primary key가 생성되므로
     # group_id가 None이 아니어야 함
     if group.group_id is None:
-        raise RuntimeError("생성된 Group의 group_id가 None입니다.")
+        raise IllegalStateError()
 
     print("GroupMember 생성")
     user_group_rel = GroupMember(

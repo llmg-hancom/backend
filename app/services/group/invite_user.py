@@ -1,5 +1,6 @@
 from sqlmodel import Session, select
 
+from errors.general import IllegalStateError
 from errors.groups import (
     InviteeIsAlreadyInGroupError,
     InviteeIsNotExistError,
@@ -18,10 +19,10 @@ def invite_user(
 ) -> None:
     # 타입 체크용
     if inviter.user_id is None:
-        raise RuntimeError("데이터베이스에서 불러온 User의 user_id가 None임")
+        raise IllegalStateError()
 
     if group.group_id is None:
-        raise RuntimeError("데이터베이스에서 불러온 Group의 group_id가 None임")
+        raise IllegalStateError()
 
     # 초대받은 사용자 검색
     invitee = session.exec(select(User).where(User.email == body.email)).one_or_none()
@@ -36,7 +37,7 @@ def invite_user(
 
     # 타입 체크용
     if invitee.user_id is None:
-        raise RuntimeError("데이터베이스에서 불러온 User의 user_id가 None임")
+        raise IllegalStateError()
 
     user_group_rel = GroupMember(user_id=invitee.user_id, group_id=group.group_id)
     session.add(user_group_rel)

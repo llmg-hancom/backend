@@ -4,6 +4,7 @@ from fastapi import Depends, Path
 from sqlmodel import Session, select
 
 from db.session import get_db
+from errors.general import IllegalStateError
 from errors.groups import (
     GroupNotExistError,
     UserIsNotGroupAdminError,
@@ -32,7 +33,7 @@ def require_group_member(
 ) -> Group:
     # 타입 체크용
     if user.user_id is None:
-        raise RuntimeError("데이터베이스에서 가져온 User의 user_id가 None임.")
+        raise IllegalStateError()
 
     member_ids = [g.user_id for g in group.members]
 
@@ -48,7 +49,7 @@ def require_group_admin(
 ) -> Group:
     # 타입 체크용
     if user.user_id is None:
-        raise RuntimeError("데이터베이스에서 가져온 User의 user_id가 None임.")
+        raise IllegalStateError()
 
     admin_ids = [g.user_id for g in group.members if g.role == "admin"]
 
