@@ -4,8 +4,6 @@ from fastapi import APIRouter, Body, Depends
 from sqlmodel import Session
 
 from db.session import get_db
-from models.group import Group
-from models.group_member import GroupMember
 from models.user import User
 from schemas.groups import GroupCreate, GroupRead
 from services.group.create_group import create_group as create_group_service
