@@ -36,7 +36,7 @@ class IllegalStateError(BackendBaseError):
 
     def __init__(self):
         super().__init__(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             error_code="ILLEGAL_STATE",
             message="서버 내부 문제입니다."
         )
