@@ -1,13 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, status
+from fastapi import APIRouter, Body, Depends, status
 from sqlmodel import Session
 
 from db.session import get_db
+from models.group import Group
 from models.user import User
 from schemas.groups import GroupUserInviteRequest
 from services.group.invite_user import invite_user as invite_service
 from utils.auth import get_current_user
+from utils.group import require_group_admin
 
 
 router = APIRouter()
@@ -40,12 +42,12 @@ router = APIRouter()
 def invite(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
-    group_id: Annotated[int, Path()],
+    group: Annotated[Group, Depends(require_group_admin)],
     body: Annotated[GroupUserInviteRequest, Body()]
 ) -> None:
     invite_service(
         inviter=user,
         session=db,
-        group_id=group_id,
+        group=group,
         body=body
     )
