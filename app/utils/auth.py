@@ -4,11 +4,11 @@ import secrets
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, Request, Response
+from fastapi.security import APIKeyCookie
 import jwt
 from pwdlib import PasswordHash
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from core.config import settings
 from db.session import get_db
@@ -34,6 +34,7 @@ def create_jwt(user_id: int) -> str:
     now = datetime.now(tz=timezone.utc)
 
     payload = {
+        # subject는 string 타입이어야 함
         "sub": str(user_id),
         "iat": now,
         "exp": now + timedelta(hours=settings.JWT_EXPIRE_HOURS),
@@ -53,23 +54,51 @@ def hash_refresh_token(refresh_token: str) -> str:
     return sha3_256(refresh_token.encode()).hexdigest()
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/token")
+def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -> None:
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=settings.ENVIRONMENT == "production",
+        secure=settings.ENVIRONMENT == "production",
+        samesite="lax",
+        path="/",
+        max_age=settings.JWT_EXPIRE_HOURS * 60 * 60,
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=settings.ENVIRONMENT == "production",
+        secure=settings.ENVIRONMENT == "production",
+        samesite="lax",
+        path="/v1/auth/refresh",    # <- 해당 엔드포인트에서만 접근 가능
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAY * 24 * 60 * 60,
+    )
 
 
 def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    token: Annotated[str, Depends(APIKeyCookie(name="access_token"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
     try:
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
-        user_id = payload.get("sub")
+
+        # subject는 string 타입이므로 검색 시 원래 타입인 int로 변환해야 함
+        user_id = int(payload.get("sub"))
 
     except jwt.InvalidTokenError:
         raise InvalidTokenError()
 
-    user = db.query(User).filter(User.user_id == user_id).first()
+    # int 타입 변환 실패한 경우
+    except ValueError:
+        raise InvalidTokenError()
+
+    user = db \
+        .exec(select(User).where(User.user_id == user_id)) \
+        .first()
+
     if not user:
         raise UserNotFoundError()
 
