@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 import jpype
@@ -7,12 +8,12 @@ import jpype.imports
 
 from db.session import get_db
 
-# from workers.celery_app import celery_app
 # from models.document import Documents
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
 from rag.cleaning import clean_common_noise, clean_rag_text
 from services.document.storage_service import storage_service
+# from workers.celery_app import celery_app
 
 # (Chunking 로직은 별도 파일로 분리하거나 여기에 구현해야 함)
 # from rag.chunking import get_chunks_from_structured_data
@@ -123,10 +124,32 @@ def _convert_hwp_to_hwpx(local_hwp_path: Path) -> Path:
     try:
         local_hwpx_path = local_hwp_path.with_suffix(".hwpx")
         logger.info(f".hwp를 .hwpx로 변환 중: {local_hwpx_path}")
-        fromFile = HWPXReader.fromFile(str(local_hwp_path))
-        toFile = Hwp2Hwpx.toHWPX(fromFile)
+        fromFile: HWPFile = HWPXReader.fromFile(str(local_hwp_path))
+        toFile: HWPXFile = Hwp2Hwpx.toHWPX(fromFile)
         HWPXWriter.toFilepath(toFile, str(local_hwpx_path))
         return local_hwpx_path
     except Exception as e:
         logger.error(f"{local_hwp_path}를 .hwpx로 변환 실패: {e}")
         raise e
+
+
+def _cleanup_temp_dir(temp_dir: Path):
+    logger.info(f"임시 디렉토리 {temp_dir} 정리 중...")
+    if temp_dir.exists():
+        shutil.rmtree(str(temp_dir))
+
+
+# @celery_app.task(name="process_document_task")
+# def process_document(doc_id: int):
+#     """
+#     [WBS 3.2, 3.4]
+#     문서를 처리하여 RAG DB (pgvector)에 저장하는 메인 태스크
+#     """
+#     logger.info(f"[TASK_START] 문서 처리 시작: (doc_id: {doc_id})")
+#
+#     # [핵심] 결과 저장을 위해 DB 세션 시작
+#     with get_db_session() as db:
+#         doc = db.get(Document, doc_id)
+#         if not doc:
+#             logger.error(f"문서를 찾을 수 없음: (doc_id: {doc_id})")
+#             return

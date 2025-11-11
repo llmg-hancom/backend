@@ -3,7 +3,7 @@ from fastapi import status
 from errors.base import BackendBaseError
 
 
-class InvalidCridentialError(BackendBaseError):
+class InvalidCredentialError(BackendBaseError):
     """아이디 또는 비밀번호가 일치하지 않음"""
 
     def __init__(self):
