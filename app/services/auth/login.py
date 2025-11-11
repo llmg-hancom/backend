@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pydantic import EmailStr
 from sqlmodel import Session, select
 
-from errors.auth import InvalidCridentialError, UserInactiveError
+from errors.auth import InvalidCredentialError, UserInactiveError
 from models.user import User, UserRead
 from services.auth.token import token_regenerate
 from utils.auth import (
@@ -25,11 +25,11 @@ def login(email: EmailStr, password: str, db: Session) -> LoginSuccess:
 
     # 유저가 존재하지 않는 경우
     if user is None:
-        raise InvalidCridentialError()
+        raise InvalidCredentialError()
 
     # 유저의 패스워드가 없는 경우 (소셜 로그인만 가능한 상태)
     if user.password_hash is None:
-        raise InvalidCridentialError()
+        raise InvalidCredentialError()
 
     # 비활성화된 유저인 경우
     if not user.is_active:
@@ -37,7 +37,7 @@ def login(email: EmailStr, password: str, db: Session) -> LoginSuccess:
 
     # 비밀번호가 틀린 경우
     if not verify_password(password, user.password_hash):
-        raise InvalidCridentialError()
+        raise InvalidCredentialError()
 
     # user_id가 None일 경우
     if user.user_id is None:

@@ -3,14 +3,14 @@ from fastapi.responses import JSONResponse
 
 from errors.auth import (
     EmailAlreadyExistError,
-    InvalidCridentialError,
+    InvalidCredentialError,
     InvalidTokenError,
     UserInactiveError,
     UserNotFoundError,
 )
 
 
-def invalid_credential_error(_req: Request, _e: InvalidCridentialError):
+def invalid_credential_error(_req: Request, _e: InvalidCredentialError):
     return JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
         content={"detail": "아이디 또는 비밀번호가 잘못되었습니다."},
@@ -46,7 +46,7 @@ def email_already_exist_error(_req: Request, _e: EmailAlreadyExistError):
 
 
 def auth_exception_handler(app: FastAPI):
-    app.add_exception_handler(InvalidCridentialError, invalid_credential_error)
+    app.add_exception_handler(InvalidCredentialError, invalid_credential_error)
     app.add_exception_handler(InvalidTokenError, invalid_token_error)
     app.add_exception_handler(UserInactiveError, user_inactive_error)
     app.add_exception_handler(UserNotFoundError, user_not_found_error)
