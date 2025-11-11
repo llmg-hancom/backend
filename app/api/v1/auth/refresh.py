@@ -3,10 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from sqlmodel import Session
 
-from core.config import settings
 from db.session import get_db
 from models.user import UserRead
-from schemas.auth import LoginResponse, TokenRefreshRequest
 from services.auth.refresh import refresh_access_token as refresh_service
 from utils.auth import set_auth_cookie
 

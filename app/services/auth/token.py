@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlmodel import Session, update
+from sqlmodel import Session, update, col
 
 from core.config import settings
 from models.refresh_token import RefreshToken
@@ -23,17 +23,18 @@ def token_regenerate(user_id: int, token_id: int | None, db: Session) -> Tokens:
 
     # 사용한 리프레시 토큰을 revoke
     if token_id is not None:
-        _ = db.exec(
+        db.exec(
             update(RefreshToken)
-            .where(RefreshToken.token_id == token_id)
-            .values(is_revoked=True)
+            .where(col(RefreshToken.token_id) == token_id)
+            .values({"is_revoked": True})
         )
 
     # 생성한 리프레시 토큰을 데이터베이스에 추가
     refresh_token_model = RefreshToken(
         user_id=user_id,
         token_hash=hash_refresh_token(refresh_token),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAY)
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAY),
     )
 
     db.add(refresh_token_model)
