@@ -10,7 +10,7 @@ class UnimplementedError(BackendBaseError):
         super().__init__(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             error_code="UNIMPLEMENTED",
-            message="아직 구현되지 않았습니다."
+            message="아직 구현되지 않았습니다.",
         )
 
 
@@ -38,5 +38,5 @@ class IllegalStateError(BackendBaseError):
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             error_code="ILLEGAL_STATE",
-            message="서버 내부 문제입니다."
+            message="서버 내부 문제입니다.",
         )

@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, Response
 from sqlmodel import Session
 
 from db.session import get_db
+from errors.auth import InvalidTokenError
 from models.user import UserRead
 from services.auth.refresh import refresh_access_token as refresh_service
 from utils.auth import set_auth_cookie
@@ -14,12 +15,12 @@ router = APIRouter()
 
 @router.post("/refresh")
 def refresh_access_token(
-    response: Response, # ⬅️ Response 주입
+    response: Response,  # ⬅️ Response 주입
     db: Annotated[Session, Depends(get_db)],
-    refresh_token: Annotated[str | None, Cookie()], # ⬅️ 쿠키에서 refresh_token 읽기
+    refresh_token: Annotated[str | None, Cookie()],  # ⬅️ 쿠키에서 refresh_token 읽기
 ) -> UserRead:
     if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token not found")
+        raise InvalidTokenError()
     result = refresh_service(refresh_token, db)
 
     # 인증 쿠키 설정

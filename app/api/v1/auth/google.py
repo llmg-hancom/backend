@@ -1,9 +1,8 @@
 from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, status
 from sqlmodel import Session
-from starlette import status
 
 from core.config import settings
 from db.session import get_db

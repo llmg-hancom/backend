@@ -39,7 +39,7 @@ class GroupMember(GroupMemberBase, table=True):
         default_factory=lambda: datetime.now(tz=timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
-        )
+        ),
     )
 
     # Relationships

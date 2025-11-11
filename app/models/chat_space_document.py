@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class ChatSpaceDocumentBase(SQLModel):
     space_id: int = Field(foreign_key="chat_spaces.space_id", nullable=False)
-    document_id: int = Field(foreign_key="documents.document_id", nullable=False)
+    document_id: int = Field(foreign_key="document.document_id", nullable=False)
 
     __table_args__ = (
         UniqueConstraint(
@@ -38,6 +38,6 @@ class ChatSpaceDocument(ChatSpaceDocumentBase, table=True):
     )
 
     # Relationships
-    space: "ChatSpace" = Relationship(back_populates="documents")
+    space: "ChatSpace" = Relationship(back_populates="document")
     document: "Document" = Relationship(back_populates="chat_space_links")
     added_by_user: "User" = Relationship(back_populates="chat_space_documents_added")

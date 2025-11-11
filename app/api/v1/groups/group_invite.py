@@ -14,13 +14,14 @@ from utils.group import require_group_admin
 
 router = APIRouter()
 
+
 @router.post(
     path="/{group_id}/members",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="그룹에 유저 초대",
     responses={
-        204: {},
-        400: {
+        status.HTTP_204_NO_CONTENT: {},
+        status.HTTP_400_BAD_REQUEST: {
             "description": "유저가 이미 있거나 가입시키려는 유저가 존재하지 않는 경우",
             "content": {
                 "application/json": {
@@ -31,23 +32,20 @@ router = APIRouter()
                         },
                         "user_already_in_group": {
                             "summary": "이미 그룹에 속한 유저",
-                            "value": {"detail": "초대하려는 유저는 이미 그룹에 있습니다."},
+                            "value": {
+                                "detail": "초대하려는 유저는 이미 그룹에 있습니다."
+                            },
                         },
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 def invite(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     group: Annotated[Group, Depends(require_group_admin)],
-    body: Annotated[GroupUserInviteRequest, Body()]
+    body: Annotated[GroupUserInviteRequest, Body()],
 ) -> None:
-    invite_service(
-        inviter=user,
-        session=db,
-        group=group,
-        body=body
-    )
+    invite_service(inviter=user, session=db, group=group, body=body)

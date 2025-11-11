@@ -13,12 +13,8 @@ def logout(response: Response) -> None:
     HttpOnly 쿠키(access_token, refresh_token)를 삭제합니다.
     """
 
-    set_auth_cookie(
-        response=response,
-        access_token="",
-        refresh_token=""
-    )
+    set_auth_cookie(response=response, access_token="", refresh_token="")
 
-    response.status_code = 204
+    response.status_code = status.HTTP_204_NO_CONTENT
 
     return None

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from .auth import auth_exception_handler
+from .document import document_exception_handler
 from .general import general_exception_handler
 from .group import group_exception_handler
 from .health import health_exception_handler
@@ -11,3 +12,4 @@ def register_exception_handlers(app: FastAPI):
     general_exception_handler(app)
     health_exception_handler(app)
     group_exception_handler(app)
+    document_exception_handler(app)

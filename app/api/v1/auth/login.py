@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, status
 from sqlmodel import Session
 
 from db.session import get_db
@@ -17,7 +17,7 @@ router = APIRouter()
     "/token",
     summary="로그인",
     responses={
-        401: {
+        status.HTTP_401_UNAUTHORIZED: {
             "description": "이메일 또는 비밀번호가 일치하지 않거나 계정이 비활성화된 경우",
             "content": {
                 "application/json": {

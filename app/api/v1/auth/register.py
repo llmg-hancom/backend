@@ -1,8 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, status
 from sqlmodel import Session
-from starlette import status
 
 from db.session import get_db
 from models.user import UserRead
@@ -17,7 +16,7 @@ router = APIRouter()
     "/register",
     summary="회원가입",
     responses={
-        400: {
+        status.HTTP_400_BAD_REQUEST: {
             "description": "이미 가입된 이메일인 경우",
             "content": {
                 "application/json": {"example": {"detail": "이미 가입된 이메일입니다."}}
