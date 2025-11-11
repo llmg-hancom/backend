@@ -24,11 +24,11 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
 
-    # AWS S3 설정 로드
+    # AWS document 설정 로드
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str
     AWS_S3_BUCKET_NAME: str
-    AWS_REGION: str
+    AWS_REGION: str = "ap-northeast-2"
 
     # JWT
     JWT_SECRET_KEY: str
@@ -37,7 +37,6 @@ class Settings(BaseSettings):
 
     # Refresh Token
     REFRESH_TOKEN_EXPIRE_DAY: int = 7
-    COOKIE_SECURE:bool=True
 
     # Google OAuth (optional)
     GOOGLE_CLIENT_ID: str | None = None

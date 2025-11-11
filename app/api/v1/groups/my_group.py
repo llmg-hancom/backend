@@ -9,6 +9,7 @@ from utils.auth import get_current_user
 
 router = APIRouter()
 
+
 @router.get("/")
 def my_group(
     user: Annotated[User, Depends(get_current_user)],

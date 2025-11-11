@@ -1,4 +1,3 @@
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import Session, SQLModel, create_engine, text
 
 from core.config import settings
@@ -27,11 +26,11 @@ with Session(engine) as session:
     # 테이블 생성 (SQLModel.metadata.create_all(engine)) 이후
     session.exec(
         text("""
-        CREATE INDEX IF NOT EXISTS hnsw_embedding_idx
-        ON document_chunks
-        USING hnsw (embedding vector_l2_ops)
-        WITH (m = 16, ef_construction = 64);
-    """)
+             CREATE INDEX IF NOT EXISTS hnsw_embedding_idx
+                 ON document_chunks
+                     USING hnsw (embedding vector_l2_ops)
+                 WITH (m = 16, ef_construction = 64);
+             """)
     )
     session.commit()
 

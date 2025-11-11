@@ -27,14 +27,18 @@ class DocumentScope(str, Enum):
 
 
 class DocumentBase(SQLModel):
+    document_id: Optional[int] = Field(default=None, primary_key=True)
     file_name: str = Field(max_length=255, nullable=False)
+    status: DocumentStatus = Field(
+        default=DocumentStatus.pending,
+        sa_column=Column(SaEnum(DocumentStatus), index=True, nullable=False),
+    )
 
 
 class Document(DocumentBase, table=True):
     """2.3. Documents (문서 메타데이터)"""
 
-    __tablename__ = "documents"
-    document_id: Optional[int] = Field(default=None, primary_key=True)
+    __tablename__ = "document"
     file_path: Optional[str] = Field(
         default=None, max_length=1024, sa_column_kwargs={"unique": True}
     )
@@ -45,10 +49,6 @@ class Document(DocumentBase, table=True):
     document_scope: DocumentScope = Field(
         default=DocumentScope.private,
         sa_column=Column(SaEnum(DocumentScope), nullable=False),
-    )
-    status: DocumentStatus = Field(
-        default=DocumentStatus.pending,
-        sa_column=Column(SaEnum(DocumentStatus), index=True, nullable=False),
     )
     created_at: datetime = Field(
         sa_column=Column(

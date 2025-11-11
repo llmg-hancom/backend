@@ -10,5 +10,5 @@ class NotReadyError(BackendBaseError):
         super().__init__(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             error_code="NOT_READY",
-            message="서버가 아직 요청을 받을 준비가 되지 않았습니다."
+            message="서버가 아직 요청을 받을 준비가 되지 않았습니다.",
         )
