@@ -3,7 +3,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response
 from sqlmodel import Session
 
-from core.config import settings
 from db.session import get_db
 from models.user import UserRead
 from schemas.auth import LoginRequest

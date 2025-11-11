@@ -2,17 +2,15 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha3_256
 import secrets
 from typing import Annotated
-from uuid import UUID
 
-from fastapi import Depends, Request, Response
+from fastapi import Depends, Response
 from fastapi.security import APIKeyCookie
 import jwt
 from pwdlib import PasswordHash
 from sqlmodel import Session, select
-
 from core.config import settings
 from db.session import get_db
-from errors.auth import InvalidCridentialError, InvalidTokenError, UserNotFoundError
+from errors.auth import InvalidTokenError, UserNotFoundError
 from models.user import User
 
 
@@ -58,7 +56,7 @@ def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -
     response.set_cookie(
         key="access_token",
         value=access_token,
-        httponly=settings.ENVIRONMENT == "production",
+        httponly=True,
         secure=settings.ENVIRONMENT == "production",
         samesite="lax",
         path="/",
@@ -68,10 +66,10 @@ def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
-        httponly=settings.ENVIRONMENT == "production",
+        httponly=True,
         secure=settings.ENVIRONMENT == "production",
         samesite="lax",
-        path="/v1/auth/refresh",    # <- 해당 엔드포인트에서만 접근 가능
+        path="/v1/auth/refresh",  # <- 해당 엔드포인트에서만 접근 가능
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAY * 24 * 60 * 60,
     )
 
@@ -95,9 +93,7 @@ def get_current_user(
     except ValueError:
         raise InvalidTokenError()
 
-    user = db \
-        .exec(select(User).where(User.user_id == user_id)) \
-        .first()
+    user = db.exec(select(User).where(User.user_id == user_id)).first()
 
     if not user:
         raise UserNotFoundError()

@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import EmailStr
@@ -51,6 +50,11 @@ class User(UserBase, table=True):
             nullable=False,
         ),
         description="유저 생성 시간",
+    )
+    deleted_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), index=True),
+        description="유저 탈퇴 시간",
     )
 
     # Relationships
