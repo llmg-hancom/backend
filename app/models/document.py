@@ -38,7 +38,7 @@ class DocumentBase(SQLModel):
 class Document(DocumentBase, table=True):
     """2.3. Documents (문서 메타데이터)"""
 
-    __tablename__ = "document"
+    __tablename__ = "documents"
     file_path: Optional[str] = Field(
         default=None, max_length=1024, sa_column_kwargs={"unique": True}
     )

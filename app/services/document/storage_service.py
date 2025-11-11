@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from fastapi import UploadFile
@@ -10,13 +12,14 @@ from errors.document import FileStorageError
 
 logger = logging.getLogger(__name__)
 
+
 class StorageService:
     def __init__(self):
         self.s3_client = boto3.client(
             "s3",
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION
+            region_name=settings.AWS_REGION,
         )
         self.bucket_name = settings.AWS_S3_BUCKET_NAME
 
@@ -32,7 +35,9 @@ class StorageService:
                 file.file,
                 self.bucket_name,
                 file_key,
-                ExtraArgs={"ContentType": file.content_type} # MIME 타입 메타데이터 저장
+                ExtraArgs={
+                    "ContentType": file.content_type
+                },  # MIME 타입 메타데이터 저장
             )
             s3_path = f"s3://{self.bucket_name}/{file_key}"
             logger.info(f"document 업로드 성공: {s3_path}")
@@ -42,8 +47,31 @@ class StorageService:
             logger.error(f"document 업로드 실패: {e}")
             raise FileStorageError()
         except Exception as e:
-             logger.error(f"알 수 없는 업로드 오류: {e}")
-             raise Exception()
+            logger.error(f"알 수 없는 업로드 오류: {e}")
+            raise Exception()
+
+    def download_file(self, file_uri: str, file_dir: Path) -> Path:
+        """
+        파일을 S3로부터 다운로드하고, 로컬 임시 파일 경로를 반환합니다.
+        file_uri: s3:// 경로
+        file_dir: 로컬 임시 디렉토리 경로
+        """
+        s3_path = S3Path.from_uri(file_uri)
+        file_path = file_dir / s3_path.name
+        # 파일이 존재하면 삭제
+        if file_path.exists():
+            file_path.unlink()
+        # S3에서 파일 다운로드
+        try:
+            self.s3_client.download_file(self.bucket_name, s3_path.key, str(file_path))
+            logger.info(f"document 다운로드 성공: {s3_path.key} -> {file_path}")
+            return file_path
+        except (NoCredentialsError, ClientError) as e:
+            logger.error(f"document 다운로드 실패: {e}")
+            raise FileStorageError()
+        except Exception as e:
+            logger.error(f"알 수 없는 업로드 오류: {e}")
+            raise Exception()
 
     def generate_presigned_url(self, pathstr: str, expiration=3600) -> str:
         """
@@ -52,15 +80,15 @@ class StorageService:
         try:
             # s3://bucket_name/key 형식을 파싱
             if not pathstr.startswith("s3://"):
-                 return ""
+                return ""
             s3_path = S3Path(pathstr)
             bucket = s3_path.bucket
             key = s3_path.key
 
             url = self.s3_client.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': bucket, 'Key': key},
-                ExpiresIn=expiration
+                "get_object",
+                Params={"Bucket": bucket, "Key": key},
+                ExpiresIn=expiration,
             )
             return url
         except Exception as e:
