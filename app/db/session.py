@@ -34,7 +34,6 @@ with Session(engine) as session:
     )
     session.commit()
 
-
 def get_db():
     with Session(engine) as session:
         yield session

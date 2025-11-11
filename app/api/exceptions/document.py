@@ -27,7 +27,7 @@ def duplicate_files_error(_req: Request, _e: DuplicateFilesError):
 def file_storage_error(_req: Request, _e: FileStorageError):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "파일 스토리지 서버 오류가 발생했습니다."},
+        content={"detail": "S3 클라이언트 오류가 발생했습니다."},
     )
 
 
