@@ -12,7 +12,6 @@ from errors.document import FileStorageError
 
 logger = logging.getLogger(__name__)
 
-
 class StorageService:
     def __init__(self):
         self.s3_client = boto3.client(
@@ -58,9 +57,6 @@ class StorageService:
         """
         s3_path = S3Path.from_uri(file_uri)
         file_path = file_dir / s3_path.name
-        # 파일이 존재하면 삭제
-        if file_path.exists():
-            file_path.unlink()
         # S3에서 파일 다운로드
         try:
             self.s3_client.download_file(self.bucket_name, s3_path.key, str(file_path))

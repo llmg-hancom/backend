@@ -44,6 +44,7 @@ try:
 
     # 2. JVM 시작 후 Java 클래스 임포트 후 인스턴스화
     from kr.dogfoot.hwpxlib.reader import HWPXReader
+    from kr.dogfoot.hwplib.reader import HWPReader
     from kr.dogfoot.hwp2hwpx import Hwp2Hwpx
     from kr.dogfoot.hwplib.object import HWPFile
     from kr.dogfoot.hwpxlib.object import HWPXFile
@@ -126,7 +127,7 @@ def _convert_hwp_to_hwpx(local_hwp_path: Path) -> Path:
     try:
         local_hwpx_path = local_hwp_path.with_suffix(".hwpx")
         logger.info(f".hwp를 .hwpx로 변환 중: {local_hwpx_path}")
-        fromFile: HWPFile = HWPXReader.fromFile(str(local_hwp_path))
+        fromFile: HWPFile = HWPReader.fromFile(str(local_hwp_path))
         toFile: HWPXFile = Hwp2Hwpx.toHWPX(fromFile)
         HWPXWriter.toFilepath(toFile, str(local_hwpx_path))
         return local_hwpx_path
@@ -173,6 +174,8 @@ def process_document(doc_id: int):
             extracted_text = _extract_text_from_hwpx(local_hwpx_path)
             logger.info(f"[TASK_SUCCESS] 문서 처리 완료: (doc_id: {doc_id})")
             logger.info(f"텍스트 출력 결과:\n{extracted_text}")
+            doc.status = DocumentStatus.ready
+            db.commit()
     except Exception as e:
         logger.error(f"[TASK_FAILED] 문서 처리 실패: (doc_id: {doc_id}) - {e}")
         try:
@@ -183,6 +186,5 @@ def process_document(doc_id: int):
                     db.commit()
         except Exception as db_e:
             logger.error(f"에러 상태 DB 업데이트 실패: {db_e}")
-
     finally:
         _cleanup_temp_dir(file_dir)

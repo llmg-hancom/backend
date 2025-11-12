@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """애플리케이션 설정 클래스
 
-    .env 파일 또는 환경 변수에서 자동으로 값을 로드합니다.
+    ..env 파일 또는 환경 변수에서 자동으로 값을 로드합니다.
     타입 검증 및 필수 값 체크를 자동으로 수행합니다.
     """
 
