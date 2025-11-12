@@ -9,7 +9,7 @@ from utils.auth import get_current_user
 router = APIRouter()
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/", response_model=UserRead)
 def get_user_info(
     user: Annotated[User, Depends(get_current_user)],
 ) -> UserRead:
