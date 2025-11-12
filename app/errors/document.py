@@ -26,6 +26,7 @@ class DuplicateFilesError(BackendBaseError):
 
 class FileStorageError(BackendBaseError):
     """S3 클라이언트가 버킷에서 파일을 업로드/다운로드 할 수 없음"""
+
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

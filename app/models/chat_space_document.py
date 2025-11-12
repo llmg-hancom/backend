@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class ChatSpaceDocumentBase(SQLModel):
     space_id: int = Field(foreign_key="chat_spaces.space_id", nullable=False)
-    document_id: int = Field(foreign_key="document.document_id", nullable=False)
+    document_id: int = Field(foreign_key="documents.document_id", nullable=False)
 
     __table_args__ = (
         UniqueConstraint(
