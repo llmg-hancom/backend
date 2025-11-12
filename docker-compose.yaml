@@ -1,7 +1,6 @@
 services:
   db:
-    build:
-      dockerfile: Dockerfile.pgvector
+    image: ghcr.io/llmg-hancom/pgvector-korean:latest
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -21,4 +20,4 @@ services:
       - "8000:8000"
 
 volumes:
-  postgres_data: { }
+  postgres_data: {}
