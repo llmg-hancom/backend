@@ -33,4 +33,11 @@ def backend_base_error_handler(_req: Request, e: BackendBaseError):
 
 @app.exception_handler(Exception)
 def exception_handler(_req: Request, e: Exception):
-    raise BackendBaseError(message=str(e))
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status_code": 500,
+            "error_code": "UNKNOWN_ERROR",
+            "message": str(e)
+        }
+    )
