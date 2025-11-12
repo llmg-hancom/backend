@@ -34,3 +34,8 @@ class LoginWithGoogleCallbackParam(BaseModel):
 
 class TokenRefreshRequest(BaseModel):
     refresh_token: str = Field(description="리프레시 토큰")
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(description="현재 비밀번호")
+    new_password: str = Field(description="새 비밀번호 (8자 이상)", min_length=8)
