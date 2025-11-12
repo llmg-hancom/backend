@@ -19,4 +19,5 @@ def my_documents(
     return [
         DocumentRead.model_validate(doc)
         for doc in current_user.uploaded_documents
+        if doc.deleted_at is None   # 삭제되지 않은 문서만 반환
     ]
