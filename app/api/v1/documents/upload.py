@@ -1,17 +1,20 @@
+import asyncio
 import hashlib
 
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, status, UploadFile, File, Depends
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from db.session import get_db
+from db.session import get_async_db
 from errors.document import UnsupportedExtensionError, DuplicateFilesError
 from models.document import Document
 from models.user import User
 from schemas.document import UploadResponse
 from services.document.storage_service import storage_service
+from workers.tasks import process_document
 from utils.auth import get_current_user
 
 router = APIRouter()
@@ -23,7 +26,7 @@ router = APIRouter()
     summary="문서 업로드",
 )
 async def upload_documents(
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
     current_user: Annotated[
         User, Depends(get_current_user)
     ],  # [보안] 로그인한 사용자만
@@ -45,9 +48,9 @@ async def upload_documents(
     await file.seek(0)
 
     # 3. [중복 검사] DB에서 동일한 해시가 있는지 확인
-    existing_doc = db.exec(
-        select(Document).where(Document.file_hash == file_hash)
-    ).first()
+    result = await db.exec(select(Document).where(Document.file_hash == file_hash))
+
+    existing_doc = result.first()
 
     if existing_doc:
         raise DuplicateFilesError()
@@ -69,11 +72,12 @@ async def upload_documents(
         status="pending",  # 처리 대기 상태
     )
     db.add(new_doc)
-    db.commit()
-    db.refresh(new_doc)
+    await db.commit()
+    await db.refresh(new_doc)
 
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
-    # process_document.delay(new_doc.document_id)
+    # 지금은 임시로 동기 처리
+    await asyncio.to_thread(process_document, new_doc.document_id)
 
     # 7. [즉시 응답] 202 Accepted
     return UploadResponse(
