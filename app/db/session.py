@@ -1,4 +1,6 @@
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import Session, SQLModel, create_engine, text
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from core.config import settings
 from models.chat_message import ChatMessage  # noqa: F401
@@ -16,6 +18,8 @@ from models.user import User  # noqa: F401
 
 # settings에서 database_url 프로퍼티 사용
 engine = create_engine(settings.database_url, echo=True)
+async_engine = create_async_engine(settings.database_url, echo=True)
+
 with Session(engine) as session:
     session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
     session.commit()
@@ -36,4 +40,22 @@ with Session(engine) as session:
 
 def get_db():
     with Session(engine) as session:
-        yield session
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+async def get_async_db():
+    async with AsyncSession(async_engine) as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
