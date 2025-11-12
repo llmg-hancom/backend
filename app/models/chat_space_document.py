@@ -38,6 +38,6 @@ class ChatSpaceDocument(ChatSpaceDocumentBase, table=True):
     )
 
     # Relationships
-    space: "ChatSpace" = Relationship(back_populates="document")
+    space: "ChatSpace" = Relationship(back_populates="documents")
     document: "Document" = Relationship(back_populates="chat_space_links")
     added_by_user: "User" = Relationship(back_populates="chat_space_documents_added")
