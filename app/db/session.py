@@ -15,7 +15,7 @@ from models.user import User  # noqa: F401
 
 
 # settings에서 database_url 프로퍼티 사용
-engine = create_engine(settings.database_url, echo=True)
+engine = create_engine(settings.database_url, echo=(settings.ENVIRONMENT == "development"))
 with Session(engine) as session:
     session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
     session.commit()
