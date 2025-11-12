@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, Path, status
 from sqlmodel import Session
 
 from db.session import get_db
-from errors.document import ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
-from models.document import DocumentRead
+from models.document import Document, DocumentRead
 from models.user import User
 from services.document.get_docs_info import get_docs_info as docs_info_service
 from utils.auth import get_current_user
+from utils.documents import require_document_owner
 
 
 router = APIRouter()
@@ -45,17 +45,6 @@ router = APIRouter()
     }
 )
 def get_docs_info(
-    document_id: Annotated[int, Path(description="문서 ID")],
-    current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[Session, Depends(get_db)]
+    doc: Annotated[Document, Depends(require_document_owner)]
 ) -> DocumentRead:
-    if current_user.user_id is None:
-        raise IllegalStateError()
-
-    docs = docs_info_service(
-        document_id=document_id,
-        user_id=current_user.user_id,
-        session=session
-    )
-
-    return DocumentRead.model_validate(docs)
+    return DocumentRead.model_validate(doc)
