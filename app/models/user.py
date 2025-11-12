@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, override
 
 from pydantic import EmailStr
 from sqlalchemy import TIMESTAMP, Column, func
@@ -100,3 +100,8 @@ class UserWrite(UserBase):
     email: EmailStr = Field(description="유저 이메일")
     nickname: str = Field(description="닉네임")
     hashed_password: str = Field(description="해시된 비밀번호")
+
+
+class UserEdit(UserBase):
+    email: EmailStr | None = None
+    nickname: str | None = None
