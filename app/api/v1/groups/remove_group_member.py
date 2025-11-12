@@ -1,18 +1,30 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, status
+from sqlmodel import Session
 
-from models.user import User
-from utils.auth import get_current_user
+from db.session import get_db
+from models.group import Group
+from services.group.remove_group_member import (
+    remove_group_member as remove_group_member_service,
+)
+from utils.group import require_group_admin
 
 
 router = APIRouter()
 
-
-@router.delete(path="/{group_id}/members/{member_id}", summary="그룹에서 유저 탈퇴")
-async def remove_group_member(
-    user: Annotated[User, Depends(get_current_user)],
-    group_id: Annotated[int, Path()],
+@router.delete(
+    path="/{group_id}/members/{member_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="그룹에서 유저 탈퇴"
+)
+def remove_group_member(
+    group: Annotated[Group, Depends(require_group_admin)],
     member_id: Annotated[int, Path()],
+    db: Annotated[Session, Depends(get_db)]
 ):
-    raise NotImplementedError()
+    remove_group_member_service(
+        group=group,
+        deleted_member_id=member_id,
+        session=db
+    )

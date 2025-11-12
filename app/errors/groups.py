@@ -56,3 +56,14 @@ class UserIsNotGroupMemberError(BackendBaseError):
             error_code="NOT_GROUP_MEMBER",
             message="그룹 멤버가 아닙니다.",
         )
+
+
+class GroupMemberNotFound(BackendBaseError):
+    """그룹 멤버를 찾을 수 없음"""
+
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="GROUP_MEMBER_NOT_FOUND",
+            message="그룹 멤버를 찾을 수 없습니다.",
+        )
