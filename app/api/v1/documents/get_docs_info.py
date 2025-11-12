@@ -32,7 +32,15 @@ router = APIRouter()
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "문서에 접근할 권한이 없음",
-            "model": ForbiddenDocumentAccessError
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status_code": 403,
+                        "error_code": "FORBIDDEN_DOCUMENT_ACCESS",
+                        "message": "문서에 접근할 권한이 없습니다."
+                    }
+                }
+            }
         }
     }
 )
