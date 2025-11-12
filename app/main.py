@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -33,6 +35,8 @@ def backend_base_error_handler(_req: Request, e: BackendBaseError):
 
 @app.exception_handler(Exception)
 def exception_handler(_req: Request, e: Exception):
+    logging.error(f"Unhandled exception: {e}")
+
     return JSONResponse(
         status_code=500,
         content={
