@@ -2,7 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from models.user import User
+from errors.general import IllegalStateError
+from models.user import User, UserRead
 from schemas.groups import GroupRead
 from utils.auth import get_current_user
 
@@ -16,4 +17,14 @@ def my_group(
 ) -> list[GroupRead]:
     joined_group = user.group_memberships
 
-    return [GroupRead.model_validate(rel.group) for rel in joined_group]
+    return [
+        GroupRead(
+            group_name=rel.group.group_name,
+            group_id=rel.group.group_id,
+            created_at=rel.group.created_at,
+            created_by_user=UserRead.model_validate(rel.group.created_by_user),
+            members=[UserRead.model_validate(member.user) for member in rel.group.members]
+        )
+        for rel in joined_group
+        if rel.group.group_id is not None
+    ]
