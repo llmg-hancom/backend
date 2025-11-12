@@ -1,10 +1,9 @@
-import asyncio
 import hashlib
 
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, status, UploadFile, File, Depends
+from fastapi import APIRouter, status, UploadFile, File, Depends, Security
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,7 +27,7 @@ router = APIRouter()
 async def upload_documents(
     db: Annotated[AsyncSession, Depends(get_async_db)],
     current_user: Annotated[
-        User, Depends(get_current_user)
+        User, Security(get_current_user)
     ],  # [보안] 로그인한 사용자만
     file: UploadFile = File(...),
 ) -> UploadResponse:
@@ -77,7 +76,7 @@ async def upload_documents(
 
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
     # 지금은 임시로 동기 처리
-    await asyncio.to_thread(process_document, new_doc.document_id)
+    process_document(new_doc.document_id)
 
     # 7. [즉시 응답] 202 Accepted
     return UploadResponse(
@@ -86,4 +85,3 @@ async def upload_documents(
         file_name=new_doc.file_name,
         status=new_doc.status,
     )
-

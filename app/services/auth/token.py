@@ -38,6 +38,5 @@ def token_regenerate(user_id: int, token_id: int | None, db: Session) -> Tokens:
     )
 
     db.add(refresh_token_model)
-    db.commit()
 
     return Tokens(access_token=access_token, refresh_token=refresh_token)

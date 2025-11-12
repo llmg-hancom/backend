@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, status
+from fastapi import APIRouter, Body, Depends, status, Security
 from sqlmodel import Session
 
 from db.session import get_db
@@ -17,6 +17,6 @@ router = APIRouter()
 def create_group(
     body: Annotated[GroupCreate, Body()],
     db: Annotated[Session, Depends(get_db)],
-    request_user: Annotated[User, Depends(get_current_user)],
+    request_user: Annotated[User, Security(get_current_user)],
 ) -> GroupRead:
     return create_group_service(request_user=request_user, db=db, body=body)

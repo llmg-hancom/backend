@@ -24,7 +24,7 @@ def test_s3_upload():
         ]
     ):
         print("\n--- [오류] ---")
-        print("필수 .env 변수 중 일부가 설정되지 않았습니다.")
+        print("필수 ..env 변수 중 일부가 설정되지 않았습니다.")
         print(
             "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET_NAME, AWS_REGION을 확인하세요."
         )
@@ -71,7 +71,7 @@ def test_s3_upload():
         print("\n--- [오류] ---")
         print("AWS 자격 증명을 찾을 수 없습니다.")
         print(
-            ".env 파일의 AWS_ACCESS_KEY_ID와 AWS_SECRET_ACCESS_KEY가 올바른지 확인하세요."
+            "..env 파일의 AWS_ACCESS_KEY_ID와 AWS_SECRET_ACCESS_KEY가 올바른지 확인하세요."
         )
 
     except ClientError as e:
@@ -86,7 +86,7 @@ def test_s3_upload():
         elif error_code == "NoSuchBucket":
             print(f"document 버킷('{aws_s3_bucket_name}')을 찾을 수 없습니다.")
             print(
-                ".env 파일의 버킷 이름이 1단계에서 생성한 이름과 동일한지 확인하세요."
+                "..env 파일의 버킷 이름이 1단계에서 생성한 이름과 동일한지 확인하세요."
             )
         else:
             print(f"Boto3 클라이언트 오류가 발생했습니다: {e}")
