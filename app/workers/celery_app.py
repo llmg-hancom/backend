@@ -1,23 +1,23 @@
-from celery import Celery
+# from celery import Celery
 
 # 1. Celery 앱 생성
 # broker: 메시지 브로커 URL
 # backend: 결과 백엔드 URL
-celery_app = Celery(
-    "worker", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0"
-)
-
-celery_app.conf.update(
-    task_track_started=True,
-    task_serializer="json",
-    accept_content=["json"],
-    result_serializer="json",
-    timezone="Asia/Seoul",
-    enable_utc=True,
-)
-celery_app.autodiscover_tasks(
-    packages=["workers"]
-)
+# celery_app = Celery(
+#     "worker", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0"
+# )
+#
+# celery_app.conf.update(
+#     task_track_started=True,
+#     task_serializer="json",
+#     accept_content=["json"],
+#     result_serializer="json",
+#     timezone="Asia/Seoul",
+#     enable_utc=True,
+# )
+# celery_app.autodiscover_tasks(
+#     packages=["workers"]
+# )
 # 4.Celery Beat 스케줄러 설정 (배치 작업)
 # Soft Delete 후속 작업
 # celery_app.conf.beat_schedule = {

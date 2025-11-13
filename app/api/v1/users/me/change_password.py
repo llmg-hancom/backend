@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, status
+from fastapi import APIRouter, Body, Depends, status, Security
 from sqlmodel import Session
 
 from db.session import get_db
@@ -12,19 +12,20 @@ from utils.auth import get_current_user
 
 router = APIRouter()
 
+
 @router.patch(
     path="/password",
     summary="유저 비밀번호 변경",
-    status_code=status.HTTP_204_NO_CONTENT
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 def change_password(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Security(get_current_user)],
     body: Annotated[ChangePasswordRequest, Body()],
-    session: Annotated[Session, Depends(get_db)]
+    session: Annotated[Session, Depends(get_db)],
 ) -> None:
     service(
         change_user=current_user,
         old_password=body.current_password,
         new_password=body.new_password,
-        session=session
+        session=session,
     )
