@@ -7,18 +7,14 @@ from models.user import User, UserRead
 from schemas.groups import GroupCreate, GroupRead
 
 
-def create_group(
-    request_user: User,
-    db: Session,
-    body: GroupCreate
-)-> GroupRead:
+def create_group(request_user: User, db: Session, body: GroupCreate) -> GroupRead:
     if request_user.user_id is None:
         raise IllegalStateError()
 
     group = Group(
         group_name=body.group_name,
         description=body.description,
-        created_by_user_id=request_user.user_id
+        created_by_user_id=request_user.user_id,
     )
 
     db.add(group)
@@ -31,13 +27,11 @@ def create_group(
 
     print("GroupMember 생성")
     user_group_rel = GroupMember(
-        user_id=request_user.user_id,
-        group_id=group.group_id,
-        role=UserRole.admin
+        user_id=request_user.user_id, group_id=group.group_id, role=UserRole.admin
     )
 
     db.add(user_group_rel)
-    db.commit()
+    db.flush()
     db.refresh(group)
 
     return GroupRead(
@@ -46,5 +40,5 @@ def create_group(
         description=group.description,
         created_at=group.created_at,
         created_by_user=UserRead.model_validate(group.created_by_user),
-        members=[UserRead.model_validate(member.user) for member in group.members]
+        members=[UserRead.model_validate(member.user) for member in group.members],
     )

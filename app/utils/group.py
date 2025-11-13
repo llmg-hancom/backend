@@ -16,8 +16,7 @@ from utils.auth import get_current_user
 
 
 def get_group_from_group_id_path(
-    group_id: Annotated[int, Path()],
-    session: Annotated[Session, Depends(get_db)]
+    group_id: Annotated[int, Path()], session: Annotated[Session, Depends(get_db)]
 ) -> Group:
     group = session.exec(select(Group).where(Group.group_id == group_id)).one_or_none()
 
@@ -29,7 +28,7 @@ def get_group_from_group_id_path(
 
 def require_group_member(
     user: Annotated[User, Depends(get_current_user)],
-    group: Annotated[Group, Depends(get_group_from_group_id_path)]
+    group: Annotated[Group, Depends(get_group_from_group_id_path)],
 ) -> Group:
     # 타입 체크용
     if user.user_id is None:
@@ -45,7 +44,7 @@ def require_group_member(
 
 def require_group_admin(
     user: Annotated[User, Depends(get_current_user)],
-    group: Annotated[Group, Depends(get_group_from_group_id_path)]
+    group: Annotated[Group, Depends(get_group_from_group_id_path)],
 ) -> Group:
     # 타입 체크용
     if user.user_id is None:

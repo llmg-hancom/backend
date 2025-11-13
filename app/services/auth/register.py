@@ -13,7 +13,9 @@ class RegisterSuccess:
     user: UserRead
 
 
-def register(email: EmailStr, password: str, nickname: str, db: Session) -> RegisterSuccess:
+def register(
+    email: EmailStr, password: str, nickname: str, db: Session
+) -> RegisterSuccess:
     # 중복 확인
     existing_user = db.exec(select(User).where(User.email == email)).first()
 
@@ -29,7 +31,7 @@ def register(email: EmailStr, password: str, nickname: str, db: Session) -> Regi
     )
 
     db.add(user)
-    db.commit()
+    db.flush()
     db.refresh(user)
 
     return RegisterSuccess(user=UserRead.model_validate(user))

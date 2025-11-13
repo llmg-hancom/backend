@@ -163,7 +163,7 @@ def process_document(doc_id: int):
             elif doc.status == DocumentStatus.pending:
                 logger.info(f"문서 처리 중...: (doc_id: {doc_id})")
                 doc.status = DocumentStatus.processing
-                db.commit()
+                db.flush()
             local_path = _download_from_s3(doc.file_path, file_dir)
             if local_path.suffix == ".hwp":
                 local_hwpx_path = _convert_hwp_to_hwpx(local_path)
@@ -180,7 +180,6 @@ def process_document(doc_id: int):
             with open(testPath, "w", encoding="utf-8") as f:
                 f.write(extracted_text)
             doc.status = DocumentStatus.ready
-            db.commit()
     except Exception as e:
         logger.error(f"[TASK_FAILED] 문서 처리 실패: (doc_id: {doc_id}) - {e}")
         try:
@@ -188,7 +187,6 @@ def process_document(doc_id: int):
                 doc = db.get(Document, doc_id)
                 if doc:
                     doc.status = DocumentStatus.error
-                    db.commit()
         except Exception as db_e:
             logger.error(f"에러 상태 DB 업데이트 실패: {db_e}")
     finally:

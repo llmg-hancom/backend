@@ -5,11 +5,7 @@ from models.group import Group
 from models.group_member import GroupMember
 
 
-def remove_group_member(
-    group: Group,
-    deleted_member_id: int,
-    session: Session
-):
+def remove_group_member(group: Group, deleted_member_id: int, session: Session):
     group_rel = session.exec(
         select(GroupMember)
         .where(GroupMember.group_id == group.group_id)
@@ -22,4 +18,4 @@ def remove_group_member(
 
     # 관계가 있으면 삭제
     session.delete(group_rel)
-    session.commit()
+    session.flush()

@@ -57,7 +57,7 @@ def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,
+        secure=settings.ENVIRONMENT == "production",
         samesite="lax",
         path="/",
         max_age=settings.JWT_EXPIRE_HOURS * 60 * 60,
@@ -67,7 +67,7 @@ def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
+        secure=settings.ENVIRONMENT == "production",
         samesite="lax",
         path="/v1/auth/refresh",  # <- 해당 엔드포인트에서만 접근 가능
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAY * 24 * 60 * 60,
