@@ -20,7 +20,6 @@ def get_db():
             yield session
             session.commit()
         except Exception:
-            session.rollback()
             raise
 
 
@@ -30,5 +29,4 @@ async def get_async_db():
             yield session
             await session.commit()
         except Exception:
-            await session.rollback()
             raise
