@@ -70,6 +70,7 @@ try:
     )
 
 except ImportError as e:
+    # noinspection PyUnboundLocalVariable
     logger.error(
         f"[WORKER_BOOT_FAILED] Java 클래스를 임포트할 수 없습니다. .jar 파일이 CLASSPATH({classpath})에 있는지 확인하세요: {e}"
     )
@@ -82,15 +83,12 @@ except Exception as e:
 # --- DB 세션 관리를 위한 컨텍스트 매니저 ---
 @contextmanager
 def get_db_session():
-    session = Session(engine)
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+    with Session(engine) as session:
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            raise
 
 
 # 임시 파일 저장 경로
@@ -172,8 +170,15 @@ def process_document(doc_id: int):
             else:
                 local_hwpx_path = local_path
             extracted_text = _extract_text_from_hwpx(local_hwpx_path)
+            # TODO: 청킹, 임베딩, 후 pgvector 삽입 개발 필요
             logger.info(f"[TASK_SUCCESS] 문서 처리 완료: (doc_id: {doc_id})")
+            # 아래는 임시 개발용 코드
             logger.info(f"텍스트 출력 결과:\n{extracted_text}")
+            testDir = DOWNLOAD_DIR / "txtfiles"
+            testDir.mkdir(parents=True)
+            testPath = testDir / local_hwpx_path.with_suffix(".txt").name
+            with open(testPath, "w", encoding="utf-8") as f:
+                f.write(extracted_text)
             doc.status = DocumentStatus.ready
             db.commit()
     except Exception as e:

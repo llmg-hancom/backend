@@ -18,6 +18,8 @@ from utils.auth import get_current_user
 
 router = APIRouter()
 
+supported_extensions = (".hwp", ".hwpx", ".txt")
+
 
 @router.post(
     path="/",
@@ -35,7 +37,7 @@ async def upload_documents(
     문서 업로드 엔드포인트 (document 저장 -> DB 기록 -> Celery 작업 요청)
     """
     # 1. 파일 유효성 검사 (확장자 등)
-    if not file.filename.lower().endswith((".hwp", ".hwpx")):
+    if not file.filename.lower().endswith(supported_extensions):
         raise UnsupportedExtensionError()
     # 2. [해시 계산] 파일의 SHA-256 해시 계산 (중복 방지용)
     sha256_hash = hashlib.sha256()
