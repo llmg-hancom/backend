@@ -21,4 +21,6 @@ services:
       - "8000:8000"
 
 volumes:
-  postgres_data: { }
+  postgres_data:
+    external: true
+    name: postgrestest_postgres_data
