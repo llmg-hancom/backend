@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Security
 from sqlmodel import Session
 
 from db.session import get_db
@@ -10,6 +10,7 @@ from utils.documents import require_document_owner
 
 
 router = APIRouter()
+
 
 @router.delete(
     path="/{document_id}",
@@ -25,10 +26,10 @@ router = APIRouter()
                     "example": {
                         "status_code": 404,
                         "error_code": "DOCUMENT_NOT_FOUND",
-                        "message": "문서를 찾을 수 없습니다."
+                        "message": "문서를 찾을 수 없습니다.",
                     }
                 }
-            }
+            },
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "문서를 열람할 권한이 없음",
@@ -37,16 +38,16 @@ router = APIRouter()
                     "example": {
                         "status_code": 403,
                         "error_code": "FORBIDDEN_DOCUMENT_ACCESS",
-                        "message": "문서에 접근할 권한이 없습니다."
+                        "message": "문서에 접근할 권한이 없습니다.",
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 def delete_documents(
-    doc: Annotated[Document, Depends(require_document_owner)],
-    session: Annotated[Session, Depends(get_db)]
+    doc: Annotated[Document, Security(require_document_owner)],
+    session: Annotated[Session, Depends(get_db)],
 ) -> None:
     """
     Document 객체의 deleted_at 속성을 현재 시간으로 추가합니다.

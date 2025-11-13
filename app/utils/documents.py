@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends, Path
+from fastapi.params import Security
 from sqlmodel import Session, select
 
 from db.session import get_db
@@ -19,7 +20,9 @@ def get_document_from_document_id_path(
     경로 매개변수에 명시된 문서 ID로 문서를 가져옵니다.
     해당 문서가 존재하지 않는다면 오류를 발생시킵니다.
     """
-    doc = session.exec(select(Document).where(Document.document_id == document_id)).one_or_none()
+    doc = session.exec(
+        select(Document).where(Document.document_id == document_id)
+    ).one_or_none()
 
     # 문서가 존재하지 않는 경우
     if doc is None:
@@ -34,7 +37,7 @@ def get_document_from_document_id_path(
 
 def require_document_owner(
     document: Annotated[Document, Depends(get_document_from_document_id_path)],
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Security(get_current_user)],
 ) -> Document:
     """
     경로 매개변수에 명시된 문서가 현재 사용자의 문서가 맞는지 확인하고,

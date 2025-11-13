@@ -24,7 +24,7 @@ router = APIRouter()
         }
     },
 )
-async def register(
+def register(
     body: Annotated[RegisterRequest, Body()], db: Annotated[Session, Depends(get_db)]
 ) -> UserRead:
     """
