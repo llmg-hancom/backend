@@ -11,7 +11,7 @@ from utils.auth import get_current_user
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("/", deprecated=True)
 def my_group(
     user: Annotated[User, Security(get_current_user)],
 ) -> list[GroupRead]:
