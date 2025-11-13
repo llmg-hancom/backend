@@ -32,7 +32,9 @@ def invite_user(
         raise InviteeIsNotExistError()
 
     # 초대받은 유저가 이미 그룹에 속해있을 경우
-    if group.group_id in [invitee_group.group_id for invitee_group in invitee.group_memberships]:
+    if group.group_id in [
+        invitee_group.group_id for invitee_group in invitee.group_memberships
+    ]:
         raise InviteeIsAlreadyInGroupError()
 
     # 타입 체크용
@@ -41,4 +43,4 @@ def invite_user(
 
     user_group_rel = GroupMember(user_id=invitee.user_id, group_id=group.group_id)
     session.add(user_group_rel)
-    session.commit()
+    session.flush()

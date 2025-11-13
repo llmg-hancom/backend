@@ -37,13 +37,11 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
         # user가 없으면 회원가입을 진행한다.
         if user is None:
             user = User(
-                email=user_info.email,
-                nickname=user_info.name,
-                password_hash=None
+                email=user_info.email, nickname=user_info.name, password_hash=None
             )
 
             db.add(user)
-            db.commit()
+            db.flush()
             db.refresh(user)
 
         # model에서 정의한 user_id의 타입은 int | None이지만
@@ -60,7 +58,7 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
         )
 
         db.add(social_account)
-        db.commit()
+        db.flush()
         db.refresh(social_account)
 
     # user를 반환한다.
