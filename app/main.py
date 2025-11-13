@@ -22,10 +22,11 @@ else:
 
 logging.basicConfig(
     level=LOG_LEVEL,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 logger = logging.getLogger(__name__)
+
 
 # lifespan 이벤트를 정의합니다
 # noinspection PyTypeChecker
@@ -48,7 +49,7 @@ async def lifespan(_app: FastAPI):
             text("""
                  CREATE INDEX IF NOT EXISTS hnsw_embedding_idx
                      ON document_chunks
-                         USING hnsw (embedding vector_l2_ops)
+                         USING hnsw (embedding vector_cosine_ops)
                      WITH (m = 16, ef_construction = 64);
                  """)
         )
