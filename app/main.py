@@ -47,7 +47,7 @@ async def lifespan(_app: FastAPI):
         # 3. 인덱스 생성
         session.exec(
             text("""
-                 CREATE INDEX IF NOT EXISTS hnsw_embedding_idx
+                 CREATE INDEX IF NOT EXISTS hnsw_embedding_cosine_idx
                      ON document_chunks
                          USING hnsw (embedding vector_cosine_ops)
                      WITH (m = 16, ef_construction = 64);
