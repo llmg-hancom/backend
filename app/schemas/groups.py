@@ -18,6 +18,12 @@ class GroupRead(GroupBase):
     members: list[UserRead]
 
 
+class GroupReadWithoutMembers(GroupBase):
+    group_id: int
+    created_at: datetime
+    created_by_user: UserRead
+
+
 class GroupUserInviteRequest(BaseModel):
     email: EmailStr
     role: UserRole
