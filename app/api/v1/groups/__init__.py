@@ -6,7 +6,7 @@ from .my_group import router as my_group_router
 from .remove_group_member import router as remove_group_member_router
 
 
-router = APIRouter(prefix="/groups", tags=["Groups"])
+router = APIRouter(prefix="/groups", tags=["그룹"])
 
 router.include_router(create_group_router)
 router.include_router(my_group_router)
