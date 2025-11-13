@@ -66,9 +66,15 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
 app.add_middleware(CharsetMiddleware)
+# "*" 대신 명시적 URL 사용
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    settings.FRONTEND_URL,
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],  # "*" 대신 명시적 URL 사용
+    allow_origins=origins,
     allow_credentials=True,  # 필수!
     allow_methods=["*"],
     allow_headers=["*"],
