@@ -16,7 +16,10 @@ from utils.auth import set_auth_cookie
 router = APIRouter()
 
 
-@router.get("/google", summary="구글 계정으로 로그인")
+@router.get(
+    path="/google",
+    summary="구글 계정으로 로그인"
+)
 async def login_with_google():
     """
     구글 로그인 페이지 링크를 반환합니다.
@@ -32,7 +35,16 @@ async def login_with_google():
     return {"url": url}
 
 
-@router.get("/google/callback", summary="구글 계정 로그인 콜백")
+@router.get(
+    path="/google/callback",
+    summary="구글 계정 로그인 콜백",
+    status_code=status.HTTP_303_SEE_OTHER,
+    responses={
+        status.HTTP_303_SEE_OTHER: {
+            "description": "로그인에 성공한 경우 토큰을 쿠키로 발급하고, 프론트엔드 페이지로 리다이렉트합니다."
+        },
+    }
+)
 def login_with_google_callback(
     response: Response,  # ⬅️ Response 주입
     param: Annotated[LoginWithGoogleCallbackParam, Depends()],
