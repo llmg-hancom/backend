@@ -77,8 +77,7 @@ async def upload_documents(
     await db.refresh(new_doc)
 
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
-    # 지금은 임시로 동기 처리
-    process_document(new_doc.document_id)
+    process_document.delay(new_doc.document_id)
 
     # 7. [즉시 응답] 202 Accepted
     return UploadResponse(
