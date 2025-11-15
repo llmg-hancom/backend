@@ -10,8 +10,7 @@ services:
 
   backend:
     build:
-      dockerfile: Dockerfile
-    command: .venv/bin/fastapi run
+      dockerfile: Dockerfile.prod
     env_file: .env
     environment:
       - POSTGRES_HOST=db
@@ -25,11 +24,11 @@ services:
 
   worker:
     build:
-      dockerfile: Dockerfile
-    shm_size: '512m'
-    mem_limit: '8g'
+      dockerfile: Dockerfile.prod
     command: .venv/bin/celery -A workers.celery_app worker --loglevel=info
     env_file: .env
+    mem_limit: '8g'
+    shm_size: '512m'
     environment:
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
@@ -43,4 +42,5 @@ services:
 
 volumes:
   postgres_data:
+    external: true
     name: postgrestest_postgres_data

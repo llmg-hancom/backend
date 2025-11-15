@@ -21,14 +21,16 @@ RUN apk update --no-cache && \
     && \
     uv venv && \
     uv pip install . &&\
+    uv pip install gunicorn &&\
     apk del .build-deps
 
 COPY ./app /app
-# 아래 줄은 실제 배포할땐 제거/주석처리
-COPY ./test /app/test
 
+# 포트 노출
 EXPOSE 8000
 
+# root가 아닌 backend 사용자로 전환
 USER "1001:1001"
 
-CMD [ ".venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD를 개발 서버가 아닌 Gunicorn (운영 서버)으로 변경
+CMD [ ".venv/bin/gunicorn", "-w", "12", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000" ]

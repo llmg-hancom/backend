@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = "http://localhost:3000"  # 프론트엔드 URL
 
+    # Redis
+    REDIS_URL: str
+
     # Environment
     ENVIRONMENT: Literal["development", "production"] = "development"
 

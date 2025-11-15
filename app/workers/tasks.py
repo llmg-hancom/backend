@@ -1,83 +1,25 @@
-import logging
-import os
-import shutil
 from contextlib import contextmanager
+import logging
 from pathlib import Path
+import shutil
 import time
-
-import jpype
-import jpype.imports
-from sqlmodel import Session
-
-from db.session import engine
-
-from models.document import Document, DocumentStatus
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
 from rag.cleaning import clean_common_noise, clean_rag_text
+from sqlmodel import Session
+from workers.celery_app import celery_app
+
+from db.session import engine
+from models.document import Document, DocumentStatus
 from services.document.storage_service import storage_service
-# from workers.celery_app import celery_app
+
 
 # (Chunking 로직은 별도 파일로 분리하거나 여기에 구현해야 함)
 # from rag.chunking import get_chunks_from_structured_data
 
 # --- JVM 시작 (Celery 워커 부팅 시 1회 실행) ---
 logger = logging.getLogger(__name__)
-
-try:
-    logger.info("[WORKER_BOOT] JVM 시작을 시도합니다...")
-
-    # 1. Dockerfile의 ENV CLASSPATH="/app/resources/*" 설정을 사용
-    classpath = os.environ.get("CLASSPATH")
-    if not classpath:
-        logger.warning(
-            "CLASSPATH 환경 변수가 설정되지 않았습니다. /app/resources/*로 폴백합니다."
-        )
-        classpath = "/app/resources/*"
-
-    if not jpype.isJVMStarted():
-        jpype.startJVM(convertStrings=True)
-        logger.info(f"[WORKER_BOOT] JVM이 {classpath}로 성공적으로 시작되었습니다.")
-    else:
-        logger.info("[WORKER_BOOT] JVM이 이미 실행 중입니다.")
-
-    # 2. JVM 시작 후 Java 클래스 임포트 후 인스턴스화
-    from kr.dogfoot.hwpxlib.reader import HWPXReader
-    from kr.dogfoot.hwplib.reader import HWPReader
-    from kr.dogfoot.hwp2hwpx import Hwp2Hwpx
-    from kr.dogfoot.hwplib.object import HWPFile
-    from kr.dogfoot.hwpxlib.object import HWPXFile
-    from kr.dogfoot.hwpxlib.writer import HWPXWriter
-    from kr.dogfoot.hwpxlib.tool.textextractor import (
-        TextExtractMethod,
-        TextExtractor,
-        TextMarks,
-    )
-
-    text_extract_method = TextExtractMethod.InsertControlTextBetweenParagraphText
-    text_marks = (
-        TextMarks()
-        .lineBreakAnd("\n")
-        .paraSeparatorAnd("\n\n")
-        .tableStartAnd("<table>\n")
-        .tableEndAnd("\n</table>")
-        .tabAnd("\t")
-        .containerStartAnd("\n\n")
-        .containerEndAnd("\n\n")
-        .fieldStartAnd("")
-        .fieldEndAnd("")
-    )
-
-except ImportError as e:
-    # noinspection PyUnboundLocalVariable
-    logger.error(
-        f"[WORKER_BOOT_FAILED] Java 클래스를 임포트할 수 없습니다. .jar 파일이 CLASSPATH({classpath})에 있는지 확인하세요: {e}"
-    )
-    raise e
-except Exception as e:
-    logger.error(f"[WORKER_BOOT_FAILED] JVM 시작에 실패했습니다: {e}")
-    raise e
 
 
 # --- DB 세션 관리를 위한 컨텍스트 매니저 ---
@@ -107,7 +49,29 @@ def _download_from_s3(file_uri: str, local_file_dir: Path) -> Path:
 
 
 def _extract_text_from_hwpx(local_hwpx_path: Path) -> str:
+    import jpype.imports  # noqa: F401
+
     logger.info(f"OWPML 필터로 {local_hwpx_path}에서 텍스트 추출 중...")
+    from kr.dogfoot.hwpxlib.reader import HWPXReader
+    from kr.dogfoot.hwpxlib.tool.textextractor import (
+        TextExtractMethod,
+        TextExtractor,
+        TextMarks,
+    )
+
+    text_extract_method = TextExtractMethod.InsertControlTextBetweenParagraphText
+    text_marks = (
+        TextMarks()
+        .lineBreakAnd("\n")
+        .paraSeparatorAnd("\n\n")
+        .tableStartAnd("<table>\n")
+        .tableEndAnd("\n</table>")
+        .tabAnd("\t")
+        .containerStartAnd("\n\n")
+        .containerEndAnd("\n\n")
+        .fieldStartAnd("")
+        .fieldEndAnd("")
+    )
     try:
         hwpx_file = HWPXReader.fromFilepath(str(local_hwpx_path))
         hwpxtext: str = TextExtractor.extract(
@@ -122,6 +86,13 @@ def _extract_text_from_hwpx(local_hwpx_path: Path) -> str:
 
 
 def _convert_hwp_to_hwpx(local_hwp_path: Path) -> Path:
+    import jpype.imports  # noqa: F401
+    from kr.dogfoot.hwp2hwpx import Hwp2Hwpx
+    from kr.dogfoot.hwplib.object import HWPFile
+    from kr.dogfoot.hwplib.reader import HWPReader
+    from kr.dogfoot.hwpxlib.object import HWPXFile
+    from kr.dogfoot.hwpxlib.writer import HWPXWriter
+
     try:
         local_hwpx_path = local_hwp_path.with_suffix(".hwpx")
         logger.info(f".hwp를 .hwpx로 변환 중: {local_hwpx_path}")
@@ -140,7 +111,7 @@ def _cleanup_temp_dir(temp_dir: Path):
         shutil.rmtree(str(temp_dir))
 
 
-# @celery_app.task(name="process_document_task")
+@celery_app.task(name="process_document_task")
 def process_document(doc_id: int):
     """
     문서를 처리하여 pgvector에 저장하는 메인 태스크
@@ -175,7 +146,7 @@ def process_document(doc_id: int):
             # 아래는 임시 개발용 코드
             logger.info(f"텍스트 출력 결과:\n{extracted_text}")
             testDir = DOWNLOAD_DIR / "txtfiles"
-            testDir.mkdir(parents=True)
+            testDir.mkdir(parents=True, exist_ok=True)
             testPath = testDir / local_hwpx_path.with_suffix(".txt").name
             with open(testPath, "w", encoding="utf-8") as f:
                 f.write(extracted_text)
