@@ -7,11 +7,11 @@ from models.user import User
 from utils.auth import get_current_user
 
 
-router = APIRouter()
+router = APIRouter(prefix="/documents")
 
 
 @router.get(
-    path="/",
+    path="",
     summary="내 문서 목록 조회",
     deprecated=True
 )

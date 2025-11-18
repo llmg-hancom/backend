@@ -17,13 +17,13 @@ from services.document.storage_service import storage_service
 from workers.tasks import process_document
 from utils.auth import get_current_user
 
-router = APIRouter()
+router = APIRouter(prefix="/documents")
 
 supported_extensions = (".hwp", ".hwpx", ".txt")
 
 
 @router.post(
-    path="/",
+    path="",
     status_code=status.HTTP_202_ACCEPTED,
     summary="문서 업로드",
 )
