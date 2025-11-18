@@ -10,10 +10,10 @@ from services.group.create_group import create_group as create_group_service
 from utils.auth import get_current_user
 
 
-router = APIRouter()
+router = APIRouter(prefix="/groups")
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def create_group(
     body: Annotated[GroupCreate, Body()],
     db: Annotated[Session, Depends(get_db)],

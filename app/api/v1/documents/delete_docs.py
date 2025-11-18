@@ -53,4 +53,4 @@ def delete_documents(
     Document 객체의 deleted_at 속성을 현재 시간으로 추가합니다.
     """
     doc.deleted_at = datetime.now(tz=timezone.utc)
-    session.commit()
+    session.flush()
