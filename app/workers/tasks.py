@@ -1,8 +1,9 @@
 from contextlib import contextmanager
-import logging
 from pathlib import Path
 import shutil
 import time
+
+from celery.utils.log import get_task_logger
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
@@ -18,8 +19,7 @@ from services.document.storage_service import storage_service
 # (Chunking 로직은 별도 파일로 분리하거나 여기에 구현해야 함)
 # from rag.chunking import get_chunks_from_structured_data
 
-# --- JVM 시작 (Celery 워커 부팅 시 1회 실행) ---
-logger = logging.getLogger(__name__)
+logger = get_task_logger(__name__)
 
 
 # --- DB 세션 관리를 위한 컨텍스트 매니저 ---
@@ -48,16 +48,17 @@ def _download_from_s3(file_uri: str, local_file_dir: Path) -> Path:
         raise e
 
 
+# noinspection PyUnresolvedReferences
 def _extract_text_from_hwpx(local_hwpx_path: Path) -> str:
     import jpype.imports  # noqa: F401
-
-    logger.info(f"OWPML 필터로 {local_hwpx_path}에서 텍스트 추출 중...")
     from kr.dogfoot.hwpxlib.reader import HWPXReader
     from kr.dogfoot.hwpxlib.tool.textextractor import (
         TextExtractMethod,
         TextExtractor,
         TextMarks,
     )
+
+    logger.info(f"OWPML 필터로 {local_hwpx_path}에서 텍스트 추출 중...")
 
     text_extract_method = TextExtractMethod.InsertControlTextBetweenParagraphText
     text_marks = (
@@ -74,8 +75,8 @@ def _extract_text_from_hwpx(local_hwpx_path: Path) -> str:
     )
     try:
         hwpx_file = HWPXReader.fromFilepath(str(local_hwpx_path))
-        hwpxtext: str = TextExtractor.extract(
-            hwpx_file, text_extract_method, True, text_marks
+        hwpxtext = str(
+            TextExtractor.extract(hwpx_file, text_extract_method, True, text_marks)
         )
         hwpxtext: str = clean_rag_text(hwpxtext)
         hwpxtext: str = clean_common_noise(hwpxtext)
@@ -85,6 +86,7 @@ def _extract_text_from_hwpx(local_hwpx_path: Path) -> str:
         raise e
 
 
+# noinspection PyUnresolvedReferences
 def _convert_hwp_to_hwpx(local_hwp_path: Path) -> Path:
     import jpype.imports  # noqa: F401
     from kr.dogfoot.hwp2hwpx import Hwp2Hwpx
@@ -142,14 +144,15 @@ def process_document(doc_id: int):
                 local_hwpx_path = local_path
             extracted_text = _extract_text_from_hwpx(local_hwpx_path)
             # TODO: 청킹, 임베딩, 후 pgvector 삽입 개발 필요
-            logger.info(f"[TASK_SUCCESS] 문서 처리 완료: (doc_id: {doc_id})")
-            # 아래는 임시 개발용 코드
+            # --- 임시 개발용 코드 ---
             logger.info(f"텍스트 출력 결과:\n{extracted_text}")
             testDir = DOWNLOAD_DIR / "txtfiles"
             testDir.mkdir(parents=True, exist_ok=True)
             testPath = testDir / local_hwpx_path.with_suffix(".txt").name
             with open(testPath, "w", encoding="utf-8") as f:
                 f.write(extracted_text)
+            # --- 임시 개발용 코드 끝 ---
+            logger.info(f"[TASK_SUCCESS] 문서 처리 완료: (doc_id: {doc_id})")
             doc.status = DocumentStatus.ready
     except Exception as e:
         logger.error(f"[TASK_FAILED] 문서 처리 실패: (doc_id: {doc_id}) - {e}")

@@ -4,6 +4,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, status, UploadFile, File, Depends, Security
+from sqlalchemy.util.concurrency import asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -73,11 +74,11 @@ async def upload_documents(
         status="pending",  # 처리 대기 상태
     )
     db.add(new_doc)
-    await db.commit()
+    await db.flush()
     await db.refresh(new_doc)
 
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
-    process_document.delay(new_doc.document_id)
+    await asyncio.to_thread(process_document.delay, new_doc.document_id)
 
     # 7. [즉시 응답] 202 Accepted
     return UploadResponse(

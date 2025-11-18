@@ -72,8 +72,28 @@ def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -
         secure=settings.ENVIRONMENT == "production",
         # 프로덕션 환경에서만 samesite=none으로 설정
         samesite="none" if settings.ENVIRONMENT == "production" else "lax",
-        path="/v1/auth/refresh",  # <- 해당 엔드포인트에서만 접근 가능
+        path="/v1/auth",  # <- 해당 엔드포인트에서만 접근 가능
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAY * 24 * 60 * 60,
+    )
+
+
+def delete_auth_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        secure=settings.ENVIRONMENT == "production",
+        # 프로덕션 환경에서만 samesite=none으로 설정
+        samesite="none" if settings.ENVIRONMENT == "production" else "lax",
+        path="/",
+    )
+
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=settings.ENVIRONMENT == "production",
+        # 프로덕션 환경에서만 samesite=none으로 설정
+        samesite="none" if settings.ENVIRONMENT == "production" else "lax",
+        path="/v1/auth",  # <- 해당 엔드포인트에서만 접근 가능
     )
 
 
