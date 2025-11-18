@@ -37,8 +37,8 @@ def start_jvm(sender=None, **kwargs):
             )
             classpath = "/app/resources/*"
 
-        if not jpype.isJVMStarted():  # noqa: F823
-            jpype.startJVM(convertStrings=True)
+        if not jpype.isJVMStarted():
+            jpype.startJVM()
             logger.info(f"[WORKER_BOOT] JVM이 {classpath}로 성공적으로 시작되었습니다.")
         else:
             logger.info("[WORKER_BOOT] JVM이 이미 실행 중입니다.")
