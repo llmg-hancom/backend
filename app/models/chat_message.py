@@ -16,7 +16,7 @@ class ChatRole(str, Enum):
     user = "user"
     ai = "ai"
 
-
+# TODO: 현재 message와 content가 둘 다 존재! 통일 필요
 class ChatMessageBase(SQLModel):
     role: ChatRole = Field()
     message: str = Field()

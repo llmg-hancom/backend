@@ -4,13 +4,30 @@ import logging
 
 from langchain.agents import create_agent
 
-from RAG.llm import model
-from db.session import get_async_db
+from rag.llm import model
 from models import ChatMessage
 from models.chat_message import ChatRole
 from schemas.chat import ChatRequest
+from contextlib import asynccontextmanager
+
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from db.session import async_engine
+
 
 logger = logging.getLogger(__name__)
+
+
+# --- DB 세션 관리를 위한 비동기 컨텍스트 매니저 ---
+@asynccontextmanager
+async def get_db_session():
+    async with AsyncSession(async_engine) as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            raise
+
 
 agent = create_agent(
     model=model,
@@ -20,7 +37,7 @@ agent = create_agent(
 
 async def save_chat_log(chats: list[ChatMessage]):
     try:
-        async with get_async_db() as session:
+        async with get_db_session() as session:
             session.add_all(chats)
         logger.info("[CHAT] 채팅 로그 저장 성공")
     except Exception as e:
@@ -44,7 +61,7 @@ async def event_generator(session_id: int, request: ChatRequest):
         stream_mode="messages",
     ):
         full_response += message[0].content
-        yield f"data: {json.dumps({'token': message[0].content},ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'token': message[0].content}, ensure_ascii=False)}\n\n"
     new_answer = ChatMessage(
         message=full_response, session_id=session_id, role=ChatRole.ai
     )

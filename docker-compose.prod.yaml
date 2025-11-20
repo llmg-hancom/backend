@@ -9,8 +9,7 @@ services:
       - "5432:5432"
 
   backend:
-    build:
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/llmg-hancom/backend:latest
     env_file: .env
     environment:
       - POSTGRES_HOST=db
@@ -23,8 +22,7 @@ services:
       - "8000:8000"
 
   worker:
-    build:
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/llmg-hancom/backend:latest
     command: .venv/bin/celery -A workers.celery_app worker --loglevel=info
     env_file: .env
     mem_limit: '8g'
