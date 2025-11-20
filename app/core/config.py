@@ -43,11 +43,21 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str | None = None
     GOOGLE_REDIRECT_URI: str | None = None
 
+    # Ollama base URL
+    OLLAMA_BASE_URL: str
+
     # Frontend
     FRONTEND_URL: str = "http://localhost:3000"  # 프론트엔드 URL
 
     # Redis
     REDIS_URL: str
+
+    # LangGraph
+    LANGSMITH_API_KEY: str
+    LANGSMITH_TRACING: bool
+    LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+    LANGSMITH_PROJECT: str
+    LANGCHAIN_CALLBACKS_BACKGROUND: bool
 
     # Environment
     ENVIRONMENT: Literal["development", "production"] = "development"

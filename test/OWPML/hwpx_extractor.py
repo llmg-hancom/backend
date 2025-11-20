@@ -2,7 +2,7 @@ import argparse
 
 import jpype
 import jpype.imports
-from rag.cleaning import clean_common_noise, clean_rag_text
+from RAG.cleaning import clean_common_noise, clean_rag_text
 
 
 def hwpx_extract(file_path):
