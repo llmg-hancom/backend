@@ -15,10 +15,8 @@ if TYPE_CHECKING:
 class ChatSpaceBase(SQLModel):
     name: str = Field(max_length=255, nullable=False)
 
-
 class ChatSpace(ChatSpaceBase, table=True):
     """3.2. ChatSpaces (채팅 공간)"""
-
     __tablename__ = "chat_spaces"
     __table_args__ = (
         CheckConstraint(
@@ -27,7 +25,6 @@ class ChatSpace(ChatSpaceBase, table=True):
         ),
     )
     space_id: Optional[int] = Field(default=None, primary_key=True)
-
     owner_user_id: Optional[int] = Field(default=None, foreign_key="users.user_id")
     group_id: Optional[int] = Field(default=None, foreign_key="groups.group_id")
     created_at: datetime = Field(
