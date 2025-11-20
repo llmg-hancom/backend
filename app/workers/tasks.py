@@ -7,7 +7,7 @@ from celery.utils.log import get_task_logger
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
-from rag.cleaning import clean_common_noise, clean_rag_text
+from RAG.cleaning import clean_common_noise, clean_rag_text
 from sqlmodel import Session
 from workers.celery_app import celery_app
 
