@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from RAG.agent import event_generator
+from rag.agent import event_generator
 from db.session import get_async_db
 from errors.chat import ChatSessionNotFoundError, ForbiddenChatSessionAccessError
 from models import User, ChatSession
