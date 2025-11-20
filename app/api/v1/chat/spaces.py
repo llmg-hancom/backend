@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
-from time import timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security, Path, status
-from sqlmodel import Session, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
+from errors.chat import SpaceNotFoundError, ForbiddenSpaceAccessError
 from models import User, ChatSpace
 from schemas.chat import SpaceRead
 from utils.auth import get_current_user
@@ -69,6 +69,8 @@ async def delete_space(
     space = await db.exec(select(ChatSpace).where(ChatSpace.space_id == space_id))
     space_one = space.one_or_none()
     if space_one is None:
-        raise
-    if space_one is not None and space_one.owner_user_id == current_user.user_id:
-        space_one.deleted_at = datetime.now(tz=timezone.utc)
+        raise SpaceNotFoundError()
+    if space_one.owner_user_id != current_user.user_id:
+        raise ForbiddenSpaceAccessError()
+    space_one.deleted_at = datetime.now(tz=timezone.utc)
+    await db.flush()
