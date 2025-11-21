@@ -34,6 +34,19 @@ services:
     depends_on:
       - db
       - redis
+  beat:
+    image: ghcr.io/llmg-hancom/backend:latest
+    container_name: celery_beat
+    # 실행 명령어: 'beat' 프로세스를 시작하도록 Dockerfile의 CMD를 덮어씀
+    command: .venv/bin/celery -A workers.celery_app beat -l info -s /tmp/celerybeat-schedule
+    env_file: .env
+    environment:
+      - POSTGRES_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+    depends_on:
+      - worker # Worker가 시작된 후 Beat를 시작하는 것이 일반적
+      - redis
 
   redis:
     image: redis:8.4-rc1-alpine

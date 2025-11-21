@@ -165,3 +165,7 @@ def process_document(doc_id: int):
             logger.error(f"에러 상태 DB 업데이트 실패: {db_e}")
     finally:
         _cleanup_temp_dir(file_dir)
+
+@celery_app.task(name="celery-beat-test")
+def celery_beat_test():
+    logger.info("[BEAT] 새벽 4시! 스케줄러 정상 작동 중")
