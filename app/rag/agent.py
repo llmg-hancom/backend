@@ -52,7 +52,7 @@ async def event_generator(session_id: int, request: ChatRequest):
     3. 완료 시 DB 저장
     """
     new_question = ChatMessage(
-        message=request.query, session_id=session_id, role=ChatRole.user
+        content=request.query, session_id=session_id, role=ChatRole.user
     )
     # 답변을 모을 버퍼
     full_response = ""
@@ -63,7 +63,7 @@ async def event_generator(session_id: int, request: ChatRequest):
         full_response += message[0].content
         yield f"data: {json.dumps({'token': message[0].content}, ensure_ascii=False)}\n\n"
     new_answer = ChatMessage(
-        message=full_response, session_id=session_id, role=ChatRole.ai
+        content=full_response, session_id=session_id, role=ChatRole.ai
     )
     asyncio.create_task(save_chat_log([new_question, new_answer]))
     # 스트림 종료 신호 (선택 사항)
