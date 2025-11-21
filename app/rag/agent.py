@@ -4,34 +4,20 @@ import logging
 
 from langchain.agents import create_agent
 
-from rag.llm import model
-from models import ChatMessage
-from models.chat_message import ChatRole
+from rag.context_manager import get_db_session
+from rag.model import llm
+from models.chat_message import ChatRole, ChatMessage
+from rag.tools import search_public_law
 from schemas.chat import ChatRequest
-from contextlib import asynccontextmanager
-
-from sqlmodel.ext.asyncio.session import AsyncSession
-
-from db.session import async_engine
 
 
 logger = logging.getLogger(__name__)
 
 
-# --- DB 세션 관리를 위한 비동기 컨텍스트 매니저 ---
-@asynccontextmanager
-async def get_db_session():
-    async with AsyncSession(async_engine) as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            raise
-
-
 agent = create_agent(
-    model=model,
-    system_prompt="You are a helpful assistant specialized in Korean law. Be concise and accurate.",
+    model=llm,
+    tools=[search_public_law],
+    system_prompt="You are a helpful assistant specialized in Korean law. Be concise and accurate. You can search for korean public law using search_public_law if needed.",
 )
 
 
