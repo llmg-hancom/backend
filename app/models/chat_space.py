@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import TIMESTAMP, CheckConstraint, Column, func
@@ -28,6 +28,7 @@ class ChatSpace(ChatSpaceBase, table=True):
     owner_user_id: Optional[int] = Field(default=None, foreign_key="users.user_id")
     group_id: Optional[int] = Field(default=None, foreign_key="groups.group_id")
     created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
         )

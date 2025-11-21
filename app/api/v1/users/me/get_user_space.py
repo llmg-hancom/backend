@@ -4,25 +4,25 @@ from fastapi import APIRouter, Depends, Query, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import get_async_db
-from models.document import DocumentRead
-from models.user import User
+from errors.general import IllegalStateError
+from models import User
+from schemas.chat import SpaceRead
 from schemas.pagination import PaginationParams, PaginationResponse
-from services.document.get_users_docs import get_users_documents as service
+from services.users.get_user_space import get_user_space as service
 from utils.auth import get_current_user
 
 
 router = APIRouter()
 
-@router.get(
-    path="/documents",
-    summary="현재 사용자의 문서 조회",
-    tags=["문서"]
-)
-async def get_users_documents(
+@router.get("/spaces", summary="사용자의 스페이스 조회")
+async def get_users_space(
     pagination: Annotated[PaginationParams, Query()],
     user: Annotated[User, Security(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_async_db)]
-) -> PaginationResponse[DocumentRead]:
+) -> PaginationResponse[SpaceRead]:
+    if user.user_id is None:
+        raise IllegalStateError()
+
     offset = (pagination.page - 1) * pagination.size
     limit = pagination.size
 
@@ -33,13 +33,11 @@ async def get_users_documents(
         limit=limit
     )
 
-    response_data = [
-        DocumentRead.model_validate(doc)
-        for doc in data
-    ]
-
     return PaginationResponse(
         page=pagination.page,
         size=pagination.size,
-        data=response_data
+        data=[
+            SpaceRead.model_validate(d)
+            for d in data
+        ],
     )
