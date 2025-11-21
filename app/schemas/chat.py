@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from models.chat_space import ChatSpaceBase
 
@@ -32,3 +32,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     token: Optional[str]
     sources: Optional[list[Source]]
+
+class SpaceDocumentListRequest(BaseModel):
+    document_ids: set[Annotated[int, Field(gt=0, description="추가할 문서 ID")]] \
+        = Field(description="추가할 문서 목록", default_factory=set)

@@ -10,7 +10,8 @@ from errors.chat import ForbiddenSpaceAccessError, SpaceNotFoundError
 from errors.general import IllegalStateError
 from errors.space import NotSpaceAdminError
 from models import ChatSpace, User
-from schemas.chat import SpaceRead
+from schemas.chat import SpaceDocumentListRequest, SpaceRead
+from services.chat_service import ChatService
 from services.space.add_doc_to_space import add_documents_to_chat_space as doc_service
 from utils.auth import get_current_user
 from utils.chat import chat_space_from_space_id_path
@@ -95,33 +96,33 @@ async def delete_space(
     status_code=status.HTTP_201_CREATED
 )
 async def add_documents_to_chat_space(
-    user: Annotated[User, Security(get_current_user)],
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
-    document_ids: Annotated[list[int], Body(description="추가할 문서 ID의 목록")],
-    session: Annotated[AsyncSession, Depends(get_async_db)]
+    body: Annotated[SpaceDocumentListRequest, Body(description="추가할 문서 ID의 목록")],
+    service: Annotated[ChatService, Depends(ChatService.factory)],
 ) -> None:
-    # == 권한 검사 ==
-    # 유저 스페이스이고, 유저가 권한이 없을 때
-    if space.owner_user_id == user.user_id:
-        raise NotSpaceAdminError()
-
-    # 유저가 권한을 가지고 있지 않은 문서 제외
-    own_doc_id = [
-        doc_id for doc_id in document_ids
-        if doc_id in [doc.document_id for doc in user.uploaded_documents]
-    ]
-
-    # user_id는 None이 될 수 없음
-    if user.user_id is None:
-        raise IllegalStateError()
-
-    # space_id는 None이 될 수 없음
     if space.space_id is None:
         raise IllegalStateError()
 
-    await doc_service(
-        space=space,
-        doc_ids=own_doc_id,
-        add_user_id=user.user_id,
-        session=session,
+    return await service.add_document(
+        space_id=space.space_id,
+        document_ids=body.document_ids
+    )
+
+
+@router.delete(
+    "/{space_id}/documents/{document_id}",
+    summary="챗스페이스에 연결된 문서 연결 해제",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_documents_to_chat_space(
+    space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
+    body: Annotated[SpaceDocumentListRequest, Body()],
+    service: Annotated[ChatService, Depends(ChatService.factory)],
+) -> None:
+    if space.space_id is None:
+        raise IllegalStateError()
+
+    return await service.delete_document(
+        space_id=space.space_id,
+        document_ids=body.document_ids
     )
