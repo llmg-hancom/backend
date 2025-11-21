@@ -2,6 +2,7 @@ import logging
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import worker_process_init, worker_process_shutdown
 import jpype
 
@@ -60,13 +61,13 @@ def shutdown_jvm(sender=None, **kwargs):
 
 # 4.Celery Beat 스케줄러 설정 (배치 작업)
 # Soft Delete 후속 작업
-# celery_app.conf.beat_schedule = {
-#     # 스케줄 이름
-#     'hard-delete-old-data-daily': {
-#         # 실행할 태스크 이름 (tasks.py의 함수명)
-#         'task': 'workers.tasks.hard_delete_old_data_task',
-#         # 실행 주기: 매일 새벽 4시 5분
-#         'schedule': crontab(minute='5', hour='4'),
-#     },
-#     # (필요시 다른 스케줄 작업 추가)
-# }
+celery_app.conf.beat_schedule = {
+    # 스케줄 이름
+    'celery-beat-test': {
+        # 실행할 태스크 이름 (tasks.py의 함수명)
+        'task': 'workers.tasks.celery_beat_test',
+        # 실행 주기: 매일 새벽 4시 5분
+        'schedule': crontab(minute='5', hour='4'),
+    },
+    # (필요시 다른 스케줄 작업 추가)
+}
