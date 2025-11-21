@@ -53,9 +53,9 @@ def shutdown_jvm(sender=None, **kwargs):
     Celery 워커 프로세스가 종료될 때 JVM을 안전하게 종료합니다.
     """
     if jpype.isJVMStarted():
-        print("[WORKER_SHUTDOWN] JVM 종료 중...")
+        logger.info("[WORKER_SHUTDOWN] JVM 종료 중...")
         jpype.shutdownJVM()
-        print("[WORKER_SHUTDOWN] JVM 종료 완료.")
+        logger.info("[WORKER_SHUTDOWN] JVM 종료 완료.")
 
 
 # 4.Celery Beat 스케줄러 설정 (배치 작업)
@@ -64,7 +64,7 @@ def shutdown_jvm(sender=None, **kwargs):
 #     # 스케줄 이름
 #     'hard-delete-old-data-daily': {
 #         # 실행할 태스크 이름 (tasks.py의 함수명)
-#         'task': 'app.workers.tasks.hard_delete_old_data_task',
+#         'task': 'workers.tasks.hard_delete_old_data_task',
 #         # 실행 주기: 매일 새벽 4시 5분
 #         'schedule': crontab(minute='5', hour='4'),
 #     },
