@@ -1,25 +1,38 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Security, Path, status
+from fastapi import APIRouter, Body, Depends, Path, Security, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
-from errors.chat import SpaceNotFoundError, ForbiddenSpaceAccessError
-from models import User, ChatSpace
+from errors.chat import ForbiddenSpaceAccessError, SpaceNotFoundError
+from errors.general import IllegalStateError
+from errors.space import NotSpaceAdminError
+from models import ChatSpace, User
 from schemas.chat import SpaceRead
+from services.space.add_doc_to_space import add_documents_to_chat_space as doc_service
 from utils.auth import get_current_user
+from utils.chat import chat_space_from_space_id_path
+
 
 router = APIRouter(prefix="/spaces")
 
 
-@router.post(path="", summary="새 채팅방 생성", response_model=SpaceRead)
+@router.post(
+    path="",
+    summary="새 채팅방 생성",
+    status_code=status.HTTP_201_CREATED,
+    response_model=SpaceRead
+)
 async def create_space(
     db: Annotated[AsyncSession, Depends(get_async_db)],
     current_user: Annotated[User, Security(get_current_user)],
     name: str,
 ) -> SpaceRead:
+    if current_user.user_id is None:
+        raise IllegalStateError()
+
     new_space = ChatSpace(owner_user_id=current_user.user_id, name=name)
     db.add(new_space)
     await db.flush()
@@ -74,3 +87,41 @@ async def delete_space(
         raise ForbiddenSpaceAccessError()
     space_one.deleted_at = datetime.now(tz=timezone.utc)
     await db.flush()
+
+
+@router.post(
+    "/{space_id}/documents",
+    summary="챗 스페이스에 문서 추가",
+    status_code=status.HTTP_201_CREATED
+)
+async def add_documents_to_chat_space(
+    user: Annotated[User, Security(get_current_user)],
+    space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
+    document_ids: Annotated[list[int], Body(description="추가할 문서 ID의 목록")],
+    session: Annotated[AsyncSession, Depends(get_async_db)]
+) -> None:
+    # == 권한 검사 ==
+    # 유저 스페이스이고, 유저가 권한이 없을 때
+    if space.owner_user_id == user.user_id:
+        raise NotSpaceAdminError()
+
+    # 유저가 권한을 가지고 있지 않은 문서 제외
+    own_doc_id = [
+        doc_id for doc_id in document_ids
+        if doc_id in [doc.document_id for doc in user.uploaded_documents]
+    ]
+
+    # user_id는 None이 될 수 없음
+    if user.user_id is None:
+        raise IllegalStateError()
+
+    # space_id는 None이 될 수 없음
+    if space.space_id is None:
+        raise IllegalStateError()
+
+    await doc_service(
+        space=space,
+        doc_ids=own_doc_id,
+        add_user_id=user.user_id,
+        session=session,
+    )
