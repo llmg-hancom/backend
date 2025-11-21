@@ -10,7 +10,7 @@ from errors.chat import ForbiddenSpaceAccessError, SpaceNotFoundError
 from errors.general import IllegalStateError
 from errors.space import NotSpaceAdminError
 from models import ChatSpace, User
-from schemas.chat import SpaceRead
+from schemas.chat import SpaceDocumentAddRequest, SpaceRead
 from services.space.add_doc_to_space import add_documents_to_chat_space as doc_service
 from utils.auth import get_current_user
 from utils.chat import chat_space_from_space_id_path
@@ -97,7 +97,7 @@ async def delete_space(
 async def add_documents_to_chat_space(
     user: Annotated[User, Security(get_current_user)],
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
-    document_ids: Annotated[list[int], Body(description="추가할 문서 ID의 목록")],
+    document_ids: Annotated[SpaceDocumentAddRequest, Body(description="추가할 문서 ID의 목록")],
     session: Annotated[AsyncSession, Depends(get_async_db)]
 ) -> None:
     # == 권한 검사 ==
