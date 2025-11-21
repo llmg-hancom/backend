@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from models.chat_space import ChatSpaceBase
 
@@ -18,3 +18,6 @@ class SpaceRead(ChatSpaceBase):
 class AllSpacesRead(BaseModel):
     spaces: list[SpaceRead]
 
+
+class SpaceDocumentAddRequest(BaseModel):
+    document_ids: list[int] = Field(default_factory=list, ge=1)
