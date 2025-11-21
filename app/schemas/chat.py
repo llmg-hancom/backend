@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Annotated, Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,5 +19,6 @@ class AllSpacesRead(BaseModel):
     spaces: list[SpaceRead]
 
 
-class SpaceDocumentAddRequest(BaseModel):
-    document_ids: list[int] = Field(default_factory=list, ge=1)
+class SpaceDocumentListRequest(BaseModel):
+    document_ids: set[Annotated[int, Field(gt=0, description="추가할 문서 ID")]] \
+        = Field(description="추가할 문서 목록", default_factory=set)
