@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -11,8 +11,8 @@ class SpaceCreateRequest(ChatSpaceBase):
 
 class SpaceRead(ChatSpaceBase):
     space_id: int
-    owner_user_id: Optional[int]
-    group_id: Optional[int]
+    owner_user_id: int | None
+    group_id: int | None
 
 
 class AllSpacesRead(BaseModel):
@@ -25,14 +25,16 @@ class Source(BaseModel):
 
 class ChatRequest(BaseModel):
     query: str
-    include_law: Optional[bool] = False
-    include_precedent: Optional[bool] = False
+    include_law: bool = False
+    include_precedent: bool = False
 
 
 class ChatResponse(BaseModel):
-    token: Optional[str]
-    sources: Optional[list[Source]]
+    token: str | None
+    sources: list[Source] | None
+
 
 class SpaceDocumentListRequest(BaseModel):
-    document_ids: set[Annotated[int, Field(gt=0, description="추가할 문서 ID")]] \
-        = Field(description="추가할 문서 목록", default_factory=set)
+    document_ids: set[Annotated[int, Field(gt=0, description="추가할 문서 ID")]] = (
+        Field(description="추가할 문서 목록", default_factory=set)
+    )
