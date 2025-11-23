@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Any
+from typing import Sequence, Any
 
 from langchain_core.tools import tool
 from langchain_postgres import PGEngine, PGVectorStore
@@ -26,9 +26,7 @@ async def create_vector_store() -> PGVectorStore:
     return vector_store
 
 
-async def _search_target_ids(
-    document_scope: DocumentScope, space_id: Optional[int] = None
-):
+async def _fetch_target_ids(document_scope: DocumentScope, space_id: int | None = None):
     async with get_db_session() as session:
         match document_scope:
             case DocumentScope.public_law:
@@ -62,7 +60,7 @@ async def query_in_target(
     return serialized, relevant_chunks
 
 
-@tool(response_format="content_and_artifact")
+@tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_public_law(query: str):
     """
     This tool is designed for RAG in LLMs,
@@ -74,13 +72,13 @@ async def search_public_law(query: str):
     """
     relevant_chunks = []
     serialized = ""
-    target_doc_ids = await _search_target_ids(DocumentScope.public_law)
+    target_doc_ids = await _fetch_target_ids(DocumentScope.public_law)
     if target_doc_ids:
         serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
     return serialized, relevant_chunks
 
 
-@tool(response_format="content_and_artifact")
+@tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_precedent(query: str):
     """
     This tool is designed for RAG in LLMs,
@@ -92,13 +90,13 @@ async def search_precedent(query: str):
     """
     relevant_chunks = []
     serialized = ""
-    target_doc_ids = await _search_target_ids(DocumentScope.precedent)
+    target_doc_ids = await _fetch_target_ids(DocumentScope.precedent)
     if target_doc_ids:
         serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
     return serialized, relevant_chunks
 
 
-@tool(response_format="content_and_artifact")
+@tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_private_documents(space_id: int, query: str):
     """
     This tool is designed for RAG in LLMs,
@@ -106,12 +104,12 @@ async def search_private_documents(space_id: int, query: str):
 
     Args:
         space_id (int): The ID of the chat space.
-        query (str): The search query private documents.
+        query (str): The search query for private documents.
 
     """
     relevant_chunks = []
     serialized = ""
-    target_doc_ids = await _search_target_ids(DocumentScope.private, space_id)
+    target_doc_ids = await _fetch_target_ids(DocumentScope.private, space_id)
     if target_doc_ids:
         serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
     return serialized, relevant_chunks

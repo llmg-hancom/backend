@@ -78,13 +78,10 @@ app.add_middleware(
     allow_credentials=True,  # 필수!
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
-        "Content-Type",
-        "Authorization",
-        "X-Requested-With",
-        "Accept",
-        "Origin",
-        "Access-Control-Request-Method",
-        "Access-Control-Request-Headers",
+        "Content-Type",      # 요청의 데이터 타입
+        "Accept",            # 응답받을 데이터 타입
+        "Authorization",     # Bearer 토큰 사용 대비
+        "X-Requested-With",  # AJAX 요청 식별
     ],
 )
 
