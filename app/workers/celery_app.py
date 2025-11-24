@@ -64,8 +64,8 @@ def shutdown_jvm(sender=None, **kwargs):
 celery_app.conf.beat_schedule = {
     # 스케줄 이름
     'celery-beat-test': {
-        # 실행할 태스크 이름 (tasks.py의 함수명)
-        'task': 'workers.tasks.celery_beat_test',
+        # 실행할 태스크 이름
+        'task': 'celery-beat-test',
         # 실행 주기: 매일 새벽 4시 5분
         'schedule': crontab(minute='5', hour='4'),
     },

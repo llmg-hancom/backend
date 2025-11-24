@@ -113,7 +113,7 @@ def _cleanup_temp_dir(temp_dir: Path):
         shutil.rmtree(str(temp_dir))
 
 
-@celery_app.task(name="process_document_task")
+@celery_app.task(name="process-document-task")
 def process_document(doc_id: int):
     """
     문서를 처리하여 pgvector에 저장하는 메인 태스크
