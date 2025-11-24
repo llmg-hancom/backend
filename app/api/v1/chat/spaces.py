@@ -3,9 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, Path, Query, status
 
 from errors.general import IllegalStateError
-from models import ChatSpace
+from models import ChatSession, ChatSpace
 from models.document import DocumentRead
-from schemas.chat import SpaceCreateRequest, SpaceDocumentListRequest, SpaceRead
+from schemas.chat import (
+    ChatSessionCreateRequest,
+    ChatSessionRead,
+    SpaceCreateRequest,
+    SpaceDocumentListRequest,
+    SpaceRead,
+)
 from schemas.pagination import PaginationParams, PaginationResponse
 from services.chat_service import ChatService
 from utils.chat import chat_space_from_space_id_path
@@ -135,3 +141,24 @@ async def delete_documents_to_chat_space(
         space_id=space.space_id,
         document_ids=body.document_ids
     )
+
+
+@router.post(
+    "/{space_id}/sessions",
+    summary="챗스페이스에 새 세션 생성",
+    status_code=status.HTTP_201_CREATED
+)
+async def create_chat_session(
+    space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
+    body: Annotated[ChatSessionCreateRequest, Body()],
+    service: Annotated[ChatService, Depends(ChatService.factory)],
+) -> ChatSessionRead:
+    if space.space_id is None:
+        raise IllegalStateError()
+
+    result = await service.create_chat_session(
+        space=space,
+        title=body.title
+    )
+
+    return ChatSessionRead.model_validate(result)

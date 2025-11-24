@@ -10,7 +10,7 @@ from errors.chat import ForbiddenSpaceAccessError
 from errors.document import DocumentNotFoundError, ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.space import SpaceNotFoundError
-from models import ChatSpace, ChatSpaceDocument, Document, User
+from models import ChatSession, ChatSpace, ChatSpaceDocument, Document, User
 from utils.auth import get_current_user
 
 
@@ -148,3 +148,23 @@ class ChatService:
 
         await self.db.delete(bridge)
         await self.db.commit()
+
+
+    async def create_chat_session(self, space: ChatSpace, title: str) -> ChatSession:
+        """
+        챗스페이스에 새 세션을 추가합니다.
+        """
+        if space.space_id is None:
+            raise IllegalStateError()
+
+        new_session = ChatSession(
+            space_id=space.space_id,
+            title=title,
+            user_id=self.actor.user_id
+        )
+
+        self.db.add(new_session)
+        await self.db.commit()
+        await self.db.refresh(new_session, attribute_names=["space", "user"])
+
+        return new_session
