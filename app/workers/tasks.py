@@ -275,7 +275,7 @@ def conn_embedding_model(db_host):
 
     # 3. DB 연결 정보 설정 (로컬 접속 정보 사용)
     DB_CONFIG = {
-        "database": DB_NAME,
+        "dbname": DB_NAME,
         "user": DB_USER,
         "password": DB_PASSWORD,
         # ❗️ 전달받은 호스트와 포트 사용
