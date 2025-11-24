@@ -2,6 +2,7 @@ from typing import Sequence, Any
 
 from langchain_core.tools import tool
 from langchain_postgres import PGEngine, PGVectorStore
+from langchain_postgres.v2.indexes import HNSWQueryOptions
 from sqlalchemy import Row, RowMapping
 from sqlmodel import select
 
@@ -14,7 +15,7 @@ from rag.model import embeddings
 pg_engine = PGEngine.from_engine(async_engine)
 
 
-async def create_vector_store() -> PGVectorStore:
+async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVectorStore:
     vector_store = await PGVectorStore.create(
         engine=pg_engine,
         embedding_service=embeddings,
@@ -22,6 +23,8 @@ async def create_vector_store() -> PGVectorStore:
         id_column="chunk_id",
         metadata_columns=["document_id", "created_at"],
         metadata_json_column="meta",
+        fetch_k=fetch_k,
+        index_query_options=HNSWQueryOptions(ef_search=ef_search),
     )
     return vector_store
 
@@ -35,7 +38,7 @@ async def _fetch_target_ids(document_scope: DocumentScope, space_id: int | None 
                 )
             case DocumentScope.precedent:
                 statement = select(Document.document_id).where(
-                    Document.document_scope == DocumentScope.precedent
+                    Document.document_scope != DocumentScope.precedent
                 )
             case DocumentScope.private:
                 statement = select(ChatSpaceDocument.document_id).where(
@@ -52,6 +55,20 @@ async def query_in_target(
     vector_store = await create_vector_store()
     relevant_chunks = await vector_store.asimilarity_search(
         query, k=k, filter={"document_id": {"$in": target_doc_ids}}
+    )
+    serialized = "\n\n".join(
+        f"Source: {doc.metadata}\nContent: {doc.page_content}"
+        for doc in relevant_chunks
+    )
+    return serialized, relevant_chunks
+
+
+async def query_excluding_docs(
+    query: str, excluded_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
+):
+    vector_store = await create_vector_store(40, 64)
+    relevant_chunks = await vector_store.asimilarity_search(
+        query, k=k, filter={"document_id": {"$nin": excluded_doc_ids}}
     )
     serialized = "\n\n".join(
         f"Source: {doc.metadata}\nContent: {doc.page_content}"
@@ -92,7 +109,7 @@ async def search_precedent(query: str):
     serialized = ""
     target_doc_ids = await _fetch_target_ids(DocumentScope.precedent)
     if target_doc_ids:
-        serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
+        serialized, relevant_chunks = await query_excluding_docs(query, target_doc_ids)
     return serialized, relevant_chunks
 
 
