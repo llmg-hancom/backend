@@ -184,7 +184,7 @@ def celery_beat_test():
     DB_HOST = "127.0.0.1"
     TARGET_DIR = "/tmp/law_precedent"
 
-    process_and_insert_to_db(DB_HOST, TARGET_DIR, "__korean_precedents.json")
+    process_and_insert_to_db(TARGET_DIR, "__korean_precedents.json")
     logger.info("[EMBED] 텍스트 마크다운으로 변환 완료!")
 
 
@@ -257,7 +257,7 @@ def split_markdown_chunks_with_fallback(
     return final_chunks
 
 
-def conn_embedding_model(db_host):
+def conn_embedding_model():
     """
     DB 및 임베딩 모델 연결을 초기화합니다.
     """
@@ -265,9 +265,6 @@ def conn_embedding_model(db_host):
     # ❗️ Ollama 접속 주소를 전달받은 db_host와 ollama_port로 설정
     OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL
     OLLAMA_MODEL = "bge-m3:567m"
-    DB_USER = settings.POSTGRES_USER
-    DB_PASSWORD = settings.POSTGRES_PASSWORD
-    DB_NAME = settings.POSTGRES_DB
     embeddings = OllamaEmbeddings(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
     logger.info(
         f"[EMBED] Ollama 임베딩 모델 '{OLLAMA_MODEL}' 초기화 완료. (URL: {OLLAMA_BASE_URL})"
@@ -275,11 +272,11 @@ def conn_embedding_model(db_host):
 
     # 3. DB 연결 정보 설정 (로컬 접속 정보 사용)
     DB_CONFIG = {
-        "dbname": DB_NAME,
-        "user": DB_USER,
-        "password": DB_PASSWORD,
+        "dbname":settings.POSTGRES_DB,
+        "user": settings.POSTGRES_USER,
+        "password": settings.POSTGRES_PASSWORD,
         # ❗️ 전달받은 호스트와 포트 사용
-        "host": db_host,
+        "host": settings.POSTGRES_HOST,
         "port": settings.POSTGRES_PORT,
     }
 
@@ -300,7 +297,7 @@ def conn_embedding_model(db_host):
 # -------------------------------------------------------------
 # 4. 메인 파이프라인 함수: 분할 및 DB 삽입
 # -------------------------------------------------------------
-def process_and_insert_to_db(db_host, target_directory, file_name):
+def process_and_insert_to_db(target_directory, file_name):
     # --- 4-1. JSON 파일 로드 ---
     file_path = Path(target_directory) / file_name
     if not file_path.exists():
@@ -316,7 +313,7 @@ def process_and_insert_to_db(db_host, target_directory, file_name):
 
     # --- 4-2. 임베딩 클라이언트 및 DB 연결 초기화 ---
     # ❗️ 로컬 호스트와 포트를 사용하여 연결 시도
-    embeddings, conn, cur = conn_embedding_model(db_host)
+    embeddings, conn, cur = conn_embedding_model()
 
     if not conn:  # DB 연결 실패 시 바로 종료
         return
