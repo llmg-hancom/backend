@@ -73,6 +73,21 @@ class ChatService:
 
         space.deleted_at = datetime.now(tz=timezone.utc)
 
+    async def get_chat_space_documents(self, space_id: int, offset: int, limit: int) -> list[Document]:
+        """
+        현재 챗 스페이스에 연결된 문서 목록을 조회합니다.
+        """
+        query = (
+            select(ChatSpaceDocument)
+            .where(ChatSpaceDocument.space_id == space_id)
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = (await self.db.execute(query)).scalars()
+        return [doc.document for doc in result]
+
+
     async def add_document(self, space_id: int, document_ids: set[int]):
         """
         챗스페이스에 문서를 추가합니다.
