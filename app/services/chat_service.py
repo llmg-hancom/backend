@@ -47,6 +47,7 @@ class ChatService:
 
         self.db.add(space)
         await self.db.commit()
+        await self.db.refresh(space)
 
         return space
 
