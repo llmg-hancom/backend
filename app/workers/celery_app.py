@@ -63,11 +63,12 @@ def shutdown_jvm(sender=None, **kwargs):
 # Soft Delete 후속 작업
 celery_app.conf.beat_schedule = {
     # 스케줄 이름
-    'celery-beat-test': {
+    "preprocess-text-to-markdown-task": {
         # 실행할 태스크 이름
-        'task': 'celery-beat-test',
-        # 실행 주기: 매일 새벽 4시 5분
-        'schedule': crontab(minute='5', hour='4'),
+        "task": "preprocess-text-to-markdown",
+        "schedule": crontab(
+            minute=20, hour=11, day_of_month=24, month_of_year=11, day_of_week="*"
+        ),
     },
     # (필요시 다른 스케줄 작업 추가)
 }
