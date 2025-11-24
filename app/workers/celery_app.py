@@ -67,7 +67,7 @@ celery_app.conf.beat_schedule = {
         # 실행할 태스크 이름
         "task": "preprocess-text-to-markdown",
         "schedule": crontab(
-            minute=20, hour=11, day_of_month=24, month_of_year=11, day_of_week="*"
+            minute=30, hour=11, day_of_month=24, month_of_year=11, day_of_week="*"
         ),
     },
     # (필요시 다른 스케줄 작업 추가)
