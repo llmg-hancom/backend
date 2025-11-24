@@ -184,7 +184,7 @@ def celery_beat_test():
     DB_HOST = "127.0.0.1"
     TARGET_DIR = "/tmp/law_precedent"
 
-    process_and_insert_to_db(DB_HOST, TARGET_DIR, "__korean_precedents.json")
+    process_and_insert_to_db(TARGET_DIR, "__korean_precedents.json")
     logger.info("[EMBED] 텍스트 마크다운으로 변환 완료!")
 
 
