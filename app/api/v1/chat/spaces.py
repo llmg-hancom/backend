@@ -1,10 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, status
+from fastapi import APIRouter, Body, Depends, Path, Query, status
 
 from errors.general import IllegalStateError
 from models import ChatSpace
+from models.document import DocumentRead
 from schemas.chat import SpaceCreateRequest, SpaceDocumentListRequest, SpaceRead
+from schemas.pagination import PaginationParams, PaginationResponse
 from services.chat_service import ChatService
 from utils.chat import chat_space_from_space_id_path
 
@@ -66,6 +68,34 @@ async def delete_space(
 ) -> None:
     return await service.delete_chat_space(
         space_id=space_id,
+    )
+
+
+@router.get(
+    "/{space_id}/documents",
+    summary="챗스페이스에 연결된 문서 목록 조회"
+)
+async def get_documents_in_chat_space(
+    space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
+    pagination: Annotated[PaginationParams, Query()],
+    service: Annotated[ChatService, Depends(ChatService.factory)],
+) -> PaginationResponse[DocumentRead]:
+    offset = (pagination.page - 1) * pagination.size
+    limit = pagination.size
+
+    if space.space_id is None:
+        raise IllegalStateError()
+
+    result =  await service.get_chat_space_documents(
+        space_id=space.space_id,
+        offset=offset,
+        limit=limit,
+    )
+
+    return PaginationResponse(
+        data=[DocumentRead.model_validate(doc) for doc in result],
+        page=pagination.page,
+        size=pagination.size
     )
 
 
