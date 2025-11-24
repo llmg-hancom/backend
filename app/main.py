@@ -76,8 +76,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,  # 필수!
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Content-Type",      # 요청의 데이터 타입
+        "Accept",            # 응답받을 데이터 타입
+        "Authorization",     # Bearer 토큰 사용 대비
+        "X-Requested-With",  # AJAX 요청 식별
+    ],
 )
 
 

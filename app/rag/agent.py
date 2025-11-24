@@ -42,12 +42,12 @@ async def event_generator(session_id: int, request: ChatRequest):
     )
     # 답변을 모을 버퍼
     full_response = ""
-    async for message in agent.astream(
+    async for chunk, metadata in agent.astream(
         {"messages": [{"role": "user", "content": request.query}]},
         stream_mode="messages",
     ):
-        full_response += message[0].content
-        yield f"data: {json.dumps({'token': message[0].content}, ensure_ascii=False)}\n\n"
+        full_response += chunk.content
+        yield f"data: {json.dumps({'token': chunk.content}, ensure_ascii=False)}\n\n"
     new_answer = ChatMessage(
         content=full_response, session_id=session_id, role=ChatRole.ai
     )

@@ -48,7 +48,7 @@ class Document(DocumentBase, table=True):
     )
     document_scope: DocumentScope = Field(
         default=DocumentScope.private,
-        sa_column=Column(SaEnum(DocumentScope), nullable=False),
+        sa_column=Column(SaEnum(DocumentScope), index=True, nullable=False),
     )
     created_at: datetime = Field(
         sa_column=Column(
