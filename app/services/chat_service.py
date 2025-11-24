@@ -32,7 +32,7 @@ class ChatService:
     def factory(
         cls,
         actor: Annotated[User, Security(get_current_user)],
-        db: Annotated[AsyncSession, Depends(get_async_db)]
+        db: Annotated[AsyncSession, Depends(get_async_db)],
     ) -> Self:
         return cls(actor, db)
 
@@ -74,20 +74,27 @@ class ChatService:
 
         space.deleted_at = datetime.now(tz=timezone.utc)
 
-    async def get_chat_space_documents(self, space_id: int, offset: int, limit: int) -> list[Document]:
+    async def get_chat_space_documents(
+        self, space_id: int, offset: int, limit: int
+    ) -> list[Document]:
         """
         현재 챗 스페이스에 연결된 문서 목록을 조회합니다.
         """
+        # [수정] ChatSpaceDocument가 아니라 Document를 바로 조회합니다.
         query = (
-            select(ChatSpaceDocument)
+            select(Document)
+            .join(
+                ChatSpaceDocument, Document.document_id == ChatSpaceDocument.document_id
+            )
             .where(ChatSpaceDocument.space_id == space_id)
             .offset(offset)
             .limit(limit)
         )
 
-        result = (await self.db.execute(query)).scalars()
-        return [doc.document for doc in result]
+        # 이제 result는 이미 Document 객체들의 리스트입니다.
+        result = (await self.db.execute(query)).scalars().all()
 
+        return list(result)
 
     async def add_document(self, space_id: int, document_ids: set[int]):
         """
@@ -118,17 +125,15 @@ class ChatService:
             ChatSpaceDocument(
                 space_id=space_id,
                 document_id=document.document_id,
-                added_by_user_id=self.actor.user_id
+                added_by_user_id=self.actor.user_id,
             )
             for document in actor_own_documents
-
             # 타입 내로잉
             if document.document_id is not None
         ]
 
         self.db.add_all(bridges)
         await self.db.commit()
-
 
     async def delete_document(self, space_id: int, document_ids: set[int]) -> None:
         """
@@ -142,13 +147,24 @@ class ChatService:
 
         bridge = (await self.db.execute(query)).all()
 
-        # 하나라도 연결 안된 문서가 있다면 전체 실패
         if len(bridge) != len(document_ids):
             raise DocumentNotFoundError()
 
-        await self.db.delete(bridge)
-        await self.db.commit()
+        # [문제 2] db.delete()는 객체(Instance)를 받아야 하는데, 위에서 Row(튜플)를 받았습니다.
+        # 또한 여러 개를 삭제할 때는 루프를 돌거나 객체 리스트를 잘 넘겨야 합니다.
 
+        # [수정 제안]
+        # 1. .scalars().all()로 객체 리스트를 받으세요.
+        bridges = (await self.db.execute(query)).scalars().all()
+
+        if len(bridges) != len(document_ids):
+            raise DocumentNotFoundError()
+
+        # 2. 객체들을 삭제합니다.
+        for b in bridges:
+            await self.db.delete(b)
+
+        await self.db.commit()
 
     async def create_chat_session(self, space: ChatSpace, title: str) -> ChatSession:
         """
@@ -158,9 +174,7 @@ class ChatService:
             raise IllegalStateError()
 
         new_session = ChatSession(
-            space_id=space.space_id,
-            title=title,
-            user_id=self.actor.user_id
+            space_id=space.space_id, title=title, user_id=self.actor.user_id
         )
 
         self.db.add(new_session)
