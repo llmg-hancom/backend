@@ -26,7 +26,7 @@ from langchain_text_splitters import (
     RecursiveCharacterTextSplitter,
 )
 from langchain_ollama import OllamaEmbeddings
-from pgvector.psycopg2 import register_vector
+from pgvector.psycopg import register_vector
 # (Chunking 로직은 별도 파일로 분리하거나 여기에 구현해야 함)
 # from rag.chunking import get_chunks_from_structured_data
 
