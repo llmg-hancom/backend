@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated, Self
 
 from fastapi import Depends, Security
@@ -5,8 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from db.session import get_async_db
+from errors.chat import ForbiddenSpaceAccessError
 from errors.document import DocumentNotFoundError, ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
+from errors.space import SpaceNotFoundError
 from models import ChatSpace, ChatSpaceDocument, Document, User
 from utils.auth import get_current_user
 
@@ -32,6 +35,43 @@ class ChatService:
         db: Annotated[AsyncSession, Depends(get_async_db)]
     ) -> Self:
         return cls(actor, db)
+
+    async def create_chat_space(self, name: str) -> ChatSpace:
+        """
+        챗스페이스를 추가합니다.
+        """
+        if self.actor.user_id is None:
+            raise IllegalStateError()
+
+        space = ChatSpace(name=name, owner_user_id=self.actor.user_id)
+
+        self.db.add(space)
+        await self.db.commit()
+
+        return space
+
+    async def delete_chat_space(self, space_id: int) -> None:
+        """
+        챗스페이스를 삭제합니다.
+        """
+        if self.actor.user_id is None:
+            raise IllegalStateError()
+
+        query = (
+            select(ChatSpace)
+            .where(col(ChatSpace.space_id) == space_id)
+            .where(col(ChatSpace.deleted_at).is_(None))
+        )
+
+        space = (await self.db.execute(query)).scalar_one_or_none()
+
+        if space is None:
+            raise SpaceNotFoundError(space_id=space_id)
+
+        if space.owner_user_id != self.actor.user_id:
+            raise ForbiddenSpaceAccessError()
+
+        space.deleted_at = datetime.now(tz=timezone.utc)
 
     async def add_document(self, space_id: int, document_ids: set[int]):
         """
