@@ -77,10 +77,10 @@ jobs:
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
             # 3. 최신 이미지 다운로드
-            docker-compose -f docker-compose.prod.yaml pull
+            docker compose -f docker-compose.prod.yaml pull
 
             # 4. 컨테이너 재시작
-            docker-compose -f docker-compose.prod.yaml up -d
+            docker compose -f docker-compose.prod.yaml up -d
 
             # 5. 정리
             docker image prune -f
