@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import TIMESTAMP, Column, func
@@ -29,6 +29,7 @@ class ChatSession(ChatSessionBase, table=True):
     )
 
     created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
         ),
@@ -36,6 +37,7 @@ class ChatSession(ChatSessionBase, table=True):
 
     # [핵심] ON UPDATE 트리거 구현
     updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True),
             nullable=False,
