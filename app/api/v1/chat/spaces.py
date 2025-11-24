@@ -1,19 +1,13 @@
-from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, Security, status
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, Body, Depends, Path, Query, status
 
-from db.session import get_async_db
-from errors.chat import ForbiddenSpaceAccessError, SpaceNotFoundError
 from errors.general import IllegalStateError
-from errors.space import NotSpaceAdminError
-from models import ChatSpace, User
-from schemas.chat import SpaceDocumentListRequest, SpaceRead
+from models import ChatSpace
+from models.document import DocumentRead
+from schemas.chat import SpaceCreateRequest, SpaceDocumentListRequest, SpaceRead
+from schemas.pagination import PaginationParams, PaginationResponse
 from services.chat_service import ChatService
-from services.space.add_doc_to_space import add_documents_to_chat_space as doc_service
-from utils.auth import get_current_user
 from utils.chat import chat_space_from_space_id_path
 
 
@@ -27,18 +21,11 @@ router = APIRouter(prefix="/spaces")
     response_model=SpaceRead
 )
 async def create_space(
-    db: Annotated[AsyncSession, Depends(get_async_db)],
-    current_user: Annotated[User, Security(get_current_user)],
-    name: str,
+    body: Annotated[SpaceCreateRequest, Body()],
+    service: Annotated[ChatService, Depends(ChatService.factory)]
 ) -> SpaceRead:
-    if current_user.user_id is None:
-        raise IllegalStateError()
-
-    new_space = ChatSpace(owner_user_id=current_user.user_id, name=name)
-    db.add(new_space)
-    await db.flush()
-    await db.refresh(new_space)
-    return SpaceRead.model_validate(new_space)
+    space = await service.create_chat_space(name=body.name)
+    return SpaceRead.model_validate(space)
 
 
 @router.delete(
@@ -77,17 +64,39 @@ async def create_space(
 )
 async def delete_space(
     space_id: Annotated[int, Path(description="채팅방 ID")],
-    db: Annotated[AsyncSession, Depends(get_async_db)],
-    current_user: Annotated[User, Security(get_current_user)],
+    service: Annotated[ChatService, Depends(ChatService.factory)],
 ) -> None:
-    space = await db.exec(select(ChatSpace).where(ChatSpace.space_id == space_id))
-    space_one = space.one_or_none()
-    if space_one is None:
-        raise SpaceNotFoundError()
-    if space_one.owner_user_id != current_user.user_id:
-        raise ForbiddenSpaceAccessError()
-    space_one.deleted_at = datetime.now(tz=timezone.utc)
-    await db.flush()
+    return await service.delete_chat_space(
+        space_id=space_id,
+    )
+
+
+@router.get(
+    "/{space_id}/documents",
+    summary="챗스페이스에 연결된 문서 목록 조회"
+)
+async def get_documents_in_chat_space(
+    space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
+    pagination: Annotated[PaginationParams, Query()],
+    service: Annotated[ChatService, Depends(ChatService.factory)],
+) -> PaginationResponse[DocumentRead]:
+    offset = (pagination.page - 1) * pagination.size
+    limit = pagination.size
+
+    if space.space_id is None:
+        raise IllegalStateError()
+
+    result =  await service.get_chat_space_documents(
+        space_id=space.space_id,
+        offset=offset,
+        limit=limit,
+    )
+
+    return PaginationResponse(
+        data=[DocumentRead.model_validate(doc) for doc in result],
+        page=pagination.page,
+        size=pagination.size
+    )
 
 
 @router.post(
@@ -110,7 +119,7 @@ async def add_documents_to_chat_space(
 
 
 @router.delete(
-    "/{space_id}/documents/{document_id}",
+    "/{space_id}/documents",
     summary="챗스페이스에 연결된 문서 연결 해제",
     status_code=status.HTTP_204_NO_CONTENT,
 )
