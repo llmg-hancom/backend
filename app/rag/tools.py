@@ -1,8 +1,9 @@
 from typing import Sequence, Any
 
-from langchain_core.tools import tool
+from langchain.tools import tool, ToolRuntime
 from langchain_postgres import PGEngine, PGVectorStore
 from langchain_postgres.v2.indexes import HNSWQueryOptions
+from pydantic import BaseModel
 from sqlalchemy import Row, RowMapping
 from sqlmodel import select
 
@@ -13,6 +14,10 @@ from rag.context_manager import get_db_session
 from rag.model import embeddings
 
 pg_engine = PGEngine.from_engine(async_engine)
+
+
+class Context(BaseModel):
+    space_id: int
 
 
 async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVectorStore:
@@ -114,19 +119,19 @@ async def search_precedent(query: str):
 
 
 @tool(response_format="content_and_artifact", parse_docstring=True)
-async def search_private_documents(space_id: int, query: str):
+async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     """
     This tool is designed for RAG in LLMs,
     specifically for searching private document chunks.
 
     Args:
-        space_id (int): The ID of the chat space.
         query (str): The search query for private documents.
-
     """
     relevant_chunks = []
     serialized = ""
-    target_doc_ids = await _fetch_target_ids(DocumentScope.private, space_id)
+    target_doc_ids = await _fetch_target_ids(
+        DocumentScope.private, runtime.context.space_id
+    )
     if target_doc_ids:
         serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
     return serialized, relevant_chunks
