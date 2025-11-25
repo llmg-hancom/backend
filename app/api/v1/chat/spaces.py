@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, Query, status
+from fastapi import APIRouter, Body, Depends, Path, Query, Security, status
 
+from errors.chat import ForbiddenSpaceAccessError
 from errors.general import IllegalStateError
-from models import ChatSession, ChatSpace
+from models import ChatSession, ChatSpace, User
 from models.document import DocumentRead
 from schemas.chat import (
     ChatSessionCreateRequest,
@@ -14,6 +15,7 @@ from schemas.chat import (
 )
 from schemas.pagination import PaginationParams, PaginationResponse
 from services.chat_service import ChatService
+from utils.auth import get_current_user
 from utils.chat import chat_space_from_space_id_path
 
 
@@ -31,6 +33,21 @@ async def create_space(
     service: Annotated[ChatService, Depends(ChatService.factory)]
 ) -> SpaceRead:
     space = await service.create_chat_space(name=body.name)
+    return SpaceRead.model_validate(space)
+
+
+@router.get(
+    path="/{space_id}",
+    summary="챗스페이스 조회",
+    response_model=SpaceRead
+)
+async def get_space(
+    space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
+    actor: Annotated[User, Security(get_current_user)]
+) -> SpaceRead:
+    if actor.user_id != space.owner_user_id:
+        raise ForbiddenSpaceAccessError()
+
     return SpaceRead.model_validate(space)
 
 
