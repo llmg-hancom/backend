@@ -3,14 +3,24 @@ from typing import Annotated, Self
 
 from fastapi import Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, select
+from sqlmodel import col, exists, select
 
 from db.session import get_async_db
 from errors.chat import ForbiddenSpaceAccessError
 from errors.document import DocumentNotFoundError, ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
+from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
 from errors.space import SpaceNotFoundError
-from models import ChatSession, ChatSpace, ChatSpaceDocument, Document, User
+from models import (
+    ChatSession,
+    ChatSpace,
+    ChatSpaceDocument,
+    Document,
+    Group,
+    GroupMember,
+    User,
+)
+from models.group_member import UserRole
 from utils.auth import get_current_user
 
 
@@ -50,6 +60,63 @@ class ChatService:
         await self.db.refresh(space)
 
         return space
+
+
+    async def create_group_chat_space(self, group: Group, name: str) -> ChatSpace:
+        """
+        그룹에 속한 챗스페이스를 생성합니다.
+        """
+        if self.actor.user_id is None:
+            raise IllegalStateError()
+
+        if group.group_id is None:
+            raise IllegalStateError()
+
+        # actor가 그룹 admin인지 검사
+        query = select(
+            exists(GroupMember)
+            .where(col(GroupMember.group_id) == group.group_id)
+            .where(col(GroupMember.user_id) == self.actor.user_id)
+            .where(col(GroupMember.role) == UserRole.admin)
+        )
+
+        if not await self.db.scalar(query):
+            raise UserIsNotGroupAdminError()
+
+        space = ChatSpace(name=name, group_id=group.group_id)
+
+        self.db.add(space)
+        await self.db.commit()
+        await self.db.refresh(space)
+
+        return space
+
+
+    async def get_group_chat_spaces(self, group: Group, offset: int, limit: int) -> list[ChatSpace]:
+        """
+        그룹에 속한 챗스페이스의 목록을 조회합니다.
+        """
+        # actor가 해당 그룹의 멤버인지 확인
+        member_query = select(
+            exists(GroupMember)
+            .where(col(GroupMember.group_id) == group.group_id)
+            .where(col(GroupMember.user_id) == self.actor.user_id)
+        )
+
+        if not await self.db.scalar(member_query):
+            raise UserIsNotGroupMemberError()
+
+        query = (
+            select(ChatSpace)
+            .where(col(ChatSpace.group_id) == group.group_id)
+            .where(col(ChatSpace.deleted_at).is_(None))
+            .offset(offset)
+            .limit(limit)
+        )
+
+        spaces = (await self.db.scalars(query)).all()
+        return [space for space in spaces]
+
 
     async def delete_chat_space(self, space_id: int) -> None:
         """
