@@ -25,7 +25,7 @@ class StorageService:
 
     async def upload_file(self, file: UploadFile, file_key: str) -> str:
         """
-        파일을 S3에 업로드하고, 접근 가능한 s3:// 경로를 반환합니다.
+        업로드 파일을 S3에 업로드하고, 접근 가능한 s3:// 경로를 반환합니다.
         file_key: document 내 저장 경로 (예: private/user_1/uuid/file.hwp)
         """
         try:
@@ -40,11 +40,31 @@ class StorageService:
                 },  # MIME 타입 메타데이터 저장
             )
             s3_path = f"s3://{self.bucket_name}/{file_key}"
-            logger.info(f"document 업로드 성공: {s3_path}")
+            logger.info(f"파일 업로드 성공: {s3_path}")
             return s3_path
 
         except (NoCredentialsError, ClientError) as e:
-            logger.error(f"document 업로드 실패: {e}")
+            logger.error(f"파일 업로드 실패: {e}")
+            raise FileStorageError()
+        except Exception as e:
+            logger.error(f"알 수 없는 업로드 오류: {e}")
+            raise Exception()
+
+    def upload_local_file(self, file: Path, file_key: str) -> str:
+        """
+        로컬 파일을 S3에 업로드하고, 접근 가능한 s3:// 경로를 반환합니다.
+        file_key: document 내 저장 경로 (예: private/user_1/uuid/file.hwp)
+        """
+        try:
+            # [중요] UploadFile은 SpooledTemporaryFile 객체이므로
+            # boto3의 upload_fileobj를 사용하여 스트리밍 업로드 가능
+            self.s3_client.upload_file(str(file), self.bucket_name, file_key)
+            s3_path = f"s3://{self.bucket_name}/{file_key}"
+            logger.info(f"파일 업로드 성공: {s3_path}")
+            return s3_path
+
+        except (NoCredentialsError, ClientError) as e:
+            logger.error(f"파일 업로드 실패: {e}")
             raise FileStorageError()
         except Exception as e:
             logger.error(f"알 수 없는 업로드 오류: {e}")
@@ -61,13 +81,25 @@ class StorageService:
         # S3에서 파일 다운로드
         try:
             self.s3_client.download_file(self.bucket_name, s3_path.key, str(file_path))
-            logger.info(f"document 다운로드 성공: {s3_path.key} -> {file_path}")
+            logger.info(f"파일 다운로드 성공: {s3_path.key} -> {file_path}")
             return file_path
         except (NoCredentialsError, ClientError) as e:
-            logger.error(f"document 다운로드 실패: {e}")
+            logger.error(f"파일 다운로드 실패: {e}")
             raise FileStorageError()
         except Exception as e:
-            logger.error(f"알 수 없는 업로드 오류: {e}")
+            logger.error(f"알 수 없는 다운로드 오류: {e}")
+            raise Exception()
+
+    def delete_file(self, file_uri: str):
+        s3_path = S3Path.from_uri(file_uri)
+        try:
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_path.key)
+            logger.info(f"파일 삭제 성공: {s3_path}")
+        except (NoCredentialsError, ClientError) as e:
+            logger.error(f"파일 삭제 실패: {e}")
+            raise FileStorageError()
+        except Exception as e:
+            logger.error(f"알 수 없는 파일 삭제 오류: {e}")
             raise Exception()
 
     def generate_presigned_url(self, pathstr: str, expiration=3600) -> str:
