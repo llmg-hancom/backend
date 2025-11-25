@@ -28,11 +28,11 @@ class ForbiddenSpaceAccessError(BackendBaseError):
 class ChatSessionNotFoundError(BackendBaseError):
     """채팅 세션을 찾을 수 없음"""
 
-    def __init__(self):
+    def __init__(self, session_id: int):
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             error_code="CHAT_SESSION_NOT_FOUND",
-            message="채팅 세션을 찾을 수 없습니다.",
+            message=f"채팅 세션(id={session_id})을 찾을 수 없습니다.",
         )
 
 
