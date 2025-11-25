@@ -136,7 +136,7 @@ async def add_documents_to_chat_space(
         raise IllegalStateError()
 
     return await service.add_document(
-        space_id=space.space_id,
+        space=space,
         document_ids=body.document_ids
     )
 
