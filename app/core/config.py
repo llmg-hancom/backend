@@ -57,7 +57,6 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGSMITH_PROJECT: str
-    LANGCHAIN_CALLBACKS_BACKGROUND: bool
 
     # Environment
     ENVIRONMENT: Literal["development", "production"] = "development"
