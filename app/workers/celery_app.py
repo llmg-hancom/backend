@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 # 1. Celery 앱 생성
 # broker: 메시지 브로커 URL
 # backend: 결과 백엔드 URL
-celery_app = Celery("worker", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
+celery_app = Celery(
+    "worker", broker=settings.REDIS_URL + "0", backend=settings.REDIS_URL + "1"
+)
 
 celery_app.conf.update(
     task_track_started=True,
