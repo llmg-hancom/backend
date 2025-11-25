@@ -6,6 +6,7 @@ from .document import Document
 from .document_chunk import DocumentChunk
 from .group import Group
 from .group_member import GroupMember
+from .precedent_log import PrecedentLog
 from .refresh_token import RefreshToken
 from .social_account import SocialAccount
 from .user import User
@@ -19,6 +20,7 @@ __all__ = [
     "DocumentChunk",
     "Group",
     "GroupMember",
+    "PrecedentLog",
     "RefreshToken",
     "SocialAccount",
     "User",
