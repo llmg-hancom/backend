@@ -1,8 +1,11 @@
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, Field
 
+from models.chat_session import ChatSessionBase
 from models.chat_space import ChatSpaceBase
+from models.user import UserRead
 
 
 class SpaceCreateRequest(ChatSpaceBase):
@@ -38,3 +41,13 @@ class SpaceDocumentListRequest(BaseModel):
     document_ids: set[Annotated[int, Field(gt=0, description="추가할 문서 ID")]] = (
         Field(description="추가할 문서 목록", default_factory=set)
     )
+
+class ChatSessionRead(ChatSessionBase):
+    session_id: int
+    created_at: datetime
+    updated_at: datetime
+    space: SpaceRead
+    user: UserRead
+
+class ChatSessionCreateRequest(ChatSessionBase):
+    pass
