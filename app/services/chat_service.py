@@ -48,6 +48,7 @@ class ChatService:
     ) -> Self:
         return cls(actor, db)
 
+
     async def create_chat_space(self, name: str) -> ChatSpace:
         """
         챗스페이스를 추가합니다.
@@ -143,6 +144,7 @@ class ChatService:
 
         space.deleted_at = datetime.now(tz=timezone.utc)
 
+
     async def get_chat_space_documents(
         self, space_id: int, offset: int, limit: int
     ) -> list[Document]:
@@ -164,6 +166,7 @@ class ChatService:
         result = (await self.db.execute(query)).scalars().all()
 
         return list(result)
+
 
     async def add_document(self, space: ChatSpace, document_ids: set[int]):
         """
@@ -224,6 +227,7 @@ class ChatService:
         self.db.add_all(bridges)
         await self.db.commit()
 
+
     async def delete_document(self, space_id: int, document_ids: set[int]) -> None:
         """
         챗스페이스에 연결된 문서를 연결 해제합니다.
@@ -254,6 +258,7 @@ class ChatService:
             await self.db.delete(b)
 
         await self.db.commit()
+
 
     async def create_chat_session(self, space: ChatSpace, title: str) -> ChatSession:
         """
