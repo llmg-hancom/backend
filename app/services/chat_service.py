@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, exists, select
 
 from db.session import get_async_db
-from errors.chat import ForbiddenSpaceAccessError
+from errors.chat import (
+    ForbiddenSpaceAccessError,
+)
 from errors.document import DocumentNotFoundError, ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
@@ -163,9 +165,10 @@ class ChatService:
 
         return list(result)
 
-    async def add_document(self, space_id: int, document_ids: set[int]):
+    async def add_document(self, space: ChatSpace, document_ids: set[int]):
         """
-        챗스페이스에 문서를 추가합니다.
+        챗스페이스에 문서를 추가합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
+        그룹 챗스페이스일 경우 스페이스를 소유한 그룹의 admin이 문서를 추가할 수 있습니다.
         """
         # 리스트가 비어있는 경우
         if len(document_ids) == 0:
@@ -174,6 +177,25 @@ class ChatService:
         # 타입 내로잉
         if self.actor.user_id is None:
             raise IllegalStateError()
+
+        if space.space_id is None:
+            raise IllegalStateError()
+
+        # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
+        if space.owner_user_id is not None and space.owner_user_id != self.actor.user_id:
+            raise ForbiddenSpaceAccessError()
+
+        # 그룹 챗스페이스이고, actor가 그 그룹의 admin이 아닌 경우
+        if space.group_id is not None:
+            is_admin_query = select(
+                exists(GroupMember)
+                .where(col(GroupMember.group_id) == space.group_id)
+                .where(col(GroupMember.user_id) == self.actor.user_id)
+                .where(col(GroupMember.role) == UserRole.admin)
+            )
+            is_admin = await self.db.scalar(is_admin_query)
+            if not is_admin:
+                raise UserIsNotGroupAdminError()
 
         # actor가 해당 문서에 대해 권한이 있는지 검사합니다.
         query = (
@@ -190,7 +212,7 @@ class ChatService:
 
         bridges = [
             ChatSpaceDocument(
-                space_id=space_id,
+                space_id=space.space_id,
                 document_id=document.document_id,
                 added_by_user_id=self.actor.user_id,
             )
