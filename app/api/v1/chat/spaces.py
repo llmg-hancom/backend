@@ -1,11 +1,13 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Path, Query, Security, status
+from pydantic import PositiveInt
 
 from errors.chat import ForbiddenSpaceAccessError
 from errors.general import IllegalStateError
 from models import ChatSession, ChatSpace, User
 from models.document import DocumentRead
+from schemas.bulk import BulkJobResponse
 from schemas.chat import (
     ChatSessionCreateRequest,
     ChatSessionRead,
@@ -126,13 +128,17 @@ async def get_documents_in_chat_space(
     "/{space_id}/documents",
     summary="챗 스페이스에 문서 추가",
     status_code=status.HTTP_201_CREATED,
-    response_model=None,
 )
 async def add_documents_to_chat_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
     body: Annotated[SpaceDocumentListRequest, Body(description="추가할 문서 ID의 목록")],
     service: Annotated[ChatService, Depends(ChatService.factory)],
-):
+) -> BulkJobResponse[PositiveInt]:
+    """
+    챗스페이스에 여러 개의 문서를 추가합니다.
+    만약 추가하려는 문서 중 사용자의 문서가 아닌 것이 있으면 오류를 반환합니다.
+    성공 응답에는 성공/스킵한 문서 ID가 반환됩니다.
+    """
     if space.space_id is None:
         raise IllegalStateError()
 
@@ -141,7 +147,7 @@ async def add_documents_to_chat_space(
         document_ids=body.document_ids
     )
 
-    return result
+    return BulkJobResponse[PositiveInt].model_validate(result)
 
 
 @router.delete(

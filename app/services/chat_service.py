@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from fastapi import Depends, Security
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -169,14 +169,18 @@ class ChatService:
         return list(result)
 
 
-    async def add_document(self, space: ChatSpace, document_ids: set[int]):
+    async def add_document(
+        self,
+        space: ChatSpace,
+        document_ids: set[int]
+    ) -> dict[Literal["success", "skipped"], set[int]]:
         """
         챗스페이스에 문서를 추가합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
         그룹 챗스페이스일 경우 스페이스를 소유한 그룹의 admin이 문서를 추가할 수 있습니다.
         """
         # 리스트가 비어있는 경우
         if len(document_ids) == 0:
-            return
+            return {}
 
         # 타입 내로잉
         if self.actor.user_id is None:
