@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "boto3>=1.40.66",
+    "bs4>=0.0.2",
     "celery[redis]>=5.5.3",
     "datetime>=5.5",
     "fastapi[standard]>=0.120.3",
@@ -14,6 +15,7 @@ dependencies = [
     "langchain-ollama>=1.0.0",
     "langchain-postgres>=0.0.16",
     "langchain-text-splitters>=1.0.0",
+    "pandas>=2.3.3",
     "pgvector<0.4",
     "psycopg[binary]>=3.2.12",
     "pwdlib[argon2]>=0.3.0",
@@ -32,6 +34,7 @@ dependencies = [
 lint = [
     "boto3-stubs[ec2,s3]>=1.40.70",
     "celery-types>=0.23.0",
+    "pandas-stubs>=2.3.2.250926",
     "ruff>=0.14.3",
 ]
 
