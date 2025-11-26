@@ -1,4 +1,3 @@
-from datetime import timedelta
 import logging
 import os
 
@@ -25,7 +24,7 @@ celery_app.conf.update(
     timezone="Asia/Seoul",
     enable_utc=True,
 )
-celery_app.autodiscover_tasks(packages=["workers", "law", "beat", "utils", "rag"])
+celery_app.autodiscover_tasks(packages=["workers", "law", "utils", "rag"])
 
 
 @worker_process_init.connect
@@ -79,8 +78,4 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=4),  # ⭐️ 매일 새벽 4시에 실행하도록 스케줄 설정
     },
     # (필요시 다른 스케줄 작업 추가)
-
-
-
-
 }
