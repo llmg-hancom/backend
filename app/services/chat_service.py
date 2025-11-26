@@ -50,6 +50,31 @@ class ChatService:
         return cls(actor, db)
 
 
+    async def __actor_has_space_write_permission(self, space: ChatSpace):
+        """
+        Actor에게 챗스페이스 쓰기 권한이 있는지 검사합니다.
+        권한이 없다면 이유에 맞는 오류가 발생합니다.
+        """
+        if self.actor.user_id is None:
+            raise IllegalStateError()
+
+        # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
+        if space.owner_user_id is not None and space.owner_user_id != self.actor.user_id:
+            raise ForbiddenSpaceAccessError()
+
+        # 그룹 챗스페이스이고, actor가 그 그룹의 admin이 아닌 경우
+        if space.group_id is not None:
+            is_admin_query = select(
+                exists(GroupMember)
+                .where(col(GroupMember.group_id) == space.group_id)
+                .where(col(GroupMember.user_id) == self.actor.user_id)
+                .where(col(GroupMember.role) == UserRole.admin)
+            )
+            is_admin = await self.db.scalar(is_admin_query)
+            if not is_admin:
+                raise UserIsNotGroupAdminError()
+
+
     async def create_chat_space(self, name: str) -> ChatSpace:
         """
         챗스페이스를 추가합니다.
@@ -189,21 +214,8 @@ class ChatService:
         if space.space_id is None:
             raise IllegalStateError()
 
-        # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
-        if space.owner_user_id is not None and space.owner_user_id != self.actor.user_id:
-            raise ForbiddenSpaceAccessError()
-
-        # 그룹 챗스페이스이고, actor가 그 그룹의 admin이 아닌 경우
-        if space.group_id is not None:
-            is_admin_query = select(
-                exists(GroupMember)
-                .where(col(GroupMember.group_id) == space.group_id)
-                .where(col(GroupMember.user_id) == self.actor.user_id)
-                .where(col(GroupMember.role) == UserRole.admin)
-            )
-            is_admin = await self.db.scalar(is_admin_query)
-            if not is_admin:
-                raise UserIsNotGroupAdminError()
+        # Actor에게 챗스페이스 쓰기 권한이 있는지 검사
+        await self.__actor_has_space_write_permission(space)
 
         # actor에게 권한이 있는지 검사
         actor_own_query = (
@@ -247,6 +259,9 @@ class ChatService:
         """
         if space.space_id is None:
             raise IllegalStateError()
+
+        # Actor에게 챗스페이스 쓰기 권한이 있는지 검사
+        await self.__actor_has_space_write_permission(space)
 
         query = (
             delete(ChatSpaceDocument)
