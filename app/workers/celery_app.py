@@ -65,9 +65,9 @@ def shutdown_jvm(sender=None, **kwargs):
 # Soft Delete 후속 작업
 celery_app.conf.beat_schedule = {
     # 스케줄 이름
-    "preprocess-text-to-markdown-task": {
+    "process_json_precedents-task": {
         # 실행할 태스크 이름
-        "task": "preprocess-text-to-markdown",
+        "task": "process_json_precedents",
         "schedule": crontab(
             minute=0, hour=13, day_of_month=24, month_of_year=11, day_of_week="*"
         ),
