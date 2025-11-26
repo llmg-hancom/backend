@@ -1,3 +1,4 @@
+import uuid
 from contextlib import contextmanager
 import datetime
 import json
@@ -9,6 +10,7 @@ import time
 from typing import Any, Dict, List, Optional
 from bs4 import BeautifulSoup
 import requests
+
 import psycopg
 from celery.utils.log import get_task_logger
 from psycopg2.extensions import connection, cursor
@@ -56,15 +58,25 @@ def _download_from_s3(file_uri: str, local_file_dir: Path) -> Path:
     logger.info(f"{file_uri}를 {local_file_dir} 디렉토리로 다운로드 중...")
     try:
         local_path: Path = storage_service.download_file(file_uri, local_file_dir)
-        logger.info(f"{local_path} 디렉토리로 다운로드 완료!")
         return local_path
     except Exception as e:
         logger.error(f"{file_uri} 다운로드 실패: {e}")
         raise e
 
 
+def _upload_tmp_s3(local_file: Path) -> str:
+    logger.info(f"{local_file}를 S3에 업로드 중...")
+    file_key = f"tmp/txt/{local_file.name}"
+    try:
+        s3_path = storage_service.upload_local_file(local_file, file_key)
+        return s3_path
+    except Exception as e:
+        logger.error(f"{local_file} 다운로드 실패: {e}")
+        raise e
+
+
 # noinspection PyUnresolvedReferences
-def _extract_text_from_hwpx(local_hwpx_path: Path) -> str:
+def _extract_text_from_hwpx(local_hwpx_path: Path) -> Path:
     import jpype.imports  # noqa: F401
     from kr.dogfoot.hwpxlib.reader import HWPXReader
     from kr.dogfoot.hwpxlib.tool.textextractor import (
@@ -95,7 +107,14 @@ def _extract_text_from_hwpx(local_hwpx_path: Path) -> str:
         )
         hwpxtext: str = clean_rag_text(hwpxtext)
         hwpxtext: str = clean_common_noise(hwpxtext)
-        return hwpxtext
+        txtDir = DOWNLOAD_DIR / "txtFiles"
+        txtDir.mkdir(parents=True, exist_ok=True)
+        unique_name = str(uuid.uuid4()) + ".txt"
+        txtPath = txtDir / unique_name
+        with open(txtPath, "w", encoding="utf-8") as f:
+            f.write(hwpxtext)
+        logger.info(f"{txtPath}에 텍스트 추출 결과 저장")
+        return txtPath
     except Exception as e:
         logger.error(f"{local_hwpx_path}에서 텍스트 추출 실패")
         raise e
@@ -131,9 +150,9 @@ def _cleanup_temp_dir(temp_dir: Path):
 @celery_app.task(name="process-document-task")
 def process_document(doc_id: int):
     """
-    문서를 처리하여 pgvector에 저장하는 메인 태스크
+    hwp/hwpx 문서를 txt로 변환해서 s3에 올리는 작업
     """
-    logger.info(f"[TASK_START] 문서 처리 시작: (doc_id: {doc_id})")
+    logger.info(f"[TASK_START] 문서 txt 변환 시작: (doc_id: {doc_id})")
     # 임시 디렉토리 생성
     file_dir = DOWNLOAD_DIR / f"{doc_id}_{time.time()}"
     file_dir.mkdir(parents=True)
@@ -153,24 +172,19 @@ def process_document(doc_id: int):
                 doc.status = DocumentStatus.processing
                 db.flush()
             local_path = _download_from_s3(doc.file_path, file_dir)
-            if local_path.suffix == ".hwp":
-                local_hwpx_path = _convert_hwp_to_hwpx(local_path)
-            else:
-                local_hwpx_path = local_path
-            extracted_text = _extract_text_from_hwpx(local_hwpx_path)
-            # TODO: 청킹, 임베딩, 후 pgvector 삽입 개발 필요
-            # --- 임시 개발용 코드 ---
-            logger.info(f"텍스트 출력 결과:\n{extracted_text}")
-            testDir = DOWNLOAD_DIR / "txtfiles"
-            testDir.mkdir(parents=True, exist_ok=True)
-            testPath = testDir / local_hwpx_path.with_suffix(".txt").name
-            with open(testPath, "w", encoding="utf-8") as f:
-                f.write(extracted_text)
-            # --- 임시 개발용 코드 끝 ---
-            logger.info(f"[TASK_SUCCESS] 문서 처리 완료: (doc_id: {doc_id})")
-            doc.status = DocumentStatus.ready
+        if local_path.suffix == ".hwp":
+            local_hwpx_path = _convert_hwp_to_hwpx(local_path)
+        elif local_path.suffix == ".hwpx":
+            local_hwpx_path = local_path
+        else:
+            logger.error(f"지원하지 않는 파일 형식: {local_path}")
+            return
+        txt_path = _extract_text_from_hwpx(local_hwpx_path)
+        # TODO: 청킹, 임베딩, 후 pgvector 삽입 개발 필요
+        logger.info(f"[TASK_SUCCESS] txt 변환 완료: (doc_id: {doc_id})")
+        return str(txt_path)
     except Exception as e:
-        logger.error(f"[TASK_FAILED] 문서 처리 실패: (doc_id: {doc_id}) - {e}")
+        logger.error(f"[TASK_FAILED] txt 변환 실패: (doc_id: {doc_id}) - {e}")
         try:
             with get_db_session() as db:
                 doc = db.get(Document, doc_id)
@@ -191,7 +205,7 @@ def celery_beat_test():
     logger.info("[EMBED] 텍스트 마크다운으로 변환 완료!")
 
 
-def preprocess_text_to_markdown(text: str, header_keys: List[str]) -> str:
+def preprocess_text_to_markdown(text: str, header_keys: list[str]) -> str:
     processed_text = text
     for key in header_keys:
         processed_text = processed_text.replace(key, f"\n## {key.strip('【】:')}\n", 1)
@@ -222,8 +236,8 @@ def split_markdown_chunks_with_fallback(
     text: str,
     max_chunk_size: int = 500,
     chunk_overlap: int = 50,
-    headers_to_split_on: List[tuple] = DEFAULT_HEADERS_TO_SPLIT_ON,
-) -> List[Dict]:
+    headers_to_split_on: list[tuple[str, str]] = DEFAULT_HEADERS_TO_SPLIT_ON,
+) -> list[dict]:
     """
     MarkdownHeaderTextSplitter로 1차 분할 후, 최대 크기를 초과하는 청크에 대해
     RecursiveCharacterTextSplitter로 2차 분할을 적용합니다. (메타데이터 보존)
@@ -274,7 +288,7 @@ def conn_embedding_model():
 
     # 3. DB 연결 정보 설정 (로컬 접속 정보 사용)
     DB_CONFIG = {
-        "dbname":settings.POSTGRES_DB,
+        "dbname": settings.POSTGRES_DB,
         "user": settings.POSTGRES_USER,
         "password": settings.POSTGRES_PASSWORD,
         # ❗️ 전달받은 호스트와 포트 사용
