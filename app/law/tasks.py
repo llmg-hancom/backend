@@ -1,8 +1,7 @@
 from contextlib import contextmanager
 from datetime import datetime
 import json
-import os
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup
@@ -38,17 +37,17 @@ def get_db_session():
             yield session
             session.commit()
         except Exception as e:
-            logger.error(f"DB Session error, rolling back: {e}")
+            logger.error(f"DB 세션 에러, 롤백: {e}")
             raise
 
 
 # --- 임베딩 모델 초기화 ---
-def init_embedding_model():
+def init_embedding_model() -> OllamaEmbeddings:
     """
     임베딩 모델 클라이언트를 초기화합니다.
     """
     OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL
-    OLLAMA_MODEL = "bge-m3:567m"  # or another model
+    OLLAMA_MODEL = "bge-m3:567m"
     embeddings = OllamaEmbeddings(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
     logger.info(
         f"[EMBED] Ollama 임베딩 모델 '{OLLAMA_MODEL}' 초기화 완료. (URL: {OLLAMA_BASE_URL})"
@@ -88,12 +87,14 @@ def split_markdown_chunks_with_fallback(
     text: str,
     max_chunk_size: int = 500,
     chunk_overlap: int = 50,
-    headers_to_split_on: list[tuple[str, str]] = DEFAULT_HEADERS_TO_SPLIT_ON,
+    headers_to_split_on: list[tuple[str, str]] | None = None,
 ) -> list[dict]:
     """
     MarkdownHeaderTextSplitter로 1차 분할 후, 최대 크기를 초과하는 청크에 대해
     RecursiveCharacterTextSplitter로 2차 분할을 적용합니다. (메타데이터 보존)
     """
+    if headers_to_split_on is None:
+        headers_to_split_on = DEFAULT_HEADERS_TO_SPLIT_ON
     # 1차 분할
     md_splitter = MarkdownHeaderTextSplitter(
         headers_to_split_on=headers_to_split_on, strip_headers=False
@@ -124,7 +125,7 @@ def split_markdown_chunks_with_fallback(
 
 
 # --- JSON 파일 기반 판례 처리 (리팩토링) ---
-@celery_app.task(name="process_json_precedents")
+@celery_app.task(name="process-json-precedents")
 def process_json_precedents(target_directory, file_name):
     file_path = Path(target_directory) / file_name
     if not file_path.exists():
@@ -133,7 +134,7 @@ def process_json_precedents(target_directory, file_name):
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            data_list = json.load(f)
+            data_list: list[dict[str, Any]] = json.load(f)
         logger.info(f"[EMBED] 총 {len(data_list)}개 항목 로드 완료.")
     except Exception as e:
         logger.error(f"[EMBED] JSON 로드 실패: {e}")
@@ -159,7 +160,7 @@ def process_json_precedents(target_directory, file_name):
                 session.flush()  # ID를 할당받기 위해 flush
 
                 # 2. 텍스트 추출 및 분할
-                full_text = item_data.pop("전문", None)
+                full_text: str | None = item_data.pop("전문", None)
                 if not full_text:
                     logger.warning(
                         f"'{file_name_str}' 항목에 '전문' 키가 없어 건너뜁니다."
@@ -179,10 +180,9 @@ def process_json_precedents(target_directory, file_name):
                 chunk_contents = [chunk["page_content"] for chunk in chunks]
                 if not chunk_contents:
                     new_doc.status = DocumentStatus.error
-                    session.add(new_doc)
                     continue
 
-                vectors = embeddings.embed_documents(chunk_contents)
+                vectors: list[list[float]] = embeddings.embed_documents(chunk_contents)
                 base_metadata = item_data.copy()
 
                 for i, chunk_data in enumerate(chunks):
@@ -199,7 +199,6 @@ def process_json_precedents(target_directory, file_name):
                     uploaded_chunks_count += 1
 
                 new_doc.status = DocumentStatus.ready
-                session.add(new_doc)
 
         except Exception as e:
             logger.error(
@@ -297,7 +296,7 @@ def extract_precedent_metadata(
             "title": title,
             "date_str": date_str,
             "pdf_href": pdf_href,
-            "pdf_filename": os.path.basename(pdf_href),
+            "pdf_filename": PurePath(pdf_href).name,
             "case_num": case_num,
             "raw_text": raw_text,
         }
@@ -309,7 +308,7 @@ def extract_precedent_metadata(
 # ----------------------------------------------------------------------
 # Helper 3: HTML 본문 추출 및 마크다운 구조화
 # ----------------------------------------------------------------------
-def get_header_keys():
+def get_header_keys() -> list[str]:
     # 💡 수정된 SYMBOL_PREFIXES 정의
     # 아라비아 숫자: 1부터 9까지 (f-string 사용)
     # 1. 아라비아 숫자 (1. ~ 9., 1) ~ 9))
