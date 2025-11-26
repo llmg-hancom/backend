@@ -1,12 +1,15 @@
 from datetime import datetime, timezone
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from fastapi import Depends, Security
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, exists, select
+from sqlmodel import col, delete, exists, literal, select
 
 from db.session import get_async_db
-from errors.chat import ForbiddenSpaceAccessError
+from errors.chat import (
+    ForbiddenSpaceAccessError,
+)
 from errors.document import DocumentNotFoundError, ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
@@ -45,6 +48,32 @@ class ChatService:
         db: Annotated[AsyncSession, Depends(get_async_db)],
     ) -> Self:
         return cls(actor, db)
+
+
+    async def __actor_has_space_write_permission(self, space: ChatSpace):
+        """
+        Actor에게 챗스페이스 쓰기 권한이 있는지 검사합니다.
+        권한이 없다면 이유에 맞는 오류가 발생합니다.
+        """
+        if self.actor.user_id is None:
+            raise IllegalStateError()
+
+        # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
+        if space.owner_user_id is not None and space.owner_user_id != self.actor.user_id:
+            raise ForbiddenSpaceAccessError()
+
+        # 그룹 챗스페이스이고, actor가 그 그룹의 admin이 아닌 경우
+        if space.group_id is not None:
+            is_admin_query = select(
+                exists(GroupMember)
+                .where(col(GroupMember.group_id) == space.group_id)
+                .where(col(GroupMember.user_id) == self.actor.user_id)
+                .where(col(GroupMember.role) == UserRole.admin)
+            )
+            is_admin = await self.db.scalar(is_admin_query)
+            if not is_admin:
+                raise UserIsNotGroupAdminError()
+
 
     async def create_chat_space(self, name: str) -> ChatSpace:
         """
@@ -141,6 +170,7 @@ class ChatService:
 
         space.deleted_at = datetime.now(tz=timezone.utc)
 
+
     async def get_chat_space_documents(
         self, space_id: int, offset: int, limit: int
     ) -> list[Document]:
@@ -163,75 +193,91 @@ class ChatService:
 
         return list(result)
 
-    async def add_document(self, space_id: int, document_ids: set[int]):
+
+    async def add_document(
+        self,
+        space: ChatSpace,
+        document_ids: set[int]
+    ) -> dict[Literal["success", "skipped"], set[int]]:
         """
-        챗스페이스에 문서를 추가합니다.
+        챗스페이스에 문서를 추가합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
+        그룹 챗스페이스일 경우 스페이스를 소유한 그룹의 admin이 문서를 추가할 수 있습니다.
         """
         # 리스트가 비어있는 경우
         if len(document_ids) == 0:
-            return
+            return {}
 
         # 타입 내로잉
         if self.actor.user_id is None:
             raise IllegalStateError()
 
-        # actor가 해당 문서에 대해 권한이 있는지 검사합니다.
-        query = (
-            select(Document)
+        if space.space_id is None:
+            raise IllegalStateError()
+
+        # Actor에게 챗스페이스 쓰기 권한이 있는지 검사
+        await self.__actor_has_space_write_permission(space)
+
+        # actor에게 권한이 있는지 검사
+        actor_own_query = (
+            select(literal(space.space_id), Document.document_id, literal(self.actor.user_id))
             .where(col(Document.document_id).in_(document_ids))
             .where(Document.uploaded_by_user_id == self.actor.user_id)
         )
 
-        actor_own_documents = (await self.db.execute(query)).scalars().all()
+        actor_own_documents = (await self.db.execute(actor_own_query)).scalars().all()
 
         # 하나라도 권한이 없는 문서가 있다면 전체 실패
         if len(actor_own_documents) != len(document_ids):
             raise ForbiddenDocumentAccessError()
 
-        bridges = [
-            ChatSpaceDocument(
-                space_id=space_id,
-                document_id=document.document_id,
-                added_by_user_id=self.actor.user_id,
+        stmt = (
+            pg_insert(ChatSpaceDocument)
+            .from_select(["space_id", "document_id", "added_by_user_id"], actor_own_query)
+            .on_conflict_do_nothing(
+                index_elements=["space_id", "document_id"]  # 중복 있을 시 무시
             )
-            for document in actor_own_documents
-            # 타입 내로잉
-            if document.document_id is not None
-        ]
-
-        self.db.add_all(bridges)
-        await self.db.commit()
-
-    async def delete_document(self, space_id: int, document_ids: set[int]) -> None:
-        """
-        챗스페이스에 연결된 문서를 연결 해제합니다.
-        """
-        query = (
-            select(ChatSpaceDocument)
-            .where(ChatSpaceDocument.space_id == space_id)
-            .where(col(ChatSpaceDocument.document_id).in_(document_ids))
+            .returning(col(ChatSpaceDocument.document_id))
         )
 
-        bridge = (await self.db.execute(query)).all()
-
-        if len(bridge) != len(document_ids):
-            raise DocumentNotFoundError()
-
-        # [문제 2] db.delete()는 객체(Instance)를 받아야 하는데, 위에서 Row(튜플)를 받았습니다.
-        # 또한 여러 개를 삭제할 때는 루프를 돌거나 객체 리스트를 잘 넘겨야 합니다.
-
-        # [수정 제안]
-        # 1. .scalars().all()로 객체 리스트를 받으세요.
-        bridges = (await self.db.execute(query)).scalars().all()
-
-        if len(bridges) != len(document_ids):
-            raise DocumentNotFoundError()
-
-        # 2. 객체들을 삭제합니다.
-        for b in bridges:
-            await self.db.delete(b)
-
+        result = await self.db.execute(stmt)
         await self.db.commit()
+
+        success_ids = set(result.scalars().all())
+        skipped_ids = document_ids - success_ids
+
+        return {"success": success_ids, "skipped": skipped_ids}
+
+
+    async def delete_document(
+        self,
+        space: ChatSpace,
+        document_ids: set[int]
+    ) -> dict[Literal["success", "skipped"], set[int]]:
+        """
+        챗스페이스에 연결된 문서를 삭제합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
+        그룹 챗스페이스일 경우 스페이스를 소유한 그룹의 admin이 문서를 삭제할 수 있습니다.
+        """
+        if space.space_id is None:
+            raise IllegalStateError()
+
+        # Actor에게 챗스페이스 쓰기 권한이 있는지 검사
+        await self.__actor_has_space_write_permission(space)
+
+        query = (
+            delete(ChatSpaceDocument)
+            .where(col(ChatSpaceDocument.space_id) == space.space_id)
+            .where(col(ChatSpaceDocument.document_id).in_(document_ids))
+            .returning(col(ChatSpaceDocument.document_id))
+        )
+
+        result = await self.db.execute(query)
+        await self.db.commit()
+
+        success_ids = set(result.scalars().all())
+        skipped_ids = document_ids - success_ids
+
+        return {"success": success_ids, "skipped": skipped_ids}
+
 
     async def create_chat_session(self, space: ChatSpace, title: str) -> ChatSession:
         """
