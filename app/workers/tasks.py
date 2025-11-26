@@ -181,7 +181,6 @@ def process_document(doc_id: int):
 @celery_app.task(name="preprocess-text-to-markdown")
 def celery_beat_test():
     logger.info("[EMBED] 텍스트 마크다운으로 변환 시작!")
-    DB_HOST = "127.0.0.1"
     TARGET_DIR = "/tmp/law_precedent"
 
     process_and_insert_to_db(TARGET_DIR, "__korean_precedents.json")
@@ -262,7 +261,6 @@ def conn_embedding_model():
     DB 및 임베딩 모델 연결을 초기화합니다.
     """
     # 2. 임베딩 클라이언트 초기화
-    # ❗️ Ollama 접속 주소를 전달받은 db_host와 ollama_port로 설정
     OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL
     OLLAMA_MODEL = "bge-m3:567m"
     embeddings = OllamaEmbeddings(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
@@ -280,7 +278,7 @@ def conn_embedding_model():
         "port": settings.POSTGRES_PORT,
     }
 
-    # 4. 데이터 삽입을 위한 psycopg2 연결
+    # 4. 데이터 삽입을 위한 psycopg 연결
     conn = None
     cur = None
     try:
@@ -321,7 +319,7 @@ def process_and_insert_to_db(target_directory, file_name):
     uploaded_chunks_count = 0
 
     # --- 4-3. 항목별 처리 (분할, 임베딩, 삽입) ---
-    print(f"\n--- {len(data_list)}개 항목 처리 시작 ---")
+    logger.info(f"\n--- {len(data_list)}개 항목 처리 시작 ---")
 
     for item_data in tqdm(data_list, desc="Processing and Inserting"):
         # 0. document 테이블 삽입 준비 (항목당 1개의 document 생성 가정)
