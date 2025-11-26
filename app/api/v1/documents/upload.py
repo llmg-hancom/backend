@@ -14,7 +14,8 @@ from models.document import Document
 from models.user import User
 from schemas.document import UploadResponse
 from services.document.storage_service import storage_service
-from workers.tasks import process_document, chunk_document
+from workers.tasks import process_document
+from rag.tasks import chunk_user_document
 from utils.auth import get_current_user
 from celery import chain
 
@@ -80,7 +81,7 @@ async def upload_documents(
 
     workflow = chain(
         process_document.s(doc_id=new_doc.document_id),
-        chunk_document.s(doc_id=new_doc.document_id),
+        chunk_user_document.s(doc_id=new_doc.document_id),
     )
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
     await asyncio.to_thread(workflow.delay)
