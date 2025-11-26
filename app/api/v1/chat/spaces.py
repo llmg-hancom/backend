@@ -153,20 +153,26 @@ async def add_documents_to_chat_space(
 @router.delete(
     "/{space_id}/documents",
     summary="챗스페이스에 연결된 문서 연결 해제",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
 )
 async def delete_documents_to_chat_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
     body: Annotated[SpaceDocumentListRequest, Body()],
     service: Annotated[ChatService, Depends(ChatService.factory)],
-) -> None:
+) -> BulkJobResponse[PositiveInt]:
+    """
+    챗스페이스에 추가된 문서 여러 개를 제거합니다.
+    삭제 시점에 문서가 존재하지 않는다면 건너뜁니다.
+    """
     if space.space_id is None:
         raise IllegalStateError()
 
-    return await service.delete_document(
+    result = await service.delete_document(
         space_id=space.space_id,
         document_ids=body.document_ids
     )
+
+    return BulkJobResponse[PositiveInt].model_validate(result)
 
 
 @router.post(

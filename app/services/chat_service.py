@@ -4,7 +4,7 @@ from typing import Annotated, Literal, Self
 from fastapi import Depends, Security
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, exists, literal, select
+from sqlmodel import col, delete, exists, literal, select
 
 from db.session import get_async_db
 from errors.chat import (
@@ -231,41 +231,34 @@ class ChatService:
         await self.db.commit()
 
         success_ids = set(result.scalars().all())
-        failed_ids = document_ids - success_ids
+        skipped_ids = document_ids - success_ids
 
-        return {"success": success_ids, "skipped": failed_ids}
+        return {"success": success_ids, "skipped": skipped_ids}
 
 
-    async def delete_document(self, space_id: int, document_ids: set[int]) -> None:
+    async def delete_document(
+        self,
+        space_id: int,
+        document_ids: set[int]
+    ) -> dict[Literal["success", "skipped"], set[int]]:
         """
-        챗스페이스에 연결된 문서를 연결 해제합니다.
+        챗스페이스에 연결된 문서를 삭제합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
+        그룹 챗스페이스일 경우 스페이스를 소유한 그룹의 admin이 문서를 삭제할 수 있습니다.
         """
         query = (
-            select(ChatSpaceDocument)
-            .where(ChatSpaceDocument.space_id == space_id)
+            delete(ChatSpaceDocument)
+            .where(col(ChatSpaceDocument.space_id) == space_id)
             .where(col(ChatSpaceDocument.document_id).in_(document_ids))
+            .returning(col(ChatSpaceDocument.document_id))
         )
 
-        bridge = (await self.db.execute(query)).all()
-
-        if len(bridge) != len(document_ids):
-            raise DocumentNotFoundError()
-
-        # [문제 2] db.delete()는 객체(Instance)를 받아야 하는데, 위에서 Row(튜플)를 받았습니다.
-        # 또한 여러 개를 삭제할 때는 루프를 돌거나 객체 리스트를 잘 넘겨야 합니다.
-
-        # [수정 제안]
-        # 1. .scalars().all()로 객체 리스트를 받으세요.
-        bridges = (await self.db.execute(query)).scalars().all()
-
-        if len(bridges) != len(document_ids):
-            raise DocumentNotFoundError()
-
-        # 2. 객체들을 삭제합니다.
-        for b in bridges:
-            await self.db.delete(b)
-
+        result = await self.db.execute(query)
         await self.db.commit()
+
+        success_ids = set(result.scalars().all())
+        skipped_ids = document_ids - success_ids
+
+        return {"success": success_ids, "skipped": skipped_ids}
 
 
     async def create_chat_session(self, space: ChatSpace, title: str) -> ChatSession:
