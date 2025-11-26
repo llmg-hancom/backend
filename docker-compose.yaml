@@ -30,7 +30,7 @@ services:
       dockerfile: Dockerfile
     shm_size: "512m"
     mem_limit: "8g"
-    command: .venv/bin/celery -A workers.celery_app worker --loglevel=info
+    command: .venv/bin/celery -A workers.celery_app worker -l info --concurrency=4
     env_file: .env
     environment:
       - POSTGRES_HOST=db

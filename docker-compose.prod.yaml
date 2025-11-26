@@ -26,7 +26,7 @@ services:
 
   worker:
     image: ghcr.io/llmg-hancom/backend:latest
-    command: .venv/bin/celery -A workers.celery_app worker --loglevel=info
+    command: .venv/bin/celery -A workers.celery_app worker -l INFO --concurrency=4
     env_file: .env
     mem_limit: '8g'
     shm_size: '512m'
@@ -44,7 +44,7 @@ services:
     image: ghcr.io/llmg-hancom/backend:latest
     container_name: celery_beat
     # 실행 명령어: 'beat' 프로세스를 시작하도록 Dockerfile의 CMD를 덮어씀
-    command: .venv/bin/celery -A workers.celery_app beat -l info -s /tmp/celerybeat-schedule
+    command: .venv/bin/celery -A workers.celery_app beat -l INFO -s /tmp/celerybeat-schedule
     env_file: .env
     environment:
       - POSTGRES_HOST=db
