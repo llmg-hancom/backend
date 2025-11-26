@@ -189,4 +189,3 @@ def process_document(self, doc_id: int) -> str:
         raise e
     finally:
         _cleanup_temp_dir(file_dir)
-
