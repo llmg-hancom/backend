@@ -14,8 +14,9 @@ from models.document import Document
 from models.user import User
 from schemas.document import UploadResponse
 from services.document.storage_service import storage_service
-from workers.tasks import process_document
+from workers.tasks import process_document, chunk_document
 from utils.auth import get_current_user
+from celery import chain
 
 router = APIRouter(prefix="/documents")
 
@@ -74,11 +75,15 @@ async def upload_documents(
         status="pending",  # 처리 대기 상태
     )
     db.add(new_doc)
-    await db.flush()
+    await db.commit()
     await db.refresh(new_doc)
 
+    workflow = chain(
+        process_document.s(doc_id=new_doc.document_id),
+        chunk_document.s(doc_id=new_doc.document_id),
+    )
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
-    await asyncio.to_thread(process_document.delay, new_doc.document_id)
+    await asyncio.to_thread(workflow.delay)
 
     # 7. [즉시 응답] 202 Accepted
     return UploadResponse(

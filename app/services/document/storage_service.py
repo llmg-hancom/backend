@@ -56,8 +56,6 @@ class StorageService:
         file_key: document 내 저장 경로 (예: private/user_1/uuid/file.hwp)
         """
         try:
-            # [중요] UploadFile은 SpooledTemporaryFile 객체이므로
-            # boto3의 upload_fileobj를 사용하여 스트리밍 업로드 가능
             self.s3_client.upload_file(str(file), self.bucket_name, file_key)
             s3_path = f"s3://{self.bucket_name}/{file_key}"
             logger.info(f"파일 업로드 성공: {s3_path}")

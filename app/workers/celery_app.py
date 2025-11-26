@@ -24,7 +24,7 @@ celery_app.conf.update(
     timezone="Asia/Seoul",
     enable_utc=True,
 )
-celery_app.autodiscover_tasks(packages=["workers"])
+celery_app.autodiscover_tasks(packages=["workers", "beat", "utils"])
 
 
 @worker_process_init.connect
