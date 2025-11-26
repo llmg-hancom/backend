@@ -238,16 +238,19 @@ class ChatService:
 
     async def delete_document(
         self,
-        space_id: int,
+        space: ChatSpace,
         document_ids: set[int]
     ) -> dict[Literal["success", "skipped"], set[int]]:
         """
         챗스페이스에 연결된 문서를 삭제합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
         그룹 챗스페이스일 경우 스페이스를 소유한 그룹의 admin이 문서를 삭제할 수 있습니다.
         """
+        if space.space_id is None:
+            raise IllegalStateError()
+
         query = (
             delete(ChatSpaceDocument)
-            .where(col(ChatSpaceDocument.space_id) == space_id)
+            .where(col(ChatSpaceDocument.space_id) == space.space_id)
             .where(col(ChatSpaceDocument.document_id).in_(document_ids))
             .returning(col(ChatSpaceDocument.document_id))
         )

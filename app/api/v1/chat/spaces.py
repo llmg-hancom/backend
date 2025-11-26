@@ -168,7 +168,7 @@ async def delete_documents_to_chat_space(
         raise IllegalStateError()
 
     result = await service.delete_document(
-        space_id=space.space_id,
+        space=space,
         document_ids=body.document_ids
     )
 
