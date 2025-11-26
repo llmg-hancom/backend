@@ -1,3 +1,4 @@
+from datetime import timedelta
 import logging
 import os
 
@@ -24,7 +25,7 @@ celery_app.conf.update(
     timezone="Asia/Seoul",
     enable_utc=True,
 )
-celery_app.autodiscover_tasks(packages=["workers"])
+celery_app.autodiscover_tasks(packages=["workers", "beat", "utils", "rag"])
 
 
 @worker_process_init.connect
@@ -72,5 +73,15 @@ celery_app.conf.beat_schedule = {
             minute=0, hour=13, day_of_month=24, month_of_year=11, day_of_week="*"
         ),
     },
+    'update-rag-daily': {
+        # 'rag_updater.tasks.update_rag_index' 함수를 호출하도록 지정
+        'task': 'rag_updater.tasks.update_rag_index', 
+        'schedule': timedelta(days=1),  # ⭐️ 매일 실행하도록 스케줄 설정
+        'args': ('db', 5432, 11434) # Docker 내부 서비스 이름과 포트 전달
+    }
     # (필요시 다른 스케줄 작업 추가)
+   
+
+   
+    
 }
