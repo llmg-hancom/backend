@@ -80,22 +80,24 @@ def clean_common_noise(text: str) -> str:
 
 
 def process_html_with_tables(html_content: str) -> str:
+    """
+    1. 레이아웃용 표 -> 태그만 벗김 (Unwrap)
+    2. 데이터용 표 -> Pandas로 Rowspan 평탄화 후 CSV/Markdown 변환
+    3. 나머지 문서 구조(헤더 등) -> 보존 (Regex 청킹을 위해)
+    """
     soup = BeautifulSoup(html_content, "html.parser")
-
-    # 모든 table 태그를 찾아서 검사
     tables = soup.find_all("table")
 
-    for table in tables:
-        # --- [판별 로직] ---
-        # 휴리스틱:
-        # 1. 표 안에 또 다른 표가 있으면 -> 99% 레이아웃용 (Nested Table)
+    # 뒤에서부터 처리해야 인덱스 꼬임 방지
+    for table in reversed(tables):
+        # --- [A] 레이아웃 판별 로직 (제공해주신 코드 활용) ---
+
+        # 1. 중첩 테이블은 레이아웃일 확률 높음
         if table.find("table"):
-            table.unwrap()  # 태그 제거, 텍스트 유지
+            table.unwrap()
             continue
 
-        # 2. 텍스트 길이를 통한 판별
-        # 데이터 테이블은 보통 셀 안의 텍스트가 짧고 균일함.
-        # 레이아웃 테이블은 특정 셀에 문단 전체가 들어가는 경우가 많음.
+        # 2. 텍스트 밀도/길이 분석
         rows = table.find_all("tr")
         total_cells = 0
         long_text_cells = 0
@@ -104,37 +106,46 @@ def process_html_with_tables(html_content: str) -> str:
             cells = row.find_all(["td", "th"])
             total_cells += len(cells)
             for cell in cells:
-                if (
-                    len(cell.get_text(strip=True)) > 100
-                ):  # 기준: 100자 이상이면 긴 텍스트로 간주
+                # 100자 이상이면 데이터라기보다 배치용 문단일 가능성 큼
+                if len(cell.get_text(strip=True)) > 100:
                     long_text_cells += 1
 
-        # 긴 텍스트가 포함된 셀의 비율이 높거나, 전체 셀이 너무 적으면 레이아웃으로 간주
-        # (이 기준은 데이터 특성에 맞게 튜닝 필요)
+        # 레이아웃 판단 기준 (튜닝 가능)
         is_layout = (long_text_cells > 0) or (total_cells < 2)
 
-        # --- [변환 로직] ---
+        # --- [B] 처리 로직 ---
         if is_layout:
-            # 레이아웃용 테이블 -> 태그를 벗겨내어 순수 텍스트 흐름에 합류시킴
+            # 레이아웃이면 표 구조를 버리고 텍스트만 문단에 합류
             table.unwrap()
         else:
-            # 데이터용 테이블 -> 구조를 보존해야 함 (Markdown이나 CSV 스타일로 변환)
+            # 데이터 표면 구조화
             try:
-                # Pandas를 이용해 HTML 표를 문자열 표로 변환 (colspan/rowspan 처리 우수)
-                # 주의: lxml이나 html5lib 라이브러리 필요
-                df_list = pd.read_html(StringIO(str(table)))
-                if df_list:
-                    df = df_list[0]
-                    # DataFrame을 Markdown 텍스트로 변환
-                    markdown_table = df.to_markdown(index=False)
-                    # 원래 HTML table 태그를 Markdown 텍스트로 교체
-                    table.replace_with(f"\n\n{markdown_table}\n\n")
-            except Exception:
-                # 변환 실패 시 그냥 텍스트만 추출 (안전장치)
+                # pandas로 읽으면 rowspan/colspan이 자동으로 평탄화됨 (값이 채워짐)
+                dfs = pd.read_html(StringIO(str(table)), flavor="bs4")
+                if not dfs:
+                    continue
+
+                df = dfs[0].fillna("")
+
+                # [선택] Markdown vs CSV
+                # 마크다운 표는 LLM이 보기는 좋지만, 내용이 길면 깨지기 쉬움.
+                # CSV 포맷을 추천하지만, 마크다운을 원하면 to_markdown() 사용 가능
+                # 여기서는 'CSV 형태'를 사용하여 토큰을 아끼고 줄바꿈 오작동 방지
+                processed_table = df.to_csv(index=False, sep=",")
+
+                # 식별하기 좋게 앞뒤로 태그 삽입
+                replacement = f"\n<table_data>\n{processed_table}\n</table_data>\n"
+                table.replace_with(replacement)
+
+            except Exception as e:
+                # 변환 실패 시 안전하게 태그만 벗김
+                print(f"Table conversion error: {e}")
                 table.unwrap()
 
-    # 최종적으로 태그가 정리된 텍스트 추출
-    return soup.get_text(strip=True, separator="\n")
+    # --- [C] 핵심 차이점 수정 ---
+    # get_text()를 쓰면 <h1>, ## 같은 헤더 정보가 다 날아가서 Regex 청킹을 못함.
+    # 따라서 태그가 처리된 soup 객체 자체를 문자열로 반환해야 함.
+    return str(soup)
 
 
 def normalize_regex_pattern(pattern: str) -> str:
