@@ -28,12 +28,12 @@ async def stream_session(
     )
     current_session = session.one_or_none()
     if current_session is None:
-        raise ChatSessionNotFoundError()
+        raise ChatSessionNotFoundError(session_id)
     if current_session.user_id != current_user.user_id:
         raise ForbiddenChatSessionAccessError()
 
     return StreamingResponse(
-        event_generator(session_id, request), media_type="text/event-stream"
+        event_generator(current_session, request), media_type="text/event-stream"
     )
 
 
