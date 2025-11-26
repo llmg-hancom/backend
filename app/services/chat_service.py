@@ -2,8 +2,9 @@ from datetime import datetime, timezone
 from typing import Annotated, Self
 
 from fastapi import Depends, Security
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, exists, select
+from sqlmodel import col, exists, literal, select
 
 from db.session import get_async_db
 from errors.chat import (
@@ -200,32 +201,35 @@ class ChatService:
             if not is_admin:
                 raise UserIsNotGroupAdminError()
 
-        # actor가 해당 문서에 대해 권한이 있는지 검사합니다.
-        query = (
-            select(Document)
+        # actor에게 권한이 있는지 검사
+        actor_own_query = (
+            select(literal(space.space_id), Document.document_id, literal(self.actor.user_id))
             .where(col(Document.document_id).in_(document_ids))
             .where(Document.uploaded_by_user_id == self.actor.user_id)
         )
 
-        actor_own_documents = (await self.db.execute(query)).scalars().all()
+        actor_own_documents = (await self.db.execute(actor_own_query)).scalars().all()
 
         # 하나라도 권한이 없는 문서가 있다면 전체 실패
         if len(actor_own_documents) != len(document_ids):
             raise ForbiddenDocumentAccessError()
 
-        bridges = [
-            ChatSpaceDocument(
-                space_id=space.space_id,
-                document_id=document.document_id,
-                added_by_user_id=self.actor.user_id,
+        stmt = (
+            pg_insert(ChatSpaceDocument)
+            .from_select(["space_id", "document_id", "added_by_user_id"], actor_own_query)
+            .on_conflict_do_nothing(
+                index_elements=["space_id", "document_id"]  # 중복 있을 시 무시
             )
-            for document in actor_own_documents
-            # 타입 내로잉
-            if document.document_id is not None
-        ]
+            .returning(col(ChatSpaceDocument.document_id))
+        )
 
-        self.db.add_all(bridges)
+        result = await self.db.execute(stmt)
         await self.db.commit()
+
+        success_ids = set(result.scalars().all())
+        failed_ids = document_ids - success_ids
+
+        return {"success": success_ids, "skipped": failed_ids}
 
 
     async def delete_document(self, space_id: int, document_ids: set[int]) -> None:

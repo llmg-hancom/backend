@@ -125,20 +125,23 @@ async def get_documents_in_chat_space(
 @router.post(
     "/{space_id}/documents",
     summary="챗 스페이스에 문서 추가",
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    response_model=None,
 )
 async def add_documents_to_chat_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
     body: Annotated[SpaceDocumentListRequest, Body(description="추가할 문서 ID의 목록")],
     service: Annotated[ChatService, Depends(ChatService.factory)],
-) -> None:
+):
     if space.space_id is None:
         raise IllegalStateError()
 
-    return await service.add_document(
+    result = await service.add_document(
         space=space,
         document_ids=body.document_ids
     )
+
+    return result
 
 
 @router.delete(
