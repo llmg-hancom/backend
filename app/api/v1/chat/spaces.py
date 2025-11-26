@@ -1,11 +1,13 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Path, Query, Security, status
+from pydantic import PositiveInt
 
 from errors.chat import ForbiddenSpaceAccessError
 from errors.general import IllegalStateError
 from models import ChatSession, ChatSpace, User
 from models.document import DocumentRead
+from schemas.bulk import BulkJobResponse
 from schemas.chat import (
     ChatSessionCreateRequest,
     ChatSessionRead,
@@ -125,39 +127,52 @@ async def get_documents_in_chat_space(
 @router.post(
     "/{space_id}/documents",
     summary="챗 스페이스에 문서 추가",
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
 async def add_documents_to_chat_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
     body: Annotated[SpaceDocumentListRequest, Body(description="추가할 문서 ID의 목록")],
     service: Annotated[ChatService, Depends(ChatService.factory)],
-) -> None:
+) -> BulkJobResponse[PositiveInt]:
+    """
+    챗스페이스에 여러 개의 문서를 추가합니다.
+    만약 추가하려는 문서 중 사용자의 문서가 아닌 것이 있으면 오류를 반환합니다.
+    성공 응답에는 성공/스킵한 문서 ID가 반환됩니다.
+    """
     if space.space_id is None:
         raise IllegalStateError()
 
-    return await service.add_document(
-        space_id=space.space_id,
+    result = await service.add_document(
+        space=space,
         document_ids=body.document_ids
     )
+
+    return BulkJobResponse[PositiveInt].model_validate(result)
 
 
 @router.delete(
     "/{space_id}/documents",
     summary="챗스페이스에 연결된 문서 연결 해제",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
 )
 async def delete_documents_to_chat_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
     body: Annotated[SpaceDocumentListRequest, Body()],
     service: Annotated[ChatService, Depends(ChatService.factory)],
-) -> None:
+) -> BulkJobResponse[PositiveInt]:
+    """
+    챗스페이스에 추가된 문서 여러 개를 제거합니다.
+    삭제 시점에 문서가 존재하지 않는다면 건너뜁니다.
+    """
     if space.space_id is None:
         raise IllegalStateError()
 
-    return await service.delete_document(
-        space_id=space.space_id,
+    result = await service.delete_document(
+        space=space,
         document_ids=body.document_ids
     )
+
+    return BulkJobResponse[PositiveInt].model_validate(result)
 
 
 @router.post(
