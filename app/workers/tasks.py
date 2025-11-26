@@ -3,12 +3,19 @@ from contextlib import contextmanager
 from pathlib import Path
 import shutil
 import time
+from typing import Literal
+
 
 from celery.utils.log import get_task_logger
 
+
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
-from rag.cleaning import clean_common_noise, clean_rag_text
+from rag.cleaning import (
+    clean_common_noise,
+    clean_rag_text,
+    process_html_with_tables,
+)
 from sqlmodel import Session
 from workers.celery_app import celery_app
 
@@ -47,14 +54,16 @@ def _download_from_s3(file_uri: str, local_file_dir: Path) -> Path:
         raise e
 
 
-def _upload_tmp_s3(local_file: Path) -> str:
+def _upload_tmp_s3(local_file: Path, ext: Literal["txt", "json"] = "txt") -> str:
     logger.info(f"{local_file}를 S3에 업로드 중...")
-    file_key = f"tmp/txt/{local_file.name}"
+    unique_name = uuid.uuid4()
+    file_key = f"tmp/{ext}/{unique_name}.{ext}"
     try:
         s3_path = storage_service.upload_local_file(local_file, file_key)
+        logger.info(f"{local_file}를 업로드 성공")
         return s3_path
     except Exception as e:
-        logger.error(f"{local_file} 다운로드 실패: {e}")
+        logger.error(f"{local_file} 업로드 실패: {e}")
         raise e
 
 
@@ -89,18 +98,32 @@ def _extract_text_from_hwpx(local_hwpx_path: Path) -> Path:
             TextExtractor.extract(hwpx_file, text_extract_method, True, text_marks)
         )
         hwpxtext: str = clean_rag_text(hwpxtext)
-        hwpxtext: str = clean_common_noise(hwpxtext)
-        txtDir = DOWNLOAD_DIR / "txtFiles"
-        txtDir.mkdir(parents=True, exist_ok=True)
-        unique_name = str(uuid.uuid4()) + ".txt"
-        txtPath = txtDir / unique_name
-        with open(txtPath, "w", encoding="utf-8") as f:
+        hwpxtext = clean_common_noise(hwpxtext)
+        hwpxtext = process_html_with_tables(hwpxtext)
+        txt_path = local_hwpx_path.with_suffix(".txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
             f.write(hwpxtext)
-        logger.info(f"{txtPath}에 텍스트 추출 결과 저장")
-        return txtPath
+        logger.info(f"{txt_path}에 텍스트 추출 결과 저장")
+        return txt_path
     except Exception as e:
         logger.error(f"{local_hwpx_path}에서 텍스트 추출 실패")
         raise e
+
+
+SUPPORTED_EXTENSIONS = (".hwp", ".hwpx", ".txt")
+
+
+def _process_selector(file_path: Path):
+    if file_path.suffix not in SUPPORTED_EXTENSIONS:
+        raise ValueError(f"지원하지 않는 확장자입니다: {file_path.suffix}")
+    if file_path.suffix == ".hwp":
+        local_hwpx_path = _convert_hwp_to_hwpx(file_path)
+        final_path = _extract_text_from_hwpx(local_hwpx_path)
+    elif file_path.suffix == ".hwpx":
+        final_path = _extract_text_from_hwpx(file_path)
+    else:  # 이미 txt파일 인 경우
+        final_path = file_path
+    return final_path
 
 
 # noinspection PyUnresolvedReferences
@@ -130,8 +153,8 @@ def _cleanup_temp_dir(temp_dir: Path):
         shutil.rmtree(str(temp_dir))
 
 
-@celery_app.task(name="process-document-task")
-def process_document(doc_id: int):
+@celery_app.task(name="process-document-task", bind=True, max_retries=3)
+def process_document(self, doc_id: int) -> str:
     """
     hwp/hwpx 문서를 txt로 변환해서 s3에 올리는 작업
     """
@@ -146,34 +169,23 @@ def process_document(doc_id: int):
             doc = db.get(Document, doc_id)
             if not doc:
                 logger.error(f"문서를 찾을 수 없음: (doc_id: {doc_id})")
-                return
+                raise Exception
             if doc.status == DocumentStatus.ready:
                 logger.warning(f"이미 'ready' 상태의 문서임: (doc_id: {doc_id})")
-                return
+                raise Exception
             elif doc.status == DocumentStatus.pending:
                 logger.info(f"문서 처리 중...: (doc_id: {doc_id})")
                 doc.status = DocumentStatus.processing
                 db.flush()
             local_path = _download_from_s3(doc.file_path, file_dir)
-        if local_path.suffix == ".hwp":
-            local_hwpx_path = _convert_hwp_to_hwpx(local_path)
-        elif local_path.suffix == ".hwpx":
-            local_hwpx_path = local_path
-        else:
-            logger.error(f"지원하지 않는 파일 형식: {local_path}")
-            return
-        txt_path = _extract_text_from_hwpx(local_hwpx_path)
-        # TODO: 청킹, 임베딩, 후 pgvector 삽입 개발 필요
-        logger.info(f"[TASK_SUCCESS] txt 변환 완료: (doc_id: {doc_id})")
-        return str(txt_path)
+        txt_path = _process_selector(local_path)
+        s3_txt_path = _upload_tmp_s3(txt_path)
+        logger.info(f"[TASK_SUCCESS] 문서 txt 변환 완료: (doc_id: {doc_id})")
+        return str(s3_txt_path)
+    except FileNotFoundError as e:
+        raise self.retry(exc=e, countdown=2)
     except Exception as e:
-        logger.error(f"[TASK_FAILED] txt 변환 실패: (doc_id: {doc_id}) - {e}")
-        try:
-            with get_db_session() as db:
-                doc = db.get(Document, doc_id)
-                if doc:
-                    doc.status = DocumentStatus.error
-        except Exception as db_e:
-            logger.error(f"에러 상태 DB 업데이트 실패: {db_e}")
+        logger.error(f"[TASK_FAILED] 문서 txt 변환 실패: (doc_id: {doc_id}) - {e}")
+        raise e
     finally:
         _cleanup_temp_dir(file_dir)
