@@ -14,3 +14,16 @@ class BackendBaseError(Exception):
         self.message = message
         self.status_code = status_code
         self.error_code = error_code
+
+
+    def openapi_docs(self):
+        """OpenAPI 문서에서 사용되는 오류의 example 형태를 반환합니다."""
+
+        return {
+            "summary": self.message,
+            "value": {
+                "status_code": self.status_code,
+                "error_code": self.error_code,
+                "message": self.message
+            }
+        }
