@@ -10,6 +10,7 @@ dependencies = [
     "celery[redis]>=5.5.3",
     "datetime>=5.5",
     "fastapi[standard]>=0.120.3",
+    "html5lib>=1.1",
     "jpype1>=1.6.0",
     "langchain>=1.0.8",
     "langchain-ollama>=1.0.0",
