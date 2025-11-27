@@ -75,7 +75,9 @@ celery_app.conf.beat_schedule = {
     "update-rag-daily": {
         # 'law.tasks.update_rag_index' 함수를 호출하도록 지정
         "task": "update-rag-index-task",
-        "schedule": crontab(hour=4),  # ⭐️ 매일 새벽 4시에 실행하도록 스케줄 설정
+        "schedule": crontab(
+            minute=0, hour=4
+        ),  # ⭐️ 매일 새벽 4시에 실행하도록 스케줄 설정
     },
     # (필요시 다른 스케줄 작업 추가)
 }
