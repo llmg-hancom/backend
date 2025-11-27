@@ -111,12 +111,17 @@ def process_html_with_tables(html_content: str) -> str:
                     long_text_cells += 1
 
         # 레이아웃 판단 기준 (튜닝 가능)
-        is_layout = (long_text_cells > 0) or (total_cells < 2)
+        is_layout = (
+            (table.find("table") is not None)
+            or (long_text_cells > 0)
+            or (total_cells < 2)
+        )
 
         # --- [B] 처리 로직 ---
         if is_layout:
             # 레이아웃이면 표 구조를 버리고 텍스트만 문단에 합류
-            table.unwrap()
+            text_content = table.get_text(separator="\n\n", strip=True)
+            table.replace_with(text_content)
         else:
             # 데이터 표면 구조화
             try:
@@ -140,7 +145,7 @@ def process_html_with_tables(html_content: str) -> str:
             except Exception as e:
                 # 변환 실패 시 안전하게 태그만 벗김
                 print(f"Table conversion error: {e}")
-                table.unwrap()
+                table.replace_with(table.get_text(separator="\n", strip=True))
 
     # --- [C] 핵심 차이점 수정 ---
     # get_text()를 쓰면 <h1>, ## 같은 헤더 정보가 다 날아가서 Regex 청킹을 못함.

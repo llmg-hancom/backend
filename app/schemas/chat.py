@@ -3,6 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
+from models.chat_message import ChatMessageBase
 from models.chat_session import ChatSessionBase
 from models.chat_space import ChatSpaceBase
 from models.user import UserRead
@@ -42,6 +43,7 @@ class SpaceDocumentListRequest(BaseModel):
         Field(description="추가할 문서 목록", default_factory=set)
     )
 
+
 class ChatSessionRead(ChatSessionBase):
     session_id: int
     created_at: datetime
@@ -49,5 +51,17 @@ class ChatSessionRead(ChatSessionBase):
     space: SpaceRead
     user: UserRead
 
+
 class ChatSessionCreateRequest(ChatSessionBase):
     pass
+
+
+# --- 새로 추가된 스키마 ---
+
+
+class ChatMessageRead(ChatMessageBase):
+    """채팅 메시지 응답 스키마"""
+
+    message_id: int
+    created_at: datetime
+    sources: dict | None = None
