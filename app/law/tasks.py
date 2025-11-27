@@ -213,7 +213,7 @@ def process_json_precedents(target_directory, file_name):
 
 
 def get_new_precedent_urls(
-    list_url="https://www.scourt.go.kr/portal/news/NewslistAction.work?gubun=4&type=5",
+    list_url="https://www.scourt.go.kr/portal/news/NewsListAction.work?gubun=4&type=5",
     base_url="https://www.scourt.go.kr",
 ):
     last_precedent_date = None
@@ -437,3 +437,7 @@ def update_rag_index():
         process_precedent_url(url, embeddings)
 
     logger.info("\n[TASK_SUCCESS]--- RAG 데이터 최신화 작업 완료 ---")
+
+
+if __name__ == "__main__":
+    update_rag_index.delay()
