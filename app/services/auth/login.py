@@ -39,12 +39,8 @@ def login(email: EmailStr, password: str, db: Session) -> LoginSuccess:
     if not verify_password(password, user.password_hash):
         raise InvalidCredentialError()
 
-    # user_id가 None일 경우
-    if user.user_id is None:
-        raise Exception("user name is None")
-
     # 토큰 생성
-    tokens = token_regenerate(user_id=user.user_id, token_id=None, db=db)
+    tokens = token_regenerate(user=user, token_id=None, db=db)
 
     return LoginSuccess(
         token=tokens.access_token,
