@@ -81,7 +81,7 @@ class DocumentAnalysis(BaseModel):
         description="A list of up to 5 key terms relevant to the document content, optimized for search indexing."
     )
     summary: str = Field(
-        description="A single-sentence summary acting as a preview for the user. Use the same language as the original."
+        description="A single-sentence summary acting as a preview for the user. Always use the same language as the original document."
     )
     category: str = Field(
         description="The classification of the document type (e.g., 'Report', 'Contract', 'Manual', 'Article', 'Memo')."
@@ -107,20 +107,26 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
             SystemMessage(
                 """
                 You are an expert in document structure analysis and NLP.
-                Your task is to analyze the beginning (head) of a provided document to determine the most efficient chunking strategy for a RAG system.
+                Your task is to analyze the beginning (head) of a provided document to determine the most efficient
+                chunking strategy for a RAG system.
 
                 Analyze the layout, headers, and formatting patterns.
-                Based on this analysis, populate the output schema, paying special attention to the `suggested_separators` field.
+                Based on this analysis, populate the output schema, paying special attention to the
+                `suggested_separators` field.
 
                 ### 1. Summary Guidelines
-                - Generate a `one-sentence, short summary` of the **informational content**, not the visual layout. Use the same natural language as the document.
+
+                - Generate a `one-sentence, short summary` of the **informational content**, not the visual layout.
+                  For summary, use the same language as the document. (e.g. Summarize in Korean if the original document is in Korean.)
                 - BAD: "The document contains lists and headers."
                 - GOOD: "This document outlines the Ministry's 2025 strategic plan for digital platform government."
 
                 ### 2. Separator (Regex) Guidelines for TextSplitters
+
                 1. Identify the hierarchical structure (e.g., Main Chapters > Sections > Paragraphs).
                 2. Propose Python-compatible Regular Expressions (regex) that can split the text effectively.
-                3. Order the separators by hierarchy, from the largest logical unit (e.g., Chapter breaks) to the smallest (e.g., Sentence endings).
+                3. Order the separators by hierarchy, from the largest logical unit (e.g., Chapter breaks) to the
+                   smallest (e.g., Sentence endings).
                 4. Ensure regex patterns are raw strings ready for Python's `re` module (e.g., avoid unnecessary forward slashes like `/pattern/`).
                 """
             ),
@@ -139,8 +145,8 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
             logger.info(regex)
         splitter = RecursiveCharacterTextSplitter(
             separators=final_separators,
-            chunk_size=500,
-            chunk_overlap=50,
+            chunk_size=800,
+            chunk_overlap=100,
             is_separator_regex=True,
         )
         # 4. 문서 청킹 (Raw Chunks 생성)
