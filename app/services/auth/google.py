@@ -77,7 +77,7 @@ def code_to_access_token(code: str) -> str:
         "client_id": settings.GOOGLE_CLIENT_ID,
         "client_secret": settings.GOOGLE_CLIENT_SECRET,
         "grant_type": "authorization_code",
-        "redirect_uri": "http://localhost:8000/v1/auth/google/callback",
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
