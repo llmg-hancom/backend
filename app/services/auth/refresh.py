@@ -3,10 +3,14 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session, select
 
-from errors.auth import RefreshTokenExpiredError, RefreshTokenNotFoundError
+from errors.auth import (
+    RefreshTokenExpiredError,
+    RefreshTokenNotFoundError,
+    UserNotFoundError,
+)
 from errors.general import IllegalStateError
 from models.refresh_token import RefreshToken
-from models.user import UserRead, User
+from models.user import User, UserRead
 from services.auth.token import token_regenerate
 from utils.auth import (
     hash_refresh_token,
@@ -41,18 +45,19 @@ def refresh_access_token(refresh_token: str, db: Session):
     if refresh_token_model.is_revoked:
         raise RefreshTokenExpiredError()
 
-    # 토큰 ID가 존재하지 않음
-    #
-    # RefreshToken.token_id는 int | None 타입으로 지정되어 있는데
-    # 데이터베이스에서 조회한 레코드는 항상 기본키를 가지므로
-    # 실제로 운영 환경에서 이 값은 None이 될 수 없음.
+    # 토큰 ID가 존재하지 않음 (이론적으로 발생 불가)
     if refresh_token_model.token_id is None:
         raise IllegalStateError()
+
+    # RefreshToken에 연결된 User 객체 조회 (cast로 타입 단언)
     user = db.get(User, refresh_token_model.user_id)
+    if not user:
+        # RefreshToken은 있는데 User가 없는 비정상적인 상황
+        raise UserNotFoundError()
 
     # 토큰 재발급
     tokens = token_regenerate(
-        user_id=refresh_token_model.user_id,
+        user=user,
         token_id=refresh_token_model.token_id,
         db=db,
     )

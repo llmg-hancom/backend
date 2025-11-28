@@ -65,7 +65,8 @@ async def event_generator(session: ChatSession, request: ChatRequest):
         stream_mode="messages",
         context=Context(space_id=session.space_id),
     ):
-        full_response += chunk.content
+        if metadata["langgraph_node"] == "model":
+            full_response += chunk.content
         yield f"data: {json.dumps({'token': chunk.content}, ensure_ascii=False)}\n\n"
     new_answer = ChatMessage(
         content=full_response, session_id=session.session_id, role=ChatRole.ai

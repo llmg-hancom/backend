@@ -113,7 +113,7 @@ def get_current_user(
         raise InvalidTokenError()
 
     # int 타입 변환 실패한 경우
-    except ValueError:
+    except (ValueError, TypeError):
         raise InvalidTokenError()
 
     user = db.exec(select(User).where(User.user_id == user_id)).first()
@@ -121,4 +121,4 @@ def get_current_user(
     if not user:
         raise UserNotFoundError()
 
-    return User.model_validate(user)
+    return user
