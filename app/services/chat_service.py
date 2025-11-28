@@ -2,8 +2,10 @@ from datetime import datetime, timezone
 from typing import Annotated, Literal, Self
 
 from fastapi import Depends, Security
+from pydantic import PositiveInt
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from sqlmodel import col, delete, exists, literal, select
 
 from db.session import get_async_db
@@ -295,3 +297,25 @@ class ChatService:
         await self.db.refresh(new_session, attribute_names=["space", "user"])
 
         return new_session
+
+
+    async def get_chat_sessions(
+        self,
+        space: ChatSpace,
+        offset: PositiveInt,
+        limit: PositiveInt
+    ) -> list[ChatSession]:
+        query = (
+            select(ChatSession)
+            .where(col(ChatSession.space_id) == space.space_id)
+            .offset(offset)
+            .limit(limit)
+            .options(
+                joinedload(ChatSession.space),
+                joinedload(ChatSession.user)
+            )
+        )
+
+        result = await self.db.execute(query)
+
+        return list(result.scalars().all())
