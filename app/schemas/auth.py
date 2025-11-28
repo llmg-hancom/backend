@@ -14,6 +14,10 @@ class LoginRequest:
         self.password = password
 
 
+class GoogleLoginRequest(BaseModel):
+    code: str
+
+
 class LoginResponse(BaseModel):
     access_token: str = Field(description="토큰 (JWT)")
     refresh_token: str = Field(description="리프레시 토큰")
