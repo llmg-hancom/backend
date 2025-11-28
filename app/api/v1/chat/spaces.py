@@ -194,3 +194,33 @@ async def create_chat_session(
     )
 
     return ChatSessionRead.model_validate(result)
+
+
+@router.get(
+    "/{space_id}/sessions",
+    summary="세션 목록 조회",
+    status_code=status.HTTP_200_OK
+)
+async def get_chat_sessions(
+    space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
+    service: Annotated[ChatService, Depends(ChatService.factory)],
+    pagination: Annotated[PaginationParams, Query()]
+) -> PaginationResponse[ChatSessionRead]:
+    if space.space_id is None:
+        raise IllegalStateError()
+
+    offset = (pagination.page - 1) * pagination.size
+    limit = pagination.size
+
+
+    result = await service.get_chat_sessions(
+        space=space,
+        offset=offset,
+        limit=limit
+    )
+
+    return PaginationResponse(
+        data=[ChatSessionRead.model_validate(session) for session in result],
+        page=pagination.page,
+        size=pagination.size
+    )
