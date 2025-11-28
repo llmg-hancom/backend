@@ -199,7 +199,13 @@ async def create_chat_session(
 @router.get(
     "/{space_id}/sessions",
     summary="세션 목록 조회",
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "model": PaginationResponse[ChatSessionRead],
+            "description": "세션 목록 조회 성공"
+        }
+    }
 )
 async def get_chat_sessions(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
