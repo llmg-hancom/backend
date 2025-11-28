@@ -53,14 +53,17 @@ def hash_refresh_token(refresh_token: str) -> str:
     return sha3_256(refresh_token.encode()).hexdigest()
 
 
+is_prod: bool = settings.ENVIRONMENT == "production"
+
+
 def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -> None:
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
+        secure=is_prod,
         # 프로덕션 환경에서만 samesite=none으로 설정
-        samesite="none" if settings.ENVIRONMENT == "production" else "lax",
+        samesite="none" if is_prod else "lax",
         path="/",
         max_age=settings.JWT_EXPIRE_HOURS * 60 * 60,
     )
@@ -69,9 +72,9 @@ def set_auth_cookie(response: Response, access_token: str, refresh_token: str) -
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
+        secure=is_prod,
         # 프로덕션 환경에서만 samesite=none으로 설정
-        samesite="none" if settings.ENVIRONMENT == "production" else "lax",
+        samesite="none" if is_prod else "lax",
         path="/",  # <- 해당 엔드포인트에서만 접근 가능
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAY * 24 * 60 * 60,
     )

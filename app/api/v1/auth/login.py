@@ -38,7 +38,7 @@ router = APIRouter()
         }
     },
 )
-async def login(
+def login(
     response: Response,  # ⬅️ Response 객체 주입
     form_data: Annotated[LoginRequest, Depends()],
     db: Annotated[Session, Depends(get_db)],
