@@ -52,6 +52,27 @@ class ChatService:
         return cls(actor, db)
 
 
+    async def __actor_has_space_read_permission(self, space: ChatSpace):
+        """
+        Actor에게 챗스페이스 읽기 권한이 있는지 검사합니다.
+        권한이 없다면 오류가 발생합니다.
+        """
+        # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
+        if space.owner_user_id is not None and space.owner_user_id != self.actor.user_id:
+            raise ForbiddenSpaceAccessError()
+
+        # 그룹 챗스페이스이고, actor가 그 그룹의 멤버가 아닌 경우
+        if space.group_id is not None:
+            is_member_query = select(
+                exists(GroupMember)
+                .where(col(GroupMember.group_id) == space.group_id)
+                .where(col(GroupMember.user_id) == self.actor.user_id)
+            )
+            is_member = await self.db.scalar(is_member_query)
+
+            if not is_member:
+                raise ForbiddenSpaceAccessError()
+
     async def __actor_has_space_write_permission(self, space: ChatSpace):
         """
         Actor에게 챗스페이스 쓰기 권한이 있는지 검사합니다.
@@ -305,9 +326,16 @@ class ChatService:
         offset: PositiveInt,
         limit: PositiveInt
     ) -> list[ChatSession]:
+        if self.actor.user_id is None:
+            raise IllegalStateError()
+
+        # actor에게 space 읽기 권한이 있는지 확인
+        await self.__actor_has_space_read_permission(space=space)
+
         query = (
             select(ChatSession)
             .where(col(ChatSession.space_id) == space.space_id)
+            .where(col(ChatSession.user_id) == self.actor.user_id)  # actor의 ChatSession만 조회
             .offset(offset)
             .limit(limit)
             .options(
