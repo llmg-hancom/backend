@@ -6,7 +6,8 @@ from sqlmodel import Session
 
 from core.config import settings
 from db.session import get_db
-from schemas.auth import LoginWithGoogleCallbackParam
+from models.user import UserRead
+from schemas.auth import GoogleLoginRequest
 from services.auth.google import (
     login_with_google_callback as google_callback_service,
 )
@@ -16,10 +17,7 @@ from utils.auth import set_auth_cookie
 router = APIRouter()
 
 
-@router.get(
-    path="/google",
-    summary="구글 계정으로 로그인"
-)
+@router.get(path="/google", summary="구글 계정으로 로그인")
 async def login_with_google():
     """
     구글 로그인 페이지 링크를 반환합니다.
@@ -35,34 +33,27 @@ async def login_with_google():
     return {"url": url}
 
 
-@router.get(
+@router.post(
     path="/google/callback",
-    summary="구글 계정 로그인 콜백",
-    status_code=status.HTTP_303_SEE_OTHER,
-    responses={
-        status.HTTP_303_SEE_OTHER: {
-            "description": "로그인에 성공한 경우 토큰을 쿠키로 발급하고, 프론트엔드 페이지로 리다이렉트합니다."
-        },
-    }
+    summary="구글 로그인 (API 방식)",
+    status_code=status.HTTP_200_OK,
 )
-def login_with_google_callback(
-    response: Response,  # ⬅️ Response 주입
-    param: Annotated[LoginWithGoogleCallbackParam, Depends()],
+def login_with_google_api(
+    response: Response,
+    request: GoogleLoginRequest,  # 프론트에서 body로 code를 받음
     db: Annotated[Session, Depends(get_db)],
-) -> Response:
-    # 액세스 토큰과 리프레시 토큰 발급
-    login_result = google_callback_service(param.code, db)
+):
+    # 1. 서비스 로직 호출 (기존 로직 재사용)
+    # 서비스 함수는 code와 db를 받아 토큰을 생성합니다.
+    login_result = google_callback_service(request.code, db)
 
-    # 쿠키 설정
+    # 2. 쿠키 설정 (200 OK 응답이므로 브라우저가 확실히 저장함)
     set_auth_cookie(
         response=response,
         access_token=login_result.token,
         refresh_token=login_result.refresh_token,
     )
+    current_user: UserRead = login_result.user
 
-    frontend_url = f"{settings.FRONTEND_URL}/dashboard"
-
-    response.status_code = status.HTTP_303_SEE_OTHER
-    response.headers["Location"] = frontend_url
-
-    return response
+    # 3. 사용자 정보 반환 (선택 사항)
+    return current_user
