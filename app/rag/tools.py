@@ -77,17 +77,17 @@ async def query_in_precedent(
     k: int = 5,
     start_date: date | None = None,
     end_date: date | None = None,
-    case_number: str | None = None,
+    case_numbers: list[str] | None = None,
 ):
     vector_store = await create_vector_store(40, 64)
     excluded_doc_ids = await _fetch_target_ids(DocumentScope.precedent)
     search_filter: dict = {"document_id": {"$nin": excluded_doc_ids}}
     if start_date:
-        search_filter["사건번호"] = {"$gte": start_date.strftime("%Y%m%d")}
+        search_filter["선고일자"] = {"$gte": start_date.strftime("%Y%m%d")}
     if end_date:
-        search_filter.setdefault("사건번호", {})["$lte"] = end_date.strftime("%Y%m%d")
-    if case_number:
-        search_filter["선고일자"] = {"$eq": case_number}
+        search_filter.setdefault("선고일자", {})["$lte"] = end_date.strftime("%Y%m%d")
+    if case_numbers:
+        search_filter["사건번호"] = {"$in": case_numbers}
     relevant_chunks = await vector_store.asimilarity_search(
         query, k=k, filter=search_filter
     )
@@ -138,18 +138,18 @@ async def search_precedent(
 
 
 @tool(response_format="content_and_artifact", parse_docstring=True)
-async def search_precedent_by_case_number(query: str, case_number: str):
+async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     """
     This tool is designed for RAG in LLMs,
     specifically for searching Korean precedents by its case number(사건번호).
 
     Args:
         query (str): The search query for precedents. This should be a concise and clear question or statement.
-        case_number (str): The case number (사건번호) to filter precedents by.
+        case_numbers (list[str]): The case numbers (사건번호) to filter precedents by.
 
     """
     serialized, relevant_chunks = await query_in_precedent(
-        query, case_number=case_number
+        query, case_numbers=case_numbers
     )
     return serialized, relevant_chunks
 
