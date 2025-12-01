@@ -44,17 +44,6 @@ async def lifespan(_app: FastAPI):
         # 2. 테이블 생성
         SQLModel.metadata.create_all(engine)
 
-        # 3. 인덱스 생성
-        session.exec(
-            text("""
-                 CREATE INDEX IF NOT EXISTS hnsw_embedding_idx
-                     ON document_chunks
-                         USING hnsw (embedding vector_cosine_ops)
-                     WITH (m = 16, ef_construction = 64);
-                 """)
-        )
-        session.commit()
-
     logger.info("Database initialization complete.")
 
     yield  # 이 지점에서 FastAPI 애플리케이션이 실행됩니다.
@@ -78,9 +67,9 @@ app.add_middleware(
     allow_credentials=True,  # 필수!
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
-        "Content-Type",      # 요청의 데이터 타입
-        "Accept",            # 응답받을 데이터 타입
-        "Authorization",     # Bearer 토큰 사용 대비
+        "Content-Type",  # 요청의 데이터 타입
+        "Accept",  # 응답받을 데이터 타입
+        "Authorization",  # Bearer 토큰 사용 대비
         "X-Requested-With",  # AJAX 요청 식별
     ],
 )
