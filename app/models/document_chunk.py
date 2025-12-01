@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from pgvector.sqlalchemy import Vector  # pgvector 확장 기능 사용
 from sqlalchemy import TIMESTAMP, Column, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, Index, text
 
 
 if TYPE_CHECKING:
@@ -41,3 +41,25 @@ class DocumentChunk(DocumentChunkBase, table=True):
 
     # Relationship
     document: "Document" = Relationship(back_populates="chunks")
+    __table_args__ = (
+        Index(
+            "hnsw_embedding_idx",  # 1. 인덱스 이름
+            "embedding",  # 2. 적용할 컬럼 이름
+            # 3. USING hnsw
+            postgresql_using="hnsw",
+            # 4. WITH (m = 16, ef_construction = 64)
+            postgresql_with={"m": 16, "ef_construction": 64},
+            # 5. (embedding vector_cosine_ops)
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index(
+            "ix_precedent_case_number",
+            text("((meta ->> '사건번호'))"),
+            postgresql_where=text("(meta ->> '사건번호') IS NOT NULL"),
+        ),
+        Index(
+            "ix_precedent_decision_date",
+            text("((meta ->> '선고일자'))"),
+            postgresql_where=text("(meta ->> '선고일자') IS NOT NULL"),
+        ),
+    )
