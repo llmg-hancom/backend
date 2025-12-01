@@ -56,7 +56,8 @@ class ChatSessionCreateRequest(ChatSessionBase):
     pass
 
 
-# --- 새로 추가된 스키마 ---
+class ChatSessionUpdateRequest(ChatSessionBase):
+    pass
 
 
 class ChatMessageRead(ChatMessageBase):
