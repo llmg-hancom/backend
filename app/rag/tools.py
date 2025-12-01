@@ -12,6 +12,7 @@ from models import Document, ChatSpaceDocument
 from models.document import DocumentScope
 from rag.context_manager import get_db_session
 from rag.model import embeddings
+from datetime import date
 
 pg_engine = PGEngine.from_engine(async_engine)
 
@@ -34,7 +35,10 @@ async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVecto
     return vector_store
 
 
-async def _fetch_target_ids(document_scope: DocumentScope, space_id: int | None = None):
+async def _fetch_target_ids(
+    document_scope: DocumentScope,
+    space_id: int | None = None,
+):
     async with get_db_session() as session:
         match document_scope:
             case DocumentScope.public_law:
@@ -68,12 +72,24 @@ async def query_in_target(
     return serialized, relevant_chunks
 
 
-async def query_excluding_docs(
-    query: str, excluded_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
+async def query_in_precedent(
+    query: str,
+    k: int = 5,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    case_number: str | None = None,
 ):
     vector_store = await create_vector_store(40, 64)
+    excluded_doc_ids = await _fetch_target_ids(DocumentScope.precedent)
+    search_filter: dict = {"document_id": {"$nin": excluded_doc_ids}}
+    if start_date:
+        search_filter["사건번호"] = {"$gte": start_date.strftime("%Y%m%d")}
+    if end_date:
+        search_filter.setdefault("사건번호", {})["$lte"] = end_date.strftime("%Y%m%d")
+    if case_number:
+        search_filter["선고일자"] = {"$eq": case_number}
     relevant_chunks = await vector_store.asimilarity_search(
-        query, k=k, filter={"document_id": {"$nin": excluded_doc_ids}}
+        query, k=k, filter=search_filter
     )
     serialized = "\n\n".join(
         f"Source: {doc.metadata}\nContent: {doc.page_content}"
@@ -101,20 +117,40 @@ async def search_public_law(query: str):
 
 
 @tool(response_format="content_and_artifact", parse_docstring=True)
-async def search_precedent(query: str):
+async def search_precedent(
+    query: str, start_date: date | None = None, end_date: date | None = None
+):
     """
     This tool is designed for RAG in LLMs,
     specifically for searching Korean precedents.
 
     Args:
-        query (str): The search query for precedents.
+        query (str): The search query for precedents. This should be a concise and clear question or statement.
+        start_date (date | None): Optional. The start date for filtering precedents.
+                                  Only precedents from this date onwards will be considered.
+        end_date (date | None): Optional. The end date for filtering precedents. Only precedents up to this date will be considered.
 
     """
-    relevant_chunks = []
-    serialized = ""
-    target_doc_ids = await _fetch_target_ids(DocumentScope.precedent)
-    if target_doc_ids:
-        serialized, relevant_chunks = await query_excluding_docs(query, target_doc_ids)
+    serialized, relevant_chunks = await query_in_precedent(
+        query, start_date=start_date, end_date=end_date
+    )
+    return serialized, relevant_chunks
+
+
+@tool(response_format="content_and_artifact", parse_docstring=True)
+async def search_precedent_by_case_number(query: str, case_number: str):
+    """
+    This tool is designed for RAG in LLMs,
+    specifically for searching Korean precedents by its case number(사건번호).
+
+    Args:
+        query (str): The search query for precedents. This should be a concise and clear question or statement.
+        case_number (str): The case number (사건번호) to filter precedents by.
+
+    """
+    serialized, relevant_chunks = await query_in_precedent(
+        query, case_number=case_number
+    )
     return serialized, relevant_chunks
 
 
