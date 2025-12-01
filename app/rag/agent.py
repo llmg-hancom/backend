@@ -13,6 +13,7 @@ from rag.tools import (
     search_private_documents,
     search_precedent,
     Context,
+    search_precedent_by_case_number,
 )
 from schemas.chat import ChatRequest
 
@@ -26,6 +27,7 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         tools.append(search_public_law)
     if include_precedent:
         tools.append(search_precedent)
+        tools.append(search_precedent_by_case_number)
     agent = create_agent(
         model=llm,
         tools=tools,
