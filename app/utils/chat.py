@@ -38,4 +38,8 @@ async def chat_session_from_session_id_path(
     if result is None:
         raise ChatSessionNotFoundError(session_id=session_id)
 
+    # 삭제 시간이 존재하는 경우
+    if result.deleted_at is not None:
+        raise ChatSessionNotFoundError(session_id=session_id)
+
     return result
