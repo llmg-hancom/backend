@@ -1,16 +1,22 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import selectinload
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
 from db.session import get_async_db
 from errors.chat import ChatSessionNotFoundError, ForbiddenChatSessionAccessError
 from models import GroupMember
 from models.chat_message import ChatMessage
 from models.chat_session import ChatSession
 from models.user import User
-from schemas.chat import ChatMessageRead
+from schemas.chat import ChatMessageRead, ChatSessionRead, ChatSessionUpdateRequest
 from schemas.pagination import PaginationParams, PaginationResponse
+from services.chat_service import ChatService
 from utils.auth import get_current_user
+from utils.chat import chat_session_from_session_id_path
+
 
 router = APIRouter(prefix="/sessions")
 
@@ -88,3 +94,20 @@ async def get_chat_session_history(
         size=params.size,
         data=list(messages),
     )
+
+
+@router.patch(
+    "/{session_id}",
+    summary="채팅 세션 제목 변경"
+)
+async def change_session_info(
+    session: Annotated[ChatSession, Depends(chat_session_from_session_id_path)],
+    body: Annotated[ChatSessionUpdateRequest, Body()],
+    service: Annotated[ChatService, Depends(ChatService.factory)]
+) -> ChatSessionRead:
+    result = await service.update_chat_session_title(
+        title=body.title,
+        session=session
+    )
+
+    return ChatSessionRead.model_validate(result)

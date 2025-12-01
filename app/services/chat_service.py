@@ -347,3 +347,23 @@ class ChatService:
         result = await self.db.execute(query)
 
         return list(result.scalars().all())
+
+
+    async def update_chat_session_title(
+        self,
+        title: str,
+        session: ChatSession
+    ) -> ChatSession:
+        if self.actor.user_id is None:
+            raise IllegalStateError()
+
+        # actor의 session인지 확인
+        if self.actor.user_id != session.user_id:
+            raise
+
+        session.title = title
+        self.db.add(session)
+        await self.db.commit()
+        await self.db.refresh(session, attribute_names=["space", "user"])
+
+        return session
