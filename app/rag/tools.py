@@ -27,7 +27,7 @@ async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVecto
         embedding_service=embeddings,
         table_name="document_chunks",
         id_column="chunk_id",
-        metadata_columns=["document_id", "created_at"],
+        metadata_columns=["document_id"],
         metadata_json_column="meta",
         fetch_k=fetch_k,
         index_query_options=HNSWQueryOptions(ef_search=ef_search),
