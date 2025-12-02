@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from pgvector.sqlalchemy import Vector  # pgvector 확장 기능 사용
 from sqlalchemy import TIMESTAMP, Column, Text, func
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class DocumentChunkBase(SQLModel):
-    chunk_id: Optional[int] = Field(default=None, primary_key=True)  # SQL의 BIGSERIAL
+    chunk_id: int | None = Field(default=None, primary_key=True)  # SQL의 BIGSERIAL
     document_id: int = Field(
         foreign_key="documents.document_id", nullable=False, index=True
     )
@@ -26,12 +26,10 @@ class DocumentChunk(DocumentChunkBase, table=True):
     content: str = Field(sa_column=Column(Text, nullable=False))
 
     # [핵심] pgvector(1024) 타입
-    embedding: Optional[list[float]] = Field(
-        default=None, sa_column=Column(Vector(1024))
-    )
+    embedding: list[float] | None = Field(default=None, sa_column=Column(Vector(1024)))
 
     # [핵심] 유연한 메타데이터 (JSONB)
-    meta: Optional[dict[str, Any]] = Field(
+    meta: dict[str, Any] | None = Field(
         default_factory=dict, sa_column=Column(JSONB, server_default="{}")
     )
 
@@ -56,12 +54,12 @@ class DocumentChunk(DocumentChunkBase, table=True):
         ),
         Index(
             "ix_precedent_case_number",
-            text("((meta ->> '사건번호'))"),
+            text("(meta ->> '사건번호')"),
             postgresql_where=text("(meta ->> '사건번호') IS NOT NULL"),
         ),
         Index(
             "ix_precedent_decision_date",
-            text("((meta ->> '선고일자'))"),
+            text("(meta ->> '선고일자')"),
             postgresql_where=text("(meta ->> '선고일자') IS NOT NULL"),
         ),
     )

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlmodel import TIMESTAMP, Column, Field, Relationship, SQLModel, func
 
@@ -13,7 +13,7 @@ class RefreshToken(SQLModel, table=True):
 
     __tablename__ = "refresh_tokens"
 
-    token_id: Optional[int] = Field(default=None, primary_key=True)
+    token_id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.user_id", nullable=False)
     token_hash: str = Field(
         max_length=255, sa_column_kwargs={"unique": True}, nullable=False

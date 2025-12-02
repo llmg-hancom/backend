@@ -130,7 +130,15 @@ async def query_in_precedent(
         query, k=k, filter=search_filter
     )
     serialized = "\n\n".join(
-        f"Source: {doc.metadata}\nContent: {doc.page_content}"
+        f"""Source: '사건종류명': {doc.metadata["사건종류명"]},
+        '선고': {doc.metadata["선고"]},
+        '법원명': {doc.metadata["법원명"]},
+        '사건명': {doc.metadata["사건명"]},
+        '섹션명': {doc.metadata["섹션명"]},
+        '사건번호': {doc.metadata["사건번호"]},
+        '선고일자': {doc.metadata["선고일자"]},
+        '참조조문': {doc.metadata["참조조문"]}
+        \nContent: {doc.page_content}"""
         for doc in relevant_chunks
     )
     return serialized, relevant_chunks
@@ -163,7 +171,7 @@ async def search_precedent(
     specifically for searching Korean precedents.
 
     Args:
-        query (str): The search query for precedents. This should be a concise and clear question or statement.
+        query (str): The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here.
         start_date (date | None): Optional. The start date for filtering precedents.
                                   Only precedents from this date onwards will be considered.
         end_date (date | None): Optional. The end date for filtering precedents. Only precedents up to this date will be considered.
@@ -181,13 +189,12 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     specifically for searching Korean precedents by its case number(사건번호).
 
     Args:
-        query (str): The search query for precedents. This should be a concise and clear question or statement.
+        query (str): The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here.
         case_numbers (list[str]): The case numbers (사건번호) to filter precedents by.
 
     """
     # 사건번호에 공백이 있는 경우 모두 제거
-    for case_number in case_numbers:
-        case_number.replace(" ", "")
+    case_numbers = [cn.replace(" ", "") for cn in case_numbers]
     search_filter = SearchFilter(case_numbers=case_numbers)
     serialized, relevant_chunks = await query_in_precedent(query, search_filter)
     return serialized, relevant_chunks

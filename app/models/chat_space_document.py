@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
@@ -29,13 +29,13 @@ class ChatSpaceDocument(ChatSpaceDocumentBase, table=True):
 
     __tablename__ = "chat_space_documents"
 
-    space_document_id: Optional[int] = Field(default=None, primary_key=True)
+    space_document_id: int | None = Field(default=None, primary_key=True)
     added_by_user_id: int = Field(foreign_key="users.user_id", nullable=False)
     added_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=timezone.utc),
         sa_column=Column(
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
-        )
+        ),
     )
 
     # Relationships

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Enum as SaEnum
@@ -18,7 +18,7 @@ class UserRole(str, Enum):
 
 
 class GroupMemberBase(SQLModel):
-    group_member_id: Optional[int] = Field(default=None, primary_key=True)
+    group_member_id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.user_id", nullable=False)
     group_id: int = Field(foreign_key="groups.group_id", nullable=False)
 
