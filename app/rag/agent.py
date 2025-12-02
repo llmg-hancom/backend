@@ -23,19 +23,26 @@ logger = logging.getLogger(__name__)
 
 def agent_generator(include_law: bool = False, include_precedent: bool = False):
     tools = [search_private_documents]
+    prompt = """You are a helpful assistant specialized in Korean law,
+        and answers questions about private documents users uploaded using RAG."""
     if include_law:
         tools.append(search_public_law)
+        prompt += "\nYou can search for Korean public law using 'search_public_law'."
     if include_precedent:
         tools.append(search_precedent)
         tools.append(search_precedent_by_case_number)
+        prompt += (
+            "\nYou can search for Korean precedents using 'search_precedent'"
+            "and 'search_precedent_by_case_number'."
+            "Always use 'search_precedent_by_case_number' when searching by '사건번호',"
+            "since searching with '사건번호' in 'search_precedent' will not return intended results."
+        )
+    prompt += "\nBe concise and accurate"
     agent = create_agent(
         model=llm,
         tools=tools,
         context_schema=Context,
-        system_prompt="""You are a helpful assistant specialized in Korean law,
-        and answers questions about private documents users uploaded.
-        Use the provided tools if needed.
-        Be concise and accurate.""",
+        system_prompt=prompt,
     )
     return agent
 

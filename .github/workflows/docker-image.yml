@@ -1,8 +1,8 @@
-name: Docker Image CI
+name: Docker Image CI/CD
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
 
 jobs:
   # 1. 빌드 및 푸시 단계 (CI)
