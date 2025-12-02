@@ -1,8 +1,8 @@
 from typing import Annotated
 
 from fastapi import Depends, Path
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
 from errors.chat import ChatSessionNotFoundError

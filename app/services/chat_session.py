@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Self
 
 from fastapi import Depends, Security
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
 from errors.chat import ForbiddenChatSessionAccessError
@@ -22,20 +22,15 @@ class ChatSessionService:
         self.db = db
         self.actor = actor
 
-
     @classmethod
     def factory(
         cls,
         db: Annotated[AsyncSession, Depends(get_async_db)],
-        actor:Annotated[User, Security(get_current_user)]
+        actor: Annotated[User, Security(get_current_user)],
     ) -> Self:
         return cls(db, actor)
 
-
-    async def delete_chat_session(
-        self,
-        session: ChatSession
-    ) -> None:
+    async def delete_chat_session(self, session: ChatSession) -> None:
         """
         유저가 세션을 생성한 유저인지 확인하고, 세션을 삭제함
         """

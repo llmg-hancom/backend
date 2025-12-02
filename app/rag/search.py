@@ -119,8 +119,8 @@ async def fetch_target_ids(
                 statement = select(ChatSpaceDocument.document_id).where(
                     ChatSpaceDocument.space_id == space_id
                 )
-        results = await session.execute(statement)
-        target_doc_ids = results.scalars().all()
+        results = await session.exec(statement)
+        target_doc_ids = results.all()
     return target_doc_ids
 
 
@@ -176,10 +176,15 @@ async def query_in_precedent(
     return serialized, relevant_chunks
 
 
+LAW_KEYS = ["법령명", "조", "항", "호"]
+
+
 async def find_law_by_article(
     law_type: LawCategory, article: int
 ) -> tuple[str, list[LCDocument]]:
     """법령을 법령명과 조 번호로 검색."""
+    serialized = ""
+    relevant_chunks = []
     async with get_db_session() as session:
         statement = (
             select(DocumentChunk)
@@ -188,10 +193,15 @@ async def find_law_by_article(
                 text(f"(SUBSTRING(meta ->> '조' FROM '제([0-9]+)조')::INT) = {article}")
             )
         )
-        results = await session.execute(statement)
-        relevant_chunks = results.scalars().all()
+        results = await session.exec(statement)
+        raw_chunks = results.all()
         # TODO: 법령 타입/ 조로 검색 개발 중
-    serialized = ""
-    relevant_chunks = []
+        relevant_chunks = []
+        for chunk in raw_chunks:
+            md = chunk.meta
+            relevant_chunks.append(
+                LCDocument(page_content=chunk.content, metadata=chunk.meta)
+            )
+        serialized = "\n\n".join(format_doc(doc, LAW_KEYS) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
