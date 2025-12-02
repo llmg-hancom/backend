@@ -1,6 +1,7 @@
 from typing import Sequence, Any
 
 from langchain.tools import tool, ToolRuntime
+from langchain_core.documents import Document as LCDocument
 from langchain_postgres import PGEngine, PGVectorStore
 from langchain_postgres.v2.indexes import HNSWQueryOptions
 from pydantic import BaseModel
@@ -40,6 +41,21 @@ async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVecto
         index_query_options=HNSWQueryOptions(ef_search=ef_search),
     )
     return vector_store
+
+
+def format_doc(doc: LCDocument, keys: list[str]) -> str:
+    """llm에게 줄 정보 제한 및 추출"""
+
+    # 2. 값이 있는 경우에만 "키: 값" 문자열 생성 (None이나 빈 문자열은 제외)
+    meta_parts = [
+        f"'{k}': {v}"
+        for k in keys
+        if (v := doc.metadata.get(k))  # 값이 존재하고(None 아님) 빈 문자열도 아닌 경우
+    ]
+
+    # 3. 메타데이터와 본문 결합
+    meta_str = ", ".join(meta_parts)
+    return f"Source: {meta_str}\nContent: {doc.page_content}"
 
 
 async def _fetch_target_ids(
@@ -108,11 +124,23 @@ async def query_in_target(
     return serialized, relevant_chunks
 
 
+PRECEDENT_KEYS = [
+    "사건종류명",
+    "선고",
+    "법원명",
+    "사건명",
+    "섹션명",
+    "사건번호",
+    "선고일자",
+    "참조조문",
+]
+
+
 async def query_in_precedent(
     query: str,
     query_filter: SearchFilter | None = None,
     k: int = 5,
-):
+) -> tuple[str, list[LCDocument]]:
     """판례 검색. query_filter가 존재하는 경우 chunk_id로 필터링,
     존재하지 않는 경우 제외된 document_id로 필터링"""
     vector_store = await create_vector_store(40, 64)
@@ -126,21 +154,10 @@ async def query_in_precedent(
     else:
         excluded_doc_ids = await _fetch_target_ids(DocumentScope.precedent)
         search_filter: dict = {"document_id": {"$nin": excluded_doc_ids}}
-    relevant_chunks = await vector_store.asimilarity_search(
+    relevant_chunks: list[LCDocument] = await vector_store.asimilarity_search(
         query, k=k, filter=search_filter
     )
-    serialized = "\n\n".join(
-        f"""Source: '사건종류명': {doc.metadata["사건종류명"]},
-        '선고': {doc.metadata.get("선고", "None")},
-        '법원명': {doc.metadata.get("법원명", "None")},
-        '사건명': {doc.metadata.get("사건명", "None")},
-        '섹션명': {doc.metadata.get("섹션명", "None")}, 
-        '사건번호': {doc.metadata.get("사건번호", "None")},
-        '선고일자': {doc.metadata.get("선고일자", "None")},
-        '참조조문': {doc.metadata.get("참조조문", "None")}
-        \nContent: {doc.page_content}"""
-        for doc in relevant_chunks
-    )
+    serialized = "\n\n".join(format_doc(doc, PRECEDENT_KEYS) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
 
