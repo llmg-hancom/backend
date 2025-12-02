@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional, override
+from typing import TYPE_CHECKING
 
 from pydantic import EmailStr
 from sqlalchemy import TIMESTAMP, Column, func
@@ -33,10 +33,8 @@ class UserBase(SQLModel):
 
 class User(UserBase, table=True):
     __tablename__ = "users"
-    user_id: Optional[int] = Field(
-        default=None, primary_key=True, description="유저 ID"
-    )
-    password_hash: Optional[str] = Field(
+    user_id: int | None = Field(default=None, primary_key=True, description="유저 ID")
+    password_hash: str | None = Field(
         default=None,
         max_length=255,
         description="해시된 비밀번호. 소셜 로그인일 경우 NULL이 들어감",
@@ -51,7 +49,7 @@ class User(UserBase, table=True):
         ),
         description="유저 생성 시간",
     )
-    deleted_at: Optional[datetime] = Field(
+    deleted_at: datetime | None = Field(
         default=None,
         sa_column=Column(TIMESTAMP(timezone=True), index=True),
         description="유저 탈퇴 시간",
@@ -90,9 +88,7 @@ class User(UserBase, table=True):
 
 
 class UserRead(UserBase):
-    user_id: Optional[int] = Field(
-        default=None, primary_key=True, description="유저 ID"
-    )
+    user_id: int | None = Field(default=None, primary_key=True, description="유저 ID")
     created_at: datetime = Field(description="유저 생성 시간")
 
 
