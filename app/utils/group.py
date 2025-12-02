@@ -23,6 +23,10 @@ def get_group_from_group_id_path(
     if group is None:
         raise GroupNotExistError()
 
+    # 그룹이 삭제된 경우
+    if group.deleted_at is not None:
+        raise GroupNotExistError()
+
     return group
 
 
