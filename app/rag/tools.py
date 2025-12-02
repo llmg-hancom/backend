@@ -64,19 +64,19 @@ async def _fetch_target_ids(
                     statement = select(DocumentChunk.chunk_id)
                     if search_filter.start_date:
                         statement = statement.where(
-                            DocumentChunk.meta["선고일자"].astext()
+                            DocumentChunk.meta["선고일자"].astext
                             >= search_filter.start_date.strftime("%Y%m%d")
                         )
                     if search_filter.end_date:
                         statement = statement.where(
-                            DocumentChunk.meta["선고일자"].astext()
+                            DocumentChunk.meta["선고일자"].astext
                             <= search_filter.end_date.strftime("%Y%m%d")
                         )
                     if search_filter.case_numbers:
                         statement = statement.where(
-                            DocumentChunk.meta["사건번호"]
-                            .astext()
-                            .in_(search_filter.case_numbers)
+                            DocumentChunk.meta["사건번호"].astext.in_(
+                                search_filter.case_numbers
+                            )
                         )
                 # search_filter가 존재하지 않는 경우 판례가 **아닌** 범위의 document_id 반환
                 else:
