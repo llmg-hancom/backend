@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import TIMESTAMP, Column, Text, func
 from sqlalchemy import Enum as SaEnum
@@ -27,13 +27,13 @@ class ChatMessage(ChatMessageBase, table=True):
 
     __tablename__ = "chat_messages"
 
-    message_id: Optional[int] = Field(default=None, primary_key=True)  # SQL의 BIGSERIAL
+    message_id: int | None = Field(default=None, primary_key=True)  # SQL의 BIGSERIAL
     session_id: int = Field(
         foreign_key="chat_sessions.session_id", nullable=False, index=True
     )
 
     # [RAG 핵심] 답변의 근거가 된 출처 (JSONB)
-    sources: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSONB))
+    sources: dict[str, Any] | None = Field(default=None, sa_column=Column(JSONB))
 
     created_at: datetime = Field(
         sa_column=Column(

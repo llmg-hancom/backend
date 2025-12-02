@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Field, ForeignKey, Relationship, SQLModel
@@ -20,11 +20,11 @@ class ChatSession(ChatSessionBase, table=True):
 
     __tablename__ = "chat_sessions"
 
-    session_id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int | None = Field(default=None, primary_key=True)
     space_id: int = Field(
         foreign_key="chat_spaces.space_id", nullable=False, index=True
     )
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None, sa_column_args=[ForeignKey("users.user_id", ondelete="SET NULL")]
     )
 
@@ -46,13 +46,13 @@ class ChatSession(ChatSessionBase, table=True):
         ),
     )
 
-    deleted_at: Optional[datetime] = Field(
+    deleted_at: datetime | None = Field(
         default=None, sa_column=Column(TIMESTAMP(timezone=True))
     )
 
     # Relationships
     space: "ChatSpace" = Relationship(back_populates="sessions")
-    user: Optional["User"] = Relationship(back_populates="chat_sessions")
+    user: "User | None" = Relationship(back_populates="chat_sessions")
     messages: list["ChatMessage"] = Relationship(
         back_populates="session", sa_relationship_kwargs={"cascade": "all, delete"}
     )

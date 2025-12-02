@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, Column, func
 from sqlmodel import Field, Relationship, SQLModel
@@ -18,7 +18,7 @@ class GroupBase(SQLModel):
 
 class Group(GroupBase, table=True):
     __tablename__ = "groups"
-    group_id: Optional[int] = Field(default=None, primary_key=True)
+    group_id: int | None = Field(default=None, primary_key=True)
     group_name: str = Field(max_length=255, nullable=False)
     created_by_user_id: int = Field(foreign_key="users.user_id", nullable=False)
     created_at: datetime = Field(
@@ -27,7 +27,7 @@ class Group(GroupBase, table=True):
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
         ),
     )
-    deleted_at: Optional[datetime] = Field(
+    deleted_at: datetime | None = Field(
         default=None, sa_column=Column(TIMESTAMP(timezone=True))
     )
 

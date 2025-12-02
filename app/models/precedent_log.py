@@ -1,5 +1,3 @@
-from typing import Optional
-
 from sqlmodel import SQLModel, Field
 from sqlalchemy import TIMESTAMP, Column, func
 from datetime import date, datetime, timezone
@@ -7,11 +5,11 @@ from datetime import date, datetime, timezone
 
 class PrecedentLog(SQLModel, table=True):
     __tablename__ = "precedent_log"
-    precedent_log_id: Optional[int] = Field(
+    precedent_log_id: int | None = Field(
         default=None, primary_key=True, description="판례 로그 ID"
     )
 
-    precedent_url: Optional[str] = Field(
+    precedent_url: str | None = Field(
         default=None, max_length=1024, unique=True, description="판례 URL"
     )
     precedent_date: date = Field(description="판례 날짜")
