@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, Column, UniqueConstraint, func
 from sqlmodel import Enum as SaEnum
@@ -27,7 +27,7 @@ class SocialAccount(SocialAccountBase, table=True):
         ),
     )
 
-    social_account_id: Optional[int] = Field(
+    social_account_id: int | None = Field(
         default=None, primary_key=True, description="소셜 로그인 아이디"
     )
     user_id: int = Field(foreign_key="users.user_id", nullable=False)

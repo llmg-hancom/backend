@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from datetime import datetime
 import json
 from pathlib import Path, PurePath
-from typing import Any, Optional
+from typing import Any
 
 from bs4 import BeautifulSoup
 import requests
@@ -267,7 +267,7 @@ def get_new_precedent_urls(
 
 def extract_precedent_metadata(
     soup: BeautifulSoup, detail_url: str
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     def get_text_after_th(th_text: str) -> str:
         th = soup.find("th", string=lambda t: t and th_text in t.strip())
         td = th.find_next_sibling("td") if th else None
