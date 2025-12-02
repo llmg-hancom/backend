@@ -9,9 +9,9 @@ from rag.context_manager import get_db_session
 from rag.model import llm
 from models.chat_message import ChatRole, ChatMessage
 from rag.tools import (
-    search_public_law,
+    search_public_law_semantic,
     search_private_documents,
-    search_precedent,
+    search_precedent_semantic,
     Context,
     search_precedent_by_case_number,
 )
@@ -26,10 +26,10 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
     prompt = """You are a helpful assistant specialized in Korean law,
         and answers questions about private documents users uploaded using RAG."""
     if include_law:
-        tools.append(search_public_law)
+        tools.append(search_public_law_semantic)
         prompt += "\nYou can search for Korean public law using 'search_public_law'."
     if include_precedent:
-        tools.append(search_precedent)
+        tools.append(search_precedent_semantic)
         tools.append(search_precedent_by_case_number)
         prompt += (
             "\nYou can search for Korean precedents using 'search_precedent'"
