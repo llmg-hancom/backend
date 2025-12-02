@@ -134,10 +134,10 @@ async def query_in_precedent(
         '선고': {doc.metadata["선고"]},
         '법원명': {doc.metadata["법원명"]},
         '사건명': {doc.metadata["사건명"]},
-        '섹션명': {doc.metadata["섹션명"]},
+        '섹션명': {doc.metadata["섹션명"] if doc.metadata["섹션명"] else "None"},
         '사건번호': {doc.metadata["사건번호"]},
         '선고일자': {doc.metadata["선고일자"]},
-        '참조조문': {doc.metadata["참조조문"]}
+        '참조조문': {doc.metadata["참조조문"]if doc.metadata["참조조문"] else "None"}
         \nContent: {doc.page_content}"""
         for doc in relevant_chunks
     )
