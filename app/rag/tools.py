@@ -131,13 +131,13 @@ async def query_in_precedent(
     )
     serialized = "\n\n".join(
         f"""Source: '사건종류명': {doc.metadata["사건종류명"]},
-        '선고': {doc.metadata["선고"]},
-        '법원명': {doc.metadata["법원명"]},
-        '사건명': {doc.metadata["사건명"]},
-        '섹션명': {doc.metadata["섹션명"] if doc.metadata["섹션명"] else "None"},
-        '사건번호': {doc.metadata["사건번호"]},
-        '선고일자': {doc.metadata["선고일자"]},
-        '참조조문': {doc.metadata["참조조문"]if doc.metadata["참조조문"] else "None"}
+        '선고': {doc.metadata.get("선고", "None")},
+        '법원명': {doc.metadata.get("법원명", "None")},
+        '사건명': {doc.metadata.get("사건명", "None")},
+        '섹션명': {doc.metadata.get("섹션명", "None")}, 
+        '사건번호': {doc.metadata.get("사건번호", "None")},
+        '선고일자': {doc.metadata.get("선고일자", "None")},
+        '참조조문': {doc.metadata.get("참조조문", "None")}
         \nContent: {doc.page_content}"""
         for doc in relevant_chunks
     )
