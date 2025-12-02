@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr
+from sqlmodel import Field
 
 from models.group import GroupBase
 from models.group_member import UserRole
@@ -27,3 +28,8 @@ class GroupReadWithoutMembers(GroupBase):
 class GroupUserInviteRequest(BaseModel):
     email: EmailStr
     role: UserRole
+
+
+class GroupUpdate(GroupBase):
+    group_name: str = Field(max_length=256, nullable=True, default=None)
+    description: str | None = Field(nullable=True, default=None)

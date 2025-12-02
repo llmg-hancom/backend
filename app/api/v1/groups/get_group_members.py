@@ -4,30 +4,31 @@ from fastapi import APIRouter, Depends, Query, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import get_async_db
-from models.user import User, UserRead
-from schemas.groups import GroupReadWithoutMembers
+from models import Group
+from models.user import UserRead
 from schemas.pagination import PaginationParams, PaginationResponse
-from services.users.get_my_group import get_my_group as service
+from services.group.get_group_members import get_group_members as service
 from utils.auth import get_current_user
+from utils.group import get_group_from_group_id_path
 
 
 router = APIRouter()
 
 @router.get(
-    path="/groups",
-    summary="현재 사용자가 소속된 그룹 조회",
-    tags=["그룹"]
+    "/{group_id}/members",
+    summary="그룹 멤버 조회"
 )
-async def my_groups(
-    user: Annotated[User, Security(get_current_user)],
+async def get_group_members(
+    group: Annotated[Group, Depends(get_group_from_group_id_path)],
     db: Annotated[AsyncSession, Depends(get_async_db)],
-    pagination: Annotated[PaginationParams, Query()]
-) -> PaginationResponse[GroupReadWithoutMembers]:
+    pagination: Annotated[PaginationParams, Query()],
+    actor: Annotated[UserRead, Security(get_current_user)]
+) -> PaginationResponse[UserRead]:
     offset = (pagination.page - 1) * pagination.size
     limit = pagination.size
 
-    response = await service(
-        actor=user,
+    result = await service(
+        group=group,
         db=db,
         offset=offset,
         limit=limit
@@ -36,5 +37,5 @@ async def my_groups(
     return PaginationResponse(
         page=pagination.page,
         size=pagination.size,
-        data=[GroupReadWithoutMembers.model_validate(group) for group in response]
+        data=[UserRead.model_validate(user) for user in result]
     )
