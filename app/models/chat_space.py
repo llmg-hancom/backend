@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import TIMESTAMP, CheckConstraint, Column, func
 from sqlmodel import Field, Relationship, SQLModel
@@ -40,8 +40,8 @@ class ChatSpace(ChatSpaceBase, table=True):
     )
 
     # Relationships
-    owner_user: "User | None" = Relationship(back_populates="owned_chat_spaces")
-    group: "Group | None" = Relationship(back_populates="chat_spaces")
+    owner_user: Optional["User"] = Relationship(back_populates="owned_chat_spaces")
+    group: Optional["Group"] = Relationship(back_populates="chat_spaces")
     documents: list["ChatSpaceDocument"] = Relationship(
         back_populates="space", sa_relationship_kwargs={"cascade": "all, delete"}
     )
