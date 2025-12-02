@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 
 class DocumentChunkBase(SQLModel):
     chunk_id: Optional[int] = Field(default=None, primary_key=True)  # SQL의 BIGSERIAL
-    document_id: int = Field(foreign_key="documents.document_id", nullable=False)
+    document_id: int = Field(
+        foreign_key="documents.document_id", nullable=False, index=True
+    )
 
 
 class DocumentChunk(DocumentChunkBase, table=True):
