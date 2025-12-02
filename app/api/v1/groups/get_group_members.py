@@ -12,7 +12,7 @@ from utils.auth import get_current_user
 from utils.group import get_group_from_group_id_path
 
 
-router = APIRouter(prefix="/groups")
+router = APIRouter()
 
 @router.get(
     "/{group_id}/members",
