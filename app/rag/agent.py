@@ -14,6 +14,7 @@ from rag.tools import (
     search_precedent_semantic,
     Context,
     search_precedent_by_case_number,
+    search_public_law_article,
 )
 from schemas.chat import ChatRequest
 
@@ -27,15 +28,19 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         and answers questions about private documents users uploaded using RAG."""
     if include_law:
         tools.append(search_public_law_semantic)
-        prompt += "\nYou can search for Korean public law using 'search_public_law'."
+        tools.append(search_public_law_article)
+        prompt += (
+            "\nYou can search for Korean public law using 'search_public_law_semantic'."
+            "and 'search_public_law_article'."
+            "Always use 'search_public_law_article' when searching by '법령명' and '조'."
+        )
     if include_precedent:
         tools.append(search_precedent_semantic)
         tools.append(search_precedent_by_case_number)
         prompt += (
-            "\nYou can search for Korean precedents using 'search_precedent'"
+            "\nYou can search for Korean precedents using 'search_precedent_semantic'"
             "and 'search_precedent_by_case_number'."
-            "Always use 'search_precedent_by_case_number' when searching by '사건번호',"
-            "since searching with '사건번호' in 'search_precedent' will not return intended results."
+            "Always use 'search_precedent_by_case_number' when searching by '사건번호'."
         )
     prompt += "\nBe concise and accurate"
     agent = create_agent(

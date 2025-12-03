@@ -8,6 +8,8 @@ from rag.search import (
     query_in_target,
     SearchFilter,
     query_in_precedent,
+    LawCategory,
+    find_law_by_article,
 )
 
 
@@ -30,6 +32,21 @@ async def search_public_law_semantic(query: str):
     target_doc_ids = await fetch_target_ids(DocumentScope.public_law)
     if target_doc_ids:
         serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
+    return serialized, relevant_chunks
+
+
+@tool(response_format="content_and_artifact", parse_docstring=True)
+async def search_public_law_article(category: LawCategory, article: int):
+    """
+    This tool is designed for RAG in LLMs,
+    specifically for searching for Korean public laws by its category and article.
+
+    Args:
+        category (LawCategory): The category of the law(법령명) to search for.
+        article (int): The article number(조) of the law to search for.
+
+    """
+    serialized, relevant_chunks = await find_law_by_article(category, article)
     return serialized, relevant_chunks
 
 
