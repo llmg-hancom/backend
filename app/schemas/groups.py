@@ -33,7 +33,7 @@ class GroupReadWithoutMembers(GroupBase):
     created_by_user: UserRead
 
 
-class GroupReadWithUserRole(GroupReadWithoutMembers):
+class GroupReadWithMyRole(GroupReadWithoutMembers):
     user_role: UserRole
 
 

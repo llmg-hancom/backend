@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import get_async_db
 from models.user import User
-from schemas.groups import GroupReadWithUserRole
+from schemas.groups import GroupReadWithMyRole
 from schemas.pagination import PaginationParams, PaginationResponse
 from services.users.get_my_group import get_my_group as service
 from utils.auth import get_current_user
@@ -19,7 +19,7 @@ async def my_groups(
     user: Annotated[User, Security(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_async_db)],
     pagination: Annotated[PaginationParams, Query()],
-) -> PaginationResponse[GroupReadWithUserRole]:
+) -> PaginationResponse[GroupReadWithMyRole]:
     offset = (pagination.page - 1) * pagination.size
     limit = pagination.size
 
@@ -28,5 +28,5 @@ async def my_groups(
     return PaginationResponse(
         page=pagination.page,
         size=pagination.size,
-        data=[GroupReadWithUserRole.model_validate(group) for group in response],
+        data=response,
     )
