@@ -178,26 +178,27 @@ async def query_in_precedent(
     return serialized, relevant_chunks
 
 
-
 async def find_law_by_article(
     law_type: LawCategory, article: int
 ) -> tuple[str, list[LCDocument]]:
     """법령을 법령명과 조 번호로 검색."""
+    relevant_chunks = []
     async with get_db_session() as session:
         statement = (
             select(DocumentChunk)
             .where(DocumentChunk.meta["법령명"].astext == str(law_type))
             .where(
-                text(f"(SUBSTRING(meta ->> '조' FROM '제([0-9]+)조')::INT) = {article}")
+                text(
+                    "(SUBSTRING(meta ->> '조' FROM '제([0-9]+)조')::INT) = :article"
+                ).params(article=article)
             )
             .order_by(DocumentChunk.chunk_id)
         )
         results = await session.exec(statement)
         raw_chunks = results.all()
-    relevant_chunks = []
-    for chunk in raw_chunks:
-        md = {k: v for k, v in chunk.meta.items() if v != "정보없음"}
-        relevant_chunks.append(LCDocument(page_content=chunk.content, metadata=md))
+        for chunk in raw_chunks:
+            md = {k: v for k, v in chunk.meta.items() if v != "정보없음"}
+            relevant_chunks.append(LCDocument(page_content=chunk.content, metadata=md))
     serialized = f"법령명: {law_type}\n" + "\n".join(doc.page_content for doc in relevant_chunks)
     return serialized, relevant_chunks
 
