@@ -65,7 +65,9 @@ def format_doc(doc: LCDocument, keys: list[str]) -> str:
     meta_parts = [
         f"'{k}': {v}"
         for k in keys
-        if (v := doc.metadata.get(k))  # 값이 존재하고(None 아님) 빈 문자열도 아닌 경우
+        if (v := doc.metadata.get(k))
+        and v
+        != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
     ]
 
     # 3. 메타데이터와 본문 결합
@@ -176,15 +178,11 @@ async def query_in_precedent(
     return serialized, relevant_chunks
 
 
-LAW_KEYS = ["법령명", "조", "항", "호"]
-
 
 async def find_law_by_article(
     law_type: LawCategory, article: int
 ) -> tuple[str, list[LCDocument]]:
     """법령을 법령명과 조 번호로 검색."""
-    serialized = ""
-    relevant_chunks = []
     async with get_db_session() as session:
         statement = (
             select(DocumentChunk)
@@ -192,16 +190,14 @@ async def find_law_by_article(
             .where(
                 text(f"(SUBSTRING(meta ->> '조' FROM '제([0-9]+)조')::INT) = {article}")
             )
+            .order_by(DocumentChunk.chunk_id)
         )
         results = await session.exec(statement)
         raw_chunks = results.all()
-        # TODO: 법령 타입/ 조로 검색 개발 중
-        relevant_chunks = []
-        for chunk in raw_chunks:
-            md = chunk.meta
-            relevant_chunks.append(
-                LCDocument(page_content=chunk.content, metadata=chunk.meta)
-            )
-        serialized = "\n\n".join(format_doc(doc, LAW_KEYS) for doc in relevant_chunks)
+    relevant_chunks = []
+    for chunk in raw_chunks:
+        md = {k: v for k, v in chunk.meta.items() if v != "정보없음"}
+        relevant_chunks.append(LCDocument(page_content=chunk.content, metadata=md))
+    serialized = f"법령명: {law_type}\n" + "\n".join(doc.page_content for doc in relevant_chunks)
     return serialized, relevant_chunks
 
