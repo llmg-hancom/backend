@@ -12,6 +12,10 @@ class GroupCreate(GroupBase):
     pass
 
 
+class GroupMemberRead(UserRead):
+    role: UserRole
+
+
 class GroupRead(GroupBase):
     group_id: int
     created_at: datetime
@@ -23,6 +27,10 @@ class GroupReadWithoutMembers(GroupBase):
     group_id: int
     created_at: datetime
     created_by_user: UserRead
+
+
+class GroupReadWithUserRole(GroupReadWithoutMembers):
+    user_role: UserRole
 
 
 class GroupUserInviteRequest(BaseModel):
