@@ -44,7 +44,10 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             "Always use 'search_precedent_semantic' for semantic search."
             "Always use 'search_precedent_by_case_number' when searching by '사건번호'."
         )
-    prompt += "\nBe concise and accurate"
+    prompt += (
+        "\nBe concise and accurate. Keep in mind that using '사건번호', or '조'"
+        "for querying in semantic search will not produce any meaningful result."
+    )
     agent = create_agent(
         model=llm,
         tools=tools,
