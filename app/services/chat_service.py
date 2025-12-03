@@ -4,15 +4,15 @@ from typing import Annotated, Literal, Self
 from fastapi import Depends, Security
 from pydantic import PositiveInt
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlmodel import col, delete, exists, literal, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
 from errors.chat import (
     ForbiddenSpaceAccessError,
 )
-from errors.document import DocumentNotFoundError, ForbiddenDocumentAccessError
+from errors.document import ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
 from errors.space import SpaceNotFoundError
@@ -51,14 +51,16 @@ class ChatService:
     ) -> Self:
         return cls(actor, db)
 
-
     async def __actor_has_space_read_permission(self, space: ChatSpace):
         """
         Actor에게 챗스페이스 읽기 권한이 있는지 검사합니다.
         권한이 없다면 오류가 발생합니다.
         """
         # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
-        if space.owner_user_id is not None and space.owner_user_id != self.actor.user_id:
+        if (
+            space.owner_user_id is not None
+            and space.owner_user_id != self.actor.user_id
+        ):
             raise ForbiddenSpaceAccessError()
 
         # 그룹 챗스페이스이고, actor가 그 그룹의 멤버가 아닌 경우
@@ -82,7 +84,10 @@ class ChatService:
             raise IllegalStateError()
 
         # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
-        if space.owner_user_id is not None and space.owner_user_id != self.actor.user_id:
+        if (
+            space.owner_user_id is not None
+            and space.owner_user_id != self.actor.user_id
+        ):
             raise ForbiddenSpaceAccessError()
 
         # 그룹 챗스페이스이고, actor가 그 그룹의 admin이 아닌 경우
@@ -96,7 +101,6 @@ class ChatService:
             is_admin = await self.db.scalar(is_admin_query)
             if not is_admin:
                 raise UserIsNotGroupAdminError()
-
 
     async def create_chat_space(self, name: str) -> ChatSpace:
         """
@@ -112,7 +116,6 @@ class ChatService:
         await self.db.refresh(space)
 
         return space
-
 
     async def create_group_chat_space(self, group: Group, name: str) -> ChatSpace:
         """
@@ -143,8 +146,9 @@ class ChatService:
 
         return space
 
-
-    async def get_group_chat_spaces(self, group: Group, offset: int, limit: int) -> list[ChatSpace]:
+    async def get_group_chat_spaces(
+        self, group: Group, offset: int, limit: int
+    ) -> list[ChatSpace]:
         """
         그룹에 속한 챗스페이스의 목록을 조회합니다.
         """
@@ -169,7 +173,6 @@ class ChatService:
         spaces = (await self.db.scalars(query)).all()
         return [space for space in spaces]
 
-
     async def delete_chat_space(self, space_id: int) -> None:
         """
         챗스페이스를 삭제합니다.
@@ -183,7 +186,7 @@ class ChatService:
             .where(col(ChatSpace.deleted_at).is_(None))
         )
 
-        space = (await self.db.execute(query)).scalar_one_or_none()
+        space = (await self.db.exec(query)).one_or_none()
 
         if space is None:
             raise SpaceNotFoundError(space_id=space_id)
@@ -192,7 +195,6 @@ class ChatService:
             raise ForbiddenSpaceAccessError()
 
         space.deleted_at = datetime.now(tz=timezone.utc)
-
 
     async def get_chat_space_documents(
         self, space_id: int, offset: int, limit: int
@@ -204,7 +206,8 @@ class ChatService:
         query = (
             select(Document)
             .join(
-                ChatSpaceDocument, Document.document_id == ChatSpaceDocument.document_id
+                ChatSpaceDocument,
+                col(Document.document_id) == ChatSpaceDocument.document_id,
             )
             .where(ChatSpaceDocument.space_id == space_id)
             .offset(offset)
@@ -212,15 +215,12 @@ class ChatService:
         )
 
         # 이제 result는 이미 Document 객체들의 리스트입니다.
-        result = (await self.db.execute(query)).scalars().all()
+        result = (await self.db.exec(query)).all()
 
         return list(result)
 
-
     async def add_document(
-        self,
-        space: ChatSpace,
-        document_ids: set[int]
+        self, space: ChatSpace, document_ids: set[int]
     ) -> dict[Literal["success", "skipped"], set[int]]:
         """
         챗스페이스에 문서를 추가합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
@@ -242,12 +242,16 @@ class ChatService:
 
         # actor에게 권한이 있는지 검사
         actor_own_query = (
-            select(literal(space.space_id), Document.document_id, literal(self.actor.user_id))
+            select(
+                literal(space.space_id),
+                Document.document_id,
+                literal(self.actor.user_id),
+            )
             .where(col(Document.document_id).in_(document_ids))
             .where(Document.uploaded_by_user_id == self.actor.user_id)
         )
 
-        actor_own_documents = (await self.db.execute(actor_own_query)).scalars().all()
+        actor_own_documents = (await self.db.exec(actor_own_query)).all()
 
         # 하나라도 권한이 없는 문서가 있다면 전체 실패
         if len(actor_own_documents) != len(document_ids):
@@ -255,14 +259,16 @@ class ChatService:
 
         stmt = (
             pg_insert(ChatSpaceDocument)
-            .from_select(["space_id", "document_id", "added_by_user_id"], actor_own_query)
+            .from_select(
+                ["space_id", "document_id", "added_by_user_id"], actor_own_query
+            )
             .on_conflict_do_nothing(
                 index_elements=["space_id", "document_id"]  # 중복 있을 시 무시
             )
             .returning(col(ChatSpaceDocument.document_id))
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.exec(stmt)
         await self.db.commit()
 
         success_ids = set(result.scalars().all())
@@ -270,11 +276,8 @@ class ChatService:
 
         return {"success": success_ids, "skipped": skipped_ids}
 
-
     async def delete_document(
-        self,
-        space: ChatSpace,
-        document_ids: set[int]
+        self, space: ChatSpace, document_ids: set[int]
     ) -> dict[Literal["success", "skipped"], set[int]]:
         """
         챗스페이스에 연결된 문서를 삭제합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
@@ -293,14 +296,13 @@ class ChatService:
             .returning(col(ChatSpaceDocument.document_id))
         )
 
-        result = await self.db.execute(query)
+        result = await self.db.exec(query)
         await self.db.commit()
 
         success_ids = set(result.scalars().all())
         skipped_ids = document_ids - success_ids
 
         return {"success": success_ids, "skipped": skipped_ids}
-
 
     async def create_chat_session(self, space: ChatSpace, title: str) -> ChatSession:
         """
@@ -319,12 +321,8 @@ class ChatService:
 
         return new_session
 
-
     async def get_chat_sessions(
-        self,
-        space: ChatSpace,
-        offset: PositiveInt,
-        limit: PositiveInt
+        self, space: ChatSpace, offset: PositiveInt, limit: PositiveInt
     ) -> list[ChatSession]:
         if self.actor.user_id is None:
             raise IllegalStateError()
@@ -335,24 +333,20 @@ class ChatService:
         query = (
             select(ChatSession)
             .where(col(ChatSession.space_id) == space.space_id)
-            .where(col(ChatSession.user_id) == self.actor.user_id)  # actor의 ChatSession만 조회
+            .where(
+                col(ChatSession.user_id) == self.actor.user_id
+            )  # actor의 ChatSession만 조회
             .offset(offset)
             .limit(limit)
-            .options(
-                joinedload(ChatSession.space),
-                joinedload(ChatSession.user)
-            )
+            .options(joinedload(ChatSession.space), joinedload(ChatSession.user))
         )
 
-        result = await self.db.execute(query)
+        result = await self.db.exec(query)
 
-        return list(result.scalars().all())
-
+        return list(result.all())
 
     async def update_chat_session_title(
-        self,
-        title: str,
-        session: ChatSession
+        self, title: str, session: ChatSession
     ) -> ChatSession:
         if self.actor.user_id is None:
             raise IllegalStateError()

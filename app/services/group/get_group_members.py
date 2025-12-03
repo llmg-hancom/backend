@@ -1,6 +1,6 @@
 from pydantic import PositiveInt
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from models import Group, GroupMember, User
 
@@ -18,5 +18,5 @@ async def get_group_members(
         .offset(offset)
         .limit(limit)
     )
-    result = await db.execute(query)
-    return list(result.scalars().all())
+    result = await db.exec(query)
+    return list(result.all())
