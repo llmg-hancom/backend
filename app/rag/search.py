@@ -199,6 +199,6 @@ async def find_law_by_article(
         for chunk in raw_chunks:
             md = {k: v for k, v in chunk.meta.items() if v != "정보없음"}
             relevant_chunks.append(LCDocument(page_content=chunk.content, metadata=md))
-        serialized = f"법령명: {law_type}\n" + "\n".join(doc.page_content for doc in relevant_chunks)
+    serialized = f"법령명: {law_type}\n" + "\n".join(doc.page_content for doc in relevant_chunks)
     return serialized, relevant_chunks
 
