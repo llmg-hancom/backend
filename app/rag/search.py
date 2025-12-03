@@ -34,21 +34,21 @@ async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVecto
 
 
 class LawCategory(StrEnum):
-    civil = "민법(법률)"
-    civil_procedure = "민사소송법(법률)"
-    criminal = "형법(법률)"
-    criminal_procedure = "형사소송법(법률)"
-    labor = "근로기준법(법률)"
-    minimal_wage = "최저임금법(법률)"
-    personal_information = "개인정보 보호법(법률)"
-    occupational_safety = "산업안전보건법(법률)"
-    framework_act = "행정기본법(법률)"
-    framework_procedure = "행정소송법(법률)"
-    administrative_appeals = "행정심판법(법률)"
-    constitutional_court = "헌법재판소법(법률)"
-    pension = "국민연금법(법률)"
-    health_insurance = "국민건강보험법(법률)"
-    family = "가족관계의 등록 등에 관한 법률(법률)"
+    CIVIL = "민법(법률)"
+    CIVIL_PROCEDURE = "민사소송법(법률)"
+    CRIMINAL = "형법(법률)"
+    CRIMINAL_PROCEDURE = "형사소송법(법률)"
+    LABOR = "근로기준법(법률)"
+    MINIMAL_WAGE = "최저임금법(법률)"
+    PERSONAL_INFORMATION = "개인정보 보호법(법률)"
+    OCCUPATIONAL_SAFETY = "산업안전보건법(법률)"
+    FRAMEWORK_ACT = "행정기본법(법률)"
+    FRAMEWORK_PROCEDURE = "행정소송법(법률)"
+    ADMINISTRATIVE_APPEALS = "행정심판법(법률)"
+    CONSTITUTIONAL_COURT = "헌법재판소법(법률)"
+    PENSION = "국민연금법(법률)"
+    HEALTH_INSURANCE = "국민건강보험법(법률)"
+    FAMILY = "가족관계의 등록 등에 관한 법률(법률)"
 
 
 # 판례 검색을 위한 필터
