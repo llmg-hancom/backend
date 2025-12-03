@@ -26,7 +26,7 @@ class DocumentChunk(DocumentChunkBase, table=True):
     content: str = Field(sa_column=Column(Text, nullable=False))
 
     # [핵심] pgvector(1024) 타입
-    embedding: list[float] | None = Field(default=None, sa_column=Column(Vector(1024)))
+    embedding: Any = Field(default=None, sa_column=Column(Vector(1024)))
 
     # [핵심] 유연한 메타데이터 (JSONB)
     meta: dict[str, Any] | None = Field(
@@ -51,6 +51,19 @@ class DocumentChunk(DocumentChunkBase, table=True):
             postgresql_with={"m": 16, "ef_construction": 64},
             # 5. (embedding vector_cosine_ops)
             postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index(
+            "ix_law_category",
+            text("(meta ->> '법령명')"),
+            postgresql_where=text("(meta ->> '법령명') IS NOT NULL"),
+        ),
+        Index(
+            "ix_law_jo_number",
+            text("(substring(meta ->> '조' from '제([0-9]+)조')::int)"),
+            # 데이터가 더러워서 추출이 안 되는 경우 에러 방지용 (부분 인덱스)
+            postgresql_where=text(
+                "((meta ->> '조') IS NOT NULL) AND (meta ->> '조' ~ '^제[0-9]+조')"
+            ),
         ),
         Index(
             "ix_precedent_case_number",

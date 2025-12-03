@@ -1,5 +1,5 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from errors.general import IllegalStateError
 from models.document import Document
@@ -7,11 +7,8 @@ from models.user import User
 
 
 async def get_users_documents(
-    offset: int,
-    limit: int,
-    user: User,
-    session: AsyncSession
-)-> list[Document]:
+    offset: int, limit: int, user: User, session: AsyncSession
+) -> list[Document]:
     if user.user_id is None:
         raise IllegalStateError()
 
@@ -23,5 +20,5 @@ async def get_users_documents(
         .limit(limit)
     )
 
-    data = (await session.execute(query)).scalars().all()
+    data = (await session.exec(query)).all()
     return [d for d in data]

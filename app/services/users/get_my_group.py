@@ -1,12 +1,14 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlmodel import col, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from errors.general import IllegalStateError
 from models import Group, GroupMember, User
 
 
-async def get_my_group(actor: User, db: AsyncSession, offset: int, limit: int) -> list[Group]:
+async def get_my_group(
+    actor: User, db: AsyncSession, offset: int, limit: int
+) -> list[Group]:
     if actor.user_id is None:
         raise IllegalStateError()
 
@@ -20,5 +22,5 @@ async def get_my_group(actor: User, db: AsyncSession, offset: int, limit: int) -
         .options(joinedload(Group.created_by_user))
     )
 
-    result = await db.execute(query)
-    return list(result.scalars().all())
+    result = await db.exec(query)
+    return list(result.all())
