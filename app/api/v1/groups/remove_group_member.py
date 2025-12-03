@@ -23,5 +23,5 @@ def remove_group_member(
     group: Annotated[Group, Security(require_group_admin)],
     member_id: Annotated[int, Path()],
     db: Annotated[Session, Depends(get_db)],
-):
+) -> None:
     remove_group_member_service(group=group, deleted_member_id=member_id, session=db)

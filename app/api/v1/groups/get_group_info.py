@@ -23,4 +23,4 @@ async def get_group_info(
     db: Annotated[AsyncSession, Depends(get_async_db)]
 ) -> GroupReadWithoutMembers:
     result = await service(group=group, db=db)
-    return GroupReadWithoutMembers.model_validate(result)
+    return result

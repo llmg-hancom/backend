@@ -3,6 +3,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from models import Group, GroupMember, User
+from schemas.groups import GroupMemberRead
 
 
 async def get_group_members(
@@ -10,13 +11,14 @@ async def get_group_members(
     db: AsyncSession,
     offset: PositiveInt,
     limit: PositiveInt,
-) -> list[User]:
+) -> list[GroupMemberRead]:
     query = (
-        select(User)
+        select(User, GroupMember.role)
         .join(GroupMember)
         .where(col(GroupMember.group_id) == group.group_id)
         .offset(offset)
         .limit(limit)
     )
     result = await db.exec(query)
-    return list(result.all())
+    members = [GroupMemberRead.model_validate(user) for user in result.all()]
+    return members
