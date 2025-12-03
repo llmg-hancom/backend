@@ -32,6 +32,7 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         prompt += (
             "\nYou can search for Korean public law using 'search_public_law_semantic'."
             "and 'search_public_law_article'."
+            "Always use 'search_public_law_semantic' for semantic search."
             "Always use 'search_public_law_article' when searching by '법령명' and '조'."
         )
     if include_precedent:
@@ -40,6 +41,7 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         prompt += (
             "\nYou can search for Korean precedents using 'search_precedent_semantic'"
             "and 'search_precedent_by_case_number'."
+            "Always use 'search_precedent_semantic' for semantic search."
             "Always use 'search_precedent_by_case_number' when searching by '사건번호'."
         )
     prompt += "\nBe concise and accurate"
