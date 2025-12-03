@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from sqlmodel import Field
 
 from models.group import GroupBase
-from models.group_member import UserRole
+from models.group_member import UserRole, GroupMemberBase
 from models.user import UserRead
 
 
@@ -12,15 +12,19 @@ class GroupCreate(GroupBase):
     pass
 
 
-class GroupMemberRead(UserRead):
-    role: UserRole
+class GroupMemberRead(GroupMemberBase):
+    """그룹 멤버 정보와 역할을 함께 반환하는 스키마"""
+
+    user: UserRead  # 사용자의 상세 정보
 
 
 class GroupRead(GroupBase):
+    """멤버 목록을 포함한 그룹 상세 정보 스키마"""
+
     group_id: int
     created_at: datetime
     created_by_user: UserRead
-    members: list[UserRead]
+    members: list[GroupMemberRead]  # GroupMemberRead 리스트로 변경
 
 
 class GroupReadWithoutMembers(GroupBase):
@@ -39,5 +43,5 @@ class GroupUserInviteRequest(BaseModel):
 
 
 class GroupUpdate(GroupBase):
-    group_name: str = Field(max_length=256, nullable=True, default=None)
-    description: str | None = Field(nullable=True, default=None)
+    group_name: str | None = Field(max_length=256, default=None)
+    description: str | None = Field(default=None)

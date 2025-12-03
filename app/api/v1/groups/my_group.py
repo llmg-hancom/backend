@@ -23,9 +23,7 @@ def my_group(
             group_id=rel.group.group_id,
             created_at=rel.group.created_at,
             created_by_user=UserRead.model_validate(rel.group.created_by_user),
-            members=[
-                UserRead.model_validate(member.user) for member in rel.group.members
-            ],
+            members=rel.group.members,
         )
         for rel in joined_group
         if rel.group.group_id is not None

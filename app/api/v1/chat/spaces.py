@@ -5,7 +5,7 @@ from pydantic import PositiveInt
 
 from errors.chat import ForbiddenSpaceAccessError
 from errors.general import IllegalStateError
-from models import ChatSession, ChatSpace, User
+from models import ChatSpace, User
 from models.document import DocumentRead
 from schemas.bulk import BulkJobResponse
 from schemas.chat import (
@@ -28,29 +28,25 @@ router = APIRouter(prefix="/spaces")
     path="",
     summary="새 채팅방 생성",
     status_code=status.HTTP_201_CREATED,
-    response_model=SpaceRead
+    response_model=SpaceRead,
 )
 async def create_space(
     body: Annotated[SpaceCreateRequest, Body()],
-    service: Annotated[ChatService, Depends(ChatService.factory)]
+    service: Annotated[ChatService, Depends(ChatService.factory)],
 ) -> SpaceRead:
     space = await service.create_chat_space(name=body.name)
     return SpaceRead.model_validate(space)
 
 
-@router.get(
-    path="/{space_id}",
-    summary="챗스페이스 조회",
-    response_model=SpaceRead
-)
+@router.get(path="/{space_id}", summary="챗스페이스 조회", response_model=SpaceRead)
 async def get_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
-    actor: Annotated[User, Security(get_current_user)]
+    actor: Annotated[User, Security(get_current_user)],
 ) -> SpaceRead:
     if actor.user_id != space.owner_user_id:
         raise ForbiddenSpaceAccessError()
 
-    return SpaceRead.model_validate(space)
+    return space
 
 
 @router.delete(
@@ -96,10 +92,7 @@ async def delete_space(
     )
 
 
-@router.get(
-    "/{space_id}/documents",
-    summary="챗스페이스에 연결된 문서 목록 조회"
-)
+@router.get("/{space_id}/documents", summary="챗스페이스에 연결된 문서 목록 조회")
 async def get_documents_in_chat_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
     pagination: Annotated[PaginationParams, Query()],
@@ -111,17 +104,13 @@ async def get_documents_in_chat_space(
     if space.space_id is None:
         raise IllegalStateError()
 
-    result =  await service.get_chat_space_documents(
+    result = await service.get_chat_space_documents(
         space_id=space.space_id,
         offset=offset,
         limit=limit,
     )
 
-    return PaginationResponse(
-        data=[DocumentRead.model_validate(doc) for doc in result],
-        page=pagination.page,
-        size=pagination.size
-    )
+    return PaginationResponse(data=result, page=pagination.page, size=pagination.size)
 
 
 @router.post(
@@ -131,7 +120,9 @@ async def get_documents_in_chat_space(
 )
 async def add_documents_to_chat_space(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
-    body: Annotated[SpaceDocumentListRequest, Body(description="추가할 문서 ID의 목록")],
+    body: Annotated[
+        SpaceDocumentListRequest, Body(description="추가할 문서 ID의 목록")
+    ],
     service: Annotated[ChatService, Depends(ChatService.factory)],
 ) -> BulkJobResponse[PositiveInt]:
     """
@@ -142,10 +133,7 @@ async def add_documents_to_chat_space(
     if space.space_id is None:
         raise IllegalStateError()
 
-    result = await service.add_document(
-        space=space,
-        document_ids=body.document_ids
-    )
+    result = await service.add_document(space=space, document_ids=body.document_ids)
 
     return BulkJobResponse[PositiveInt].model_validate(result)
 
@@ -167,10 +155,7 @@ async def delete_documents_to_chat_space(
     if space.space_id is None:
         raise IllegalStateError()
 
-    result = await service.delete_document(
-        space=space,
-        document_ids=body.document_ids
-    )
+    result = await service.delete_document(space=space, document_ids=body.document_ids)
 
     return BulkJobResponse[PositiveInt].model_validate(result)
 
@@ -178,7 +163,7 @@ async def delete_documents_to_chat_space(
 @router.post(
     "/{space_id}/sessions",
     summary="챗스페이스에 새 세션 생성",
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_chat_session(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
@@ -188,12 +173,9 @@ async def create_chat_session(
     if space.space_id is None:
         raise IllegalStateError()
 
-    result = await service.create_chat_session(
-        space=space,
-        title=body.title
-    )
+    result = await service.create_chat_session(space=space, title=body.title)
 
-    return ChatSessionRead.model_validate(result)
+    return result
 
 
 @router.get(
@@ -203,14 +185,14 @@ async def create_chat_session(
     responses={
         status.HTTP_200_OK: {
             "model": PaginationResponse[ChatSessionRead],
-            "description": "세션 목록 조회 성공"
+            "description": "세션 목록 조회 성공",
         }
-    }
+    },
 )
 async def get_chat_sessions(
     space: Annotated[ChatSpace, Depends(chat_space_from_space_id_path)],
     service: Annotated[ChatService, Depends(ChatService.factory)],
-    pagination: Annotated[PaginationParams, Query()]
+    pagination: Annotated[PaginationParams, Query()],
 ) -> PaginationResponse[ChatSessionRead]:
     if space.space_id is None:
         raise IllegalStateError()
@@ -218,15 +200,10 @@ async def get_chat_sessions(
     offset = (pagination.page - 1) * pagination.size
     limit = pagination.size
 
-
-    result = await service.get_chat_sessions(
-        space=space,
-        offset=offset,
-        limit=limit
-    )
+    result = await service.get_chat_sessions(space=space, offset=offset, limit=limit)
 
     return PaginationResponse(
-        data=[ChatSessionRead.model_validate(session) for session in result],
+        data=result,
         page=pagination.page,
         size=pagination.size
     )

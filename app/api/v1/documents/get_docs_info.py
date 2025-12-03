@@ -42,4 +42,4 @@ router = APIRouter()
 def get_docs_info(
     doc: Annotated[Document, Security(require_document_owner)],
 ) -> DocumentRead:
-    return DocumentRead.model_validate(doc)
+    return doc
