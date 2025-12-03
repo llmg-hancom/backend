@@ -76,6 +76,8 @@ def clean_common_noise(text: str) -> str:
     # 4. 문장 앞뒤의 불필요한 공백 제거
     text = text.strip()
 
+    text = unicodedata.normalize("NFC", text)
+
     return text
 
 
