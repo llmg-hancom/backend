@@ -34,6 +34,7 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             "and 'search_public_law_article'."
             "Always use 'search_public_law_semantic' for semantic search."
             "Always use 'search_public_law_article' when searching by '법령명' and '조'."
+            "Keep in mind that using article number(조) for querying in semantic search will not produce any meaningful result."
         )
     if include_precedent:
         tools.append(search_precedent_semantic)
@@ -43,11 +44,15 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             "and 'search_precedent_by_case_number'."
             "Always use 'search_precedent_semantic' for semantic search."
             "Always use 'search_precedent_by_case_number' when searching by '사건번호'."
+            "Keep in mind that using case number(사건번호) for querying in semantic search will not produce any meaningful result."
         )
-    prompt += (
-        "\nBe concise and accurate. Keep in mind that using '사건번호', or '조'"
-        "for querying in semantic search will not produce any meaningful result."
-    )
+    if include_law and include_precedent:
+        prompt += (
+            "If the user asks for precedents related to a certain law, "
+            "search for public law first to get information and then query for precedents using"
+            "the information obtained."
+        )
+    prompt += "\nBe concise and accurate."
     agent = create_agent(
         model=llm,
         tools=tools,
