@@ -110,17 +110,11 @@ class SearchLawInput(BaseModel):
 @tool(
     response_format="content_and_artifact",
     args_schema=SearchLawInput,
-    parse_docstring=True,
 )
 async def search_public_law_article(category: LawCategory, article: int):
     """
     This tool is designed for RAG in LLMs,
     specifically for searching for Korean public laws by its category and article.
-
-    Args:
-        category (str): The category of the law(법령명) to search for. (e.g. "민법", "개인정보 보호법", "산업안전보건법")
-        article (int): The article number(조) of the law to search for.
-
     """
     serialized, relevant_chunks = await find_law_by_article(category, article)
     return serialized, relevant_chunks
