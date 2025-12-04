@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status, Security
+from fastapi import APIRouter, Depends, Security, status
 from sqlmodel import Session
 
 from db.session import get_db

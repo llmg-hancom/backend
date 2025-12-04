@@ -17,6 +17,8 @@ def my_group(
 ) -> list[GroupRead]:
     memberships = user.group_memberships
 
-    joined_groups = [membership.group for membership in memberships]
+    joined_groups = [
+        GroupRead.model_validate(membership.group) for membership in memberships
+    ]
 
     return joined_groups

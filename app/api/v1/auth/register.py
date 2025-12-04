@@ -34,4 +34,4 @@ def register(
     result = register_service(
         email=body.email, password=body.password, nickname=body.nickname, db=db
     )
-    return result.user
+    return UserRead.model_validate(result.user)

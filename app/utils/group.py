@@ -24,7 +24,7 @@ async def get_group_from_group_id_path(
         await session.exec(
             select(Group)
             .where(Group.group_id == group_id)
-            .options(selectinload(Group.members))
+            .options(selectinload(Group.members))  # type: ignore
         )
     ).one_or_none()
 

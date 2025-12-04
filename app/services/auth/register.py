@@ -1,16 +1,13 @@
-from dataclasses import dataclass
-
-from pydantic import EmailStr
+from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
 
 from errors.auth import EmailAlreadyExistError
-from models.user import User, UserRead
+from models.user import User
 from utils.auth import hash_password
 
 
-@dataclass
-class RegisterSuccess:
-    user: UserRead
+class RegisterSuccess(BaseModel):
+    user: User
 
 
 def register(
@@ -34,4 +31,4 @@ def register(
     db.flush()
     db.refresh(user)
 
-    return RegisterSuccess(user=UserRead.model_validate(user))
+    return RegisterSuccess(user=user)

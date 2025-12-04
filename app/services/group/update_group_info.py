@@ -1,8 +1,8 @@
 from typing import Annotated
 
 from fastapi import Depends, Security
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import col, exists, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
 from errors.general import IllegalStateError

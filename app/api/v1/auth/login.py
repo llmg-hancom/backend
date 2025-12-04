@@ -55,4 +55,4 @@ def login(
         refresh_token=result.refresh_token,
     )
 
-    return result.user
+    return UserRead.model_validate(result.user)

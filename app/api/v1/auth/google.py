@@ -53,7 +53,6 @@ def login_with_google_api(
         access_token=login_result.token,
         refresh_token=login_result.refresh_token,
     )
-    current_user: UserRead = login_result.user
 
     # 3. 사용자 정보 반환 (선택 사항)
-    return current_user
+    return UserRead.model_validate(login_result.user)

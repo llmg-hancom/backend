@@ -1,16 +1,17 @@
-from langchain.tools import tool, ToolRuntime
-from pydantic import BaseModel, Field, field_validator
-from models.document import DocumentScope
 from datetime import date
 
+from langchain.tools import ToolRuntime, tool
+from pydantic import BaseModel, Field, field_validator
 from rag.search import (
-    fetch_target_ids,
-    query_in_target,
-    SearchFilter,
-    query_in_precedent,
     LawCategory,
+    SearchFilter,
+    fetch_target_ids,
     find_law_by_article,
+    query_in_precedent,
+    query_in_target,
 )
+
+from models.document import DocumentScope
 
 
 class Context(BaseModel):

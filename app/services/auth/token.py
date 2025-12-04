@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlmodel import Session, update, col
+from sqlmodel import Session, col, update
 
 from core.config import settings
 from models.refresh_token import RefreshToken

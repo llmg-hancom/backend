@@ -18,7 +18,8 @@ async def get_group_members(
         .where(col(GroupMember.group_id) == group.group_id)
         .offset(offset)
         .limit(limit)
-        .options(joinedload(GroupMember.user))
+        .options(joinedload(GroupMember.user))  # type:ignore
     )
-    result = await db.exec(query)
-    return result.all()
+    results = await db.exec(query)
+    members = [GroupMemberRead.model_validate(m) for m in results.all()]
+    return members

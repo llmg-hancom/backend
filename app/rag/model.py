@@ -1,5 +1,7 @@
 from langchain_ollama import ChatOllama, OllamaEmbeddings
+
 from core.config import settings
+
 
 llm = ChatOllama(
     model="gpt-oss:latest",

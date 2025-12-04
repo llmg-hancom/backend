@@ -1,5 +1,5 @@
-import logging
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -11,8 +11,9 @@ from api import router
 from core.config import settings
 from db.session import engine
 from errors.base import BackendBaseError
-from utils.charset import CharsetMiddleware
 import models  # noqa: F401
+from utils.charset import CharsetMiddleware
+
 
 # 로깅 설정
 if settings.ENVIRONMENT == "development":
