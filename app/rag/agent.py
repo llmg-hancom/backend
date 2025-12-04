@@ -3,19 +3,19 @@ import json
 import logging
 
 from langchain.agents import create_agent
-
-from models import ChatSession
 from rag.context_manager import get_db_session
 from rag.model import llm
-from models.chat_message import ChatRole, ChatMessage
 from rag.tools import (
-    search_public_law_semantic,
-    search_private_documents,
-    search_precedent_semantic,
     Context,
     search_precedent_by_case_number,
+    search_precedent_semantic,
+    search_private_documents,
     search_public_law_article,
+    search_public_law_semantic,
 )
+
+from models import ChatSession
+from models.chat_message import ChatMessage, ChatRole
 from schemas.chat import ChatRequest
 
 

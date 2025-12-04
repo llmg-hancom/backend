@@ -5,25 +5,25 @@ from pathlib import Path, PurePath
 from typing import Any
 
 from bs4 import BeautifulSoup
+from celery.utils.log import get_task_logger
+from langchain_ollama import OllamaEmbeddings
+from langchain_text_splitters import (
+    MarkdownHeaderTextSplitter,
+    RecursiveCharacterTextSplitter,
+)
 import requests
 from requests.compat import urljoin
-from celery.utils.log import get_task_logger
 from sqlalchemy import func
 from sqlmodel import Session, select
+from tqdm import tqdm
+from workers.celery_app import celery_app
 
 from core.config import settings
 from db.session import engine
 from models.document import Document, DocumentScope, DocumentStatus
 from models.document_chunk import DocumentChunk
 from models.precedent_log import PrecedentLog
-from workers.celery_app import celery_app
 
-from tqdm import tqdm
-from langchain_text_splitters import (
-    MarkdownHeaderTextSplitter,
-    RecursiveCharacterTextSplitter,
-)
-from langchain_ollama import OllamaEmbeddings
 
 logger = get_task_logger(__name__)
 
@@ -46,11 +46,11 @@ def init_embedding_model() -> OllamaEmbeddings:
     """
     임베딩 모델 클라이언트를 초기화합니다.
     """
-    OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL
-    OLLAMA_MODEL = "bge-m3:567m"
-    embeddings = OllamaEmbeddings(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
+    ollama_base_url = settings.OLLAMA_BASE_URL
+    ollama_model = "bge-m3:567m"
+    embeddings = OllamaEmbeddings(model=ollama_model, base_url=ollama_base_url)
     logger.info(
-        f"[EMBED] Ollama 임베딩 모델 '{OLLAMA_MODEL}' 초기화 완료. (URL: {OLLAMA_BASE_URL})"
+        f"[EMBED] Ollama 임베딩 모델 '{ollama_model}' 초기화 완료. (URL: {ollama_base_url})"
     )
     return embeddings
 

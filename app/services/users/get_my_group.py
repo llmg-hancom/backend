@@ -20,7 +20,7 @@ async def get_my_group(
         .where(col(Group.deleted_at).is_(None))
         .offset(offset)
         .limit(limit)
-        .options(joinedload(Group.created_by_user))
+        .options(joinedload(Group.created_by_user)) # type:ignore
     )
 
     result = await db.exec(query)

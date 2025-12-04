@@ -30,7 +30,7 @@ def refresh_access_token(refresh_token: str, db: Session):
 
     # 토큰이 존재하는지 확인
     refresh_token_model = db.exec(
-        select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash).options(joinedload(RefreshToken.user))
+        select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash).options(joinedload(RefreshToken.user)) # type: ignore
     ).one_or_none()
 
     # 리프레시 토큰이 존재하지 않음

@@ -1,10 +1,9 @@
-from pydantic import EmailStr, BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
 
 from errors.auth import EmailAlreadyExistError
 from models.user import User
 from utils.auth import hash_password
-
 
 
 class RegisterSuccess(BaseModel):

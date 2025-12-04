@@ -8,6 +8,7 @@ import jpype
 
 from core.config import settings
 
+
 logger = logging.getLogger(__name__)
 # 1. Celery 앱 생성
 # broker: 메시지 브로커 URL
@@ -27,6 +28,7 @@ celery_app.conf.update(
 celery_app.autodiscover_tasks(packages=["workers", "law", "utils", "rag"])
 
 
+# noinspection PyUnusedLocal
 @worker_process_init.connect
 def start_jvm(sender=None, **kwargs):
     try:
@@ -50,6 +52,7 @@ def start_jvm(sender=None, **kwargs):
         raise e
 
 
+# noinspection PyUnusedLocal
 @worker_process_shutdown.connect
 def shutdown_jvm(sender=None, **kwargs):
     """

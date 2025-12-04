@@ -1,8 +1,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, status
-from sqlalchemy.orm import selectinload
-from sqlmodel import func, select
+from sqlalchemy.orm import joinedload
+from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
@@ -46,7 +46,7 @@ async def get_chat_session_history(
     statement = (
         select(ChatSession)
         .where(ChatSession.session_id == session_id)
-        .options(selectinload(ChatSession.space))
+        .options(joinedload(ChatSession.space)) # type: ignore
     )
     result = await db.exec(statement)
     chat_session = result.one_or_none()
@@ -81,8 +81,8 @@ async def get_chat_session_history(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
         .order_by(
-            ChatMessage.created_at.desc(),
-            ChatMessage.message_id.desc(),  # 2차 정렬 기준 추가
+            col(ChatMessage.created_at).desc(),
+            col(ChatMessage.message_id).desc(),  # 2차 정렬 기준 추가
         )
         .offset(offset)
         .limit(params.size)
