@@ -20,5 +20,6 @@ async def get_group_members(
         .limit(limit)
         .options(joinedload(GroupMember.user))
     )
-    result = await db.exec(query)
-    return result.all()
+    results = await db.exec(query)
+    members = [GroupMemberRead.model_validate(m) for m in results.all()]
+    return members

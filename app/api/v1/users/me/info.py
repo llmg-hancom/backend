@@ -34,4 +34,4 @@ def edit_user_info(
     session.add(user)
     session.flush()
 
-    return user
+    return UserRead.model_validate(user)

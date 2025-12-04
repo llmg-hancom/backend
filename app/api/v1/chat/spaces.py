@@ -33,7 +33,7 @@ async def create_space(
     service: Annotated[ChatService, Depends(ChatService.factory)],
 ) -> SpaceRead:
     space = await service.create_chat_space(name=body.name)
-    return space
+    return SpaceRead.model_validate(space)
 
 
 @router.get(path="/{space_id}", summary="챗스페이스 조회", response_model=SpaceRead)
@@ -42,7 +42,7 @@ async def get_space(
     service: Annotated[ChatService, Depends(ChatService.factory)],
 ) -> SpaceRead:
     await service.actor_has_space_read_permission(space)
-    return space
+    return SpaceRead.model_validate(space)
 
 
 @router.delete(
@@ -171,7 +171,7 @@ async def create_chat_session(
 
     result = await service.create_chat_session(space=space, title=body.title)
 
-    return result
+    return ChatSessionRead.model_validate(result)
 
 
 @router.get(

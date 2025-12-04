@@ -19,4 +19,5 @@ def create_group(
     db: Annotated[Session, Depends(get_db)],
     request_user: Annotated[User, Security(get_current_user)],
 ) -> GroupRead:
-    return create_group_service(request_user=request_user, db=db, body=body)
+    group = create_group_service(request_user=request_user, db=db, body=body)
+    return GroupRead.model_validate(group)
