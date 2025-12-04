@@ -1,22 +1,19 @@
-from dataclasses import dataclass
-
-from pydantic import EmailStr
+from pydantic import EmailStr, BaseModel
 from sqlmodel import Session, select
 
 from errors.auth import InvalidCredentialError, UserInactiveError
-from models.user import User, UserRead
+from models.user import User
 from services.auth.token import token_regenerate
 from utils.auth import (
     verify_password,
 )
 
 
-@dataclass
-class LoginSuccess:
+class LoginSuccess(BaseModel):
     token: str
     refresh_token: str
     token_type: str
-    user: UserRead
+    user: User
 
 
 def login(email: EmailStr, password: str, db: Session) -> LoginSuccess:
@@ -46,5 +43,5 @@ def login(email: EmailStr, password: str, db: Session) -> LoginSuccess:
         token=tokens.access_token,
         refresh_token=tokens.refresh_token,
         token_type="bearer",
-        user=UserRead.model_validate(user),
+        user=user,
     )
