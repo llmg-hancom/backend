@@ -22,5 +22,4 @@ def change_my_password(
 
     change_user.password_hash = hash_password(new_password)
 
-    _ = session.merge(change_user)
-    session.flush()
+    session.add(change_user)

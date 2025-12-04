@@ -17,6 +17,7 @@ def get_user_info(
 ) -> UserRead:
     return UserRead.model_validate(user)
 
+
 @router.patch(path="", status_code=status.HTTP_200_OK, summary="유저 정보 변경")
 def edit_user_info(
     user: Annotated[User, Security(get_current_user)],
@@ -30,7 +31,7 @@ def edit_user_info(
     user_edit_data = user_edit.model_dump(exclude_unset=True)
     user = user.sqlmodel_update(user_edit_data)
 
-    _ = session.merge(user)
+    session.add(user)
     session.flush()
 
-    return UserRead.model_validate(user)
+    return user
