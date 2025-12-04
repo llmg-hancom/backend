@@ -9,13 +9,10 @@ from sqlmodel import col, delete, exists, literal, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
-from errors.chat import (
-    ForbiddenSpaceAccessError,
-)
 from errors.document import ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
-from errors.space import SpaceNotFoundError
+from errors.space import SpaceNotFoundError, ForbiddenSpaceAccessError
 from models import (
     ChatSession,
     ChatSpace,
@@ -51,7 +48,7 @@ class ChatService:
     ) -> Self:
         return cls(actor, db)
 
-    async def __actor_has_space_read_permission(self, space: ChatSpace):
+    async def actor_has_space_read_permission(self, space: ChatSpace):
         """
         Actor에게 챗스페이스 읽기 권한이 있는지 검사합니다.
         권한이 없다면 오류가 발생합니다.
@@ -112,7 +109,7 @@ class ChatService:
         space = ChatSpace(name=name, owner_user_id=self.actor.user_id)
 
         self.db.add(space)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(space)
 
         return space
@@ -141,7 +138,7 @@ class ChatService:
         space = ChatSpace(name=name, group_id=group.group_id)
 
         self.db.add(space)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(space)
 
         return space
@@ -169,9 +166,8 @@ class ChatService:
             .offset(offset)
             .limit(limit)
         )
-
-        spaces = (await self.db.scalars(query)).all()
-        return [space for space in spaces]
+        spaces = (await self.db.exec(query)).all()
+        return list(spaces)
 
     async def delete_chat_space(self, space_id: int) -> None:
         """
@@ -269,7 +265,7 @@ class ChatService:
         )
 
         result = await self.db.exec(stmt)
-        await self.db.commit()
+        await self.db.flush()
 
         success_ids = set(result.scalars().all())
         skipped_ids = document_ids - success_ids
@@ -297,7 +293,7 @@ class ChatService:
         )
 
         result = await self.db.exec(query)
-        await self.db.commit()
+        await self.db.flush()
 
         success_ids = set(result.scalars().all())
         skipped_ids = document_ids - success_ids
@@ -316,7 +312,7 @@ class ChatService:
         )
 
         self.db.add(new_session)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(new_session, attribute_names=["space", "user"])
 
         return new_session
@@ -328,7 +324,7 @@ class ChatService:
             raise IllegalStateError()
 
         # actor에게 space 읽기 권한이 있는지 확인
-        await self.__actor_has_space_read_permission(space=space)
+        await self.actor_has_space_read_permission(space=space)
 
         query = (
             select(ChatSession)
@@ -357,7 +353,7 @@ class ChatService:
 
         session.title = title
         self.db.add(session)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(session, attribute_names=["space", "user"])
 
         return session
