@@ -42,7 +42,7 @@ def login_with_google_api(
     response: Response,
     request: GoogleLoginRequest,  # 프론트에서 body로 code를 받음
     db: Annotated[Session, Depends(get_db)],
-):
+) -> UserRead:
     # 1. 서비스 로직 호출 (기존 로직 재사용)
     # 서비스 함수는 code와 db를 받아 토큰을 생성합니다.
     login_result = google_callback_service(request.code, db)
