@@ -30,10 +30,12 @@ class SocialAccount(SocialAccountBase, table=True):
     social_account_id: int | None = Field(
         default=None, primary_key=True, description="소셜 로그인 아이디"
     )
-    user_id: int = Field(foreign_key="users.user_id", nullable=False)
+    user_id: int = Field(
+        foreign_key="users.user_id", nullable=False, index=True, ondelete="CASCADE"
+    )
     provider: SocialAccountProvider = Field(
         default=SocialAccountProvider.GOOGLE,
-        sa_column=Column(SaEnum(SocialAccountProvider)),
+        sa_column=Column(SaEnum(SocialAccountProvider), nullable=False),
     )
     provider_id: str = Field(max_length=255, nullable=False)
     created_at: datetime = Field(

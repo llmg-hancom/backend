@@ -159,6 +159,7 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     return serialized, relevant_chunks
 
 
+# noinspection PyIncorrectDocstring
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     """
