@@ -108,7 +108,7 @@ async def change_session_info(
     result = await service.update_chat_session_title(title=body.title, session=session)
     await db.refresh(result,attribute_names=["user","space"])
 
-    return result
+    return ChatSessionRead.model_validate(result)
 
 
 @router.delete(

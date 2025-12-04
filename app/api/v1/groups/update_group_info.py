@@ -35,4 +35,4 @@ async def update_group_info(
         db=db,
     )
 
-    return change_group
+    return GroupReadWithoutMembers.model_validate(change_group)
