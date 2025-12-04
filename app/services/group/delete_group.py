@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import col, exists, select
 
 from errors.general import IllegalStateError
@@ -8,11 +8,7 @@ from errors.groups import UserIsNotGroupAdminError
 from models import Group, GroupMember, User
 
 
-async def delete_group(
-    actor: User,
-    group: Group,
-    db: AsyncSession
-) -> None:
+async def delete_group(actor: User, group: Group, db: AsyncSession) -> None:
     if actor.user_id is None:
         raise IllegalStateError()
 
@@ -30,7 +26,6 @@ async def delete_group(
 
     group.deleted_at = datetime.now(tz=timezone.utc)
 
-    group = await db.merge(group)
-    await db.commit()
+    db.add(group)
 
     return None

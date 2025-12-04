@@ -1,7 +1,6 @@
-from dataclasses import dataclass
 from urllib.parse import urlencode
 
-from pydantic import EmailStr
+from pydantic import EmailStr, BaseModel
 import requests
 from sqlmodel import Session, select
 
@@ -12,8 +11,7 @@ from models.user import User, UserRead
 from utils.auth import create_jwt, create_refresh_token
 
 
-@dataclass
-class LoginSuccess:
+class LoginSuccess(BaseModel):
     token: str
     refresh_token: str
     token_type: str
@@ -59,7 +57,7 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
 
         db.add(social_account)
         db.flush()
-        db.refresh(social_account)
+        db.refresh(social_account, attribute_names=["user"])
 
     # user를 반환한다.
     return LoginSuccess(
@@ -88,8 +86,7 @@ def code_to_access_token(code: str) -> str:
     return response.json()["access_token"]
 
 
-@dataclass
-class UserInfo:
+class UserInfo(BaseModel):
     id: str
     email: EmailStr
     name: str

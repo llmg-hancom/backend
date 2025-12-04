@@ -332,6 +332,7 @@ class ChatService:
             .where(
                 col(ChatSession.user_id) == self.actor.user_id
             )  # actor의 ChatSession만 조회
+            .where(col(ChatSession.deleted_at).is_(None))  # 삭제되지 않은 경우만 조회
             .offset(offset)
             .limit(limit)
             .options(joinedload(ChatSession.space), joinedload(ChatSession.user))

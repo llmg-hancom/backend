@@ -1,9 +1,11 @@
 from typing import Annotated
 
 from fastapi import Depends, Path
-from sqlmodel import Session, select
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from db.session import get_db
+from db.session import get_async_db
 from errors.general import IllegalStateError
 from errors.groups import (
     GroupNotExistError,
@@ -15,10 +17,16 @@ from models.user import User
 from utils.auth import get_current_user
 
 
-def get_group_from_group_id_path(
-    group_id: Annotated[int, Path()], session: Annotated[Session, Depends(get_db)]
+async def get_group_from_group_id_path(
+    group_id: Annotated[int, Path()], session: Annotated[AsyncSession, Depends(get_async_db)]
 ) -> Group:
-    group = session.exec(select(Group).where(Group.group_id == group_id)).one_or_none()
+    group = (
+        await session.exec(
+            select(Group)
+            .where(Group.group_id == group_id)
+            .options(selectinload(Group.members))
+        )
+    ).one_or_none()
 
     if group is None:
         raise GroupNotExistError()
@@ -30,7 +38,7 @@ def get_group_from_group_id_path(
     return group
 
 
-def require_group_member(
+async def require_group_member(
     user: Annotated[User, Depends(get_current_user)],
     group: Annotated[Group, Depends(get_group_from_group_id_path)],
 ) -> Group:
@@ -46,7 +54,7 @@ def require_group_member(
     return group
 
 
-def require_group_admin(
+async def require_group_admin(
     user: Annotated[User, Depends(get_current_user)],
     group: Annotated[Group, Depends(get_group_from_group_id_path)],
 ) -> Group:
