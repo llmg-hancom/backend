@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import TIMESTAMP, Column, Text, func
+from sqlalchemy import TIMESTAMP, Column, Text, func, BIGINT
 from sqlalchemy import Enum as SaEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
@@ -27,9 +27,14 @@ class ChatMessage(ChatMessageBase, table=True):
 
     __tablename__ = "chat_messages"
 
-    message_id: int | None = Field(default=None, primary_key=True)  # SQL의 BIGSERIAL
+    message_id: int | None = Field(
+        default=None, primary_key=True, sa_type=BIGINT
+    )  # SQL의 BIGSERIAL
     session_id: int = Field(
-        foreign_key="chat_sessions.session_id", nullable=False, index=True
+        foreign_key="chat_sessions.session_id",
+        nullable=False,
+        index=True,
+        ondelete="CASCADE",
     )
 
     # [RAG 핵심] 답변의 근거가 된 출처 (JSONB)

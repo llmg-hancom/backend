@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from pgvector.sqlalchemy import Vector  # pgvector 확장 기능 사용
-from sqlalchemy import TIMESTAMP, Column, Text, func
+from sqlalchemy import TIMESTAMP, Column, Text, func, BIGINT
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Index, Relationship, SQLModel, text
 
@@ -12,16 +12,23 @@ if TYPE_CHECKING:
 
 
 class DocumentChunkBase(SQLModel):
-    chunk_id: int | None = Field(default=None, primary_key=True)  # SQL의 BIGSERIAL
-    document_id: int = Field(
-        foreign_key="documents.document_id", nullable=False, index=True
-    )
+    chunk_id: int | None = Field(
+        default=None, primary_key=True, sa_type=BIGINT
+    )  # SQL의 BIGSERIAL
+    document_id: int
 
 
 class DocumentChunk(DocumentChunkBase, table=True):
     """3.1. DocumentChunk (pgvector)"""
 
     __tablename__ = "document_chunks"
+
+    document_id: int = Field(
+        foreign_key="documents.document_id",
+        nullable=False,
+        index=True,
+        ondelete="CASCADE",
+    )
 
     content: str = Field(sa_column=Column(Text, nullable=False))
 

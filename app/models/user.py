@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from pydantic import EmailStr
-from sqlalchemy import TIMESTAMP, Column, func
+from sqlalchemy import TIMESTAMP, Column, func, Boolean, true, Index
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class UserBase(SQLModel):
     email: EmailStr = Field(
         max_length=255,
-        sa_column_kwargs={"unique": True},
+        unique=True,
         index=True,
         description="유저 이메일",
     )
@@ -39,7 +39,11 @@ class User(UserBase, table=True):
         max_length=255,
         description="해시된 비밀번호. 소셜 로그인일 경우 NULL이 들어감",
     )
-    is_active: bool = Field(default=True, description="활성화 여부")
+    is_active: bool = Field(
+        default=True,
+        description="활성화 여부",
+        sa_column=Column(Boolean, server_default=true()),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=timezone.utc),
         sa_column=Column(
@@ -51,23 +55,23 @@ class User(UserBase, table=True):
     )
     deleted_at: datetime | None = Field(
         default=None,
-        sa_column=Column(TIMESTAMP(timezone=True), index=True),
+        sa_column=Column(TIMESTAMP(timezone=True)),
         description="유저 탈퇴 시간",
     )
 
     # Relationships
     social_accounts: list["SocialAccount"] = Relationship(
-        back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"}
+        back_populates="user", cascade_delete=True
     )
     refresh_tokens: list["RefreshToken"] = Relationship(
-        back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"}
+        back_populates="user", cascade_delete=True
     )
     created_groups: list["Group"] = Relationship(
         back_populates="created_by_user",
         sa_relationship_kwargs={"foreign_keys": "[Group.created_by_user_id]"},
     )
     group_memberships: list["GroupMember"] = Relationship(
-        back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"}
+        back_populates="user", cascade_delete=True
     )
     uploaded_documents: list["Document"] = Relationship(
         back_populates="uploaded_by_user",
@@ -75,8 +79,8 @@ class User(UserBase, table=True):
     )
     owned_chat_spaces: list["ChatSpace"] = Relationship(
         back_populates="owner_user",
+        cascade_delete=True,
         sa_relationship_kwargs={
-            "cascade": "all, delete",
             "foreign_keys": "[ChatSpace.owner_user_id]",
         },
     )
@@ -86,9 +90,17 @@ class User(UserBase, table=True):
     )
     chat_sessions: list["ChatSession"] = Relationship(back_populates="user")
 
+    __table_args__ = (
+        Index(
+            "ix_users_deleted_at",
+            "deleted_at",
+            postgresql_where=Column("deleted_at").is_not(None),
+        ),
+    )
+
 
 class UserRead(UserBase):
-    user_id: int | None = Field(default=None, primary_key=True, description="유저 ID")
+    user_id: int = Field(description="유저 ID")
     created_at: datetime = Field(description="유저 생성 시간")
 
 
