@@ -32,8 +32,8 @@ async def chat_session_from_session_id_path(
     session_id: Annotated[int, Path(description="채팅 세션 ID")],
     db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> ChatSession:
-    query = (select(ChatSession).where(ChatSession.session_id == session_id))
-    result = await db.scalar(query)
+    query = select(ChatSession).where(ChatSession.session_id == session_id)
+    result = (await db.exec(query)).one_or_none()
 
     if result is None:
         raise ChatSessionNotFoundError(session_id=session_id)

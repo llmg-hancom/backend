@@ -355,6 +355,6 @@ class ChatService:
         session.title = title
         self.db.add(session)
         await self.db.flush()
-        await self.db.refresh(session, attribute_names=["space", "user"])
-
+        await self.db.refresh(session)
+        
         return session

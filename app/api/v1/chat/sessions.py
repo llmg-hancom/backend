@@ -103,8 +103,10 @@ async def change_session_info(
     session: Annotated[ChatSession, Depends(chat_session_from_session_id_path)],
     body: Annotated[ChatSessionUpdateRequest, Body()],
     service: Annotated[ChatService, Depends(ChatService.factory)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> ChatSessionRead:
     result = await service.update_chat_session_title(title=body.title, session=session)
+    await db.refresh(result,attribute_names=["user","space"])
 
     return result
 
