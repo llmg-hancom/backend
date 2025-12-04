@@ -18,9 +18,15 @@ class UserRole(str, Enum):
 
 
 class GroupMemberBase(SQLModel):
-    group_member_id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.user_id", nullable=False)
-    group_id: int = Field(foreign_key="groups.group_id", nullable=False)
+    role: UserRole = Field(
+        default=UserRole.member, sa_column=Column(SaEnum(UserRole), nullable=False)
+    )
+    joined_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
+        sa_column=Column(
+            TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+        ),
+    )
 
 
 class GroupMember(GroupMemberBase, table=True):
@@ -32,15 +38,9 @@ class GroupMember(GroupMemberBase, table=True):
             "user_id", "group_id", name="group_members_user_id_group_id_key"
         ),
     )
-    role: UserRole = Field(
-        default=UserRole.member, sa_column=Column(SaEnum(UserRole), nullable=False)
-    )
-    joined_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        sa_column=Column(
-            TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
-        ),
-    )
+    group_member_id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.user_id", nullable=False)
+    group_id: int = Field(foreign_key="groups.group_id", nullable=False)
 
     # Relationships
     user: "User" = Relationship(back_populates="group_memberships")

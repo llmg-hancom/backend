@@ -1,8 +1,10 @@
 from pydantic import PositiveInt
+from sqlalchemy.orm import joinedload
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from models import Group, GroupMember, User
+from models import Group, GroupMember
+from schemas.groups import GroupMemberRead
 
 
 async def get_group_members(
@@ -10,13 +12,13 @@ async def get_group_members(
     db: AsyncSession,
     offset: PositiveInt,
     limit: PositiveInt,
-) -> list[User]:
+) -> list[GroupMemberRead]:
     query = (
-        select(User)
-        .join(GroupMember)
+        select(GroupMember)
         .where(col(GroupMember.group_id) == group.group_id)
         .offset(offset)
         .limit(limit)
+        .options(joinedload(GroupMember.user))
     )
     result = await db.exec(query)
-    return list(result.all())
+    return result.all()

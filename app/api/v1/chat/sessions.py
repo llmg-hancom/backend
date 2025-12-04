@@ -98,21 +98,15 @@ async def get_chat_session_history(
     )
 
 
-@router.patch(
-    "/{session_id}",
-    summary="채팅 세션 제목 변경"
-)
+@router.patch("/{session_id}", summary="채팅 세션 제목 변경")
 async def change_session_info(
     session: Annotated[ChatSession, Depends(chat_session_from_session_id_path)],
     body: Annotated[ChatSessionUpdateRequest, Body()],
-    service: Annotated[ChatService, Depends(ChatService.factory)]
+    service: Annotated[ChatService, Depends(ChatService.factory)],
 ) -> ChatSessionRead:
-    result = await service.update_chat_session_title(
-        title=body.title,
-        session=session
-    )
+    result = await service.update_chat_session_title(title=body.title, session=session)
 
-    return ChatSessionRead.model_validate(result)
+    return result
 
 
 @router.delete(
@@ -120,15 +114,12 @@ async def change_session_info(
     summary="채팅 세션 삭제",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        **error_docs(
-            ChatSessionNotFoundError(1),
-            ForbiddenChatSessionAccessError()
-        )
-    }
+        **error_docs(ChatSessionNotFoundError(1), ForbiddenChatSessionAccessError())
+    },
 )
 async def delete_session(
     session: Annotated[ChatSession, Depends(chat_session_from_session_id_path)],
-    service: Annotated[ChatSessionService, Depends(ChatSessionService.factory)]
+    service: Annotated[ChatSessionService, Depends(ChatSessionService.factory)],
 ) -> None:
     await service.delete_chat_session(
         session=session
