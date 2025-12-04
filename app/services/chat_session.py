@@ -43,7 +43,7 @@ class ChatSessionService:
 
         session.deleted_at = datetime.now(tz=timezone.utc)
         self.db.add(session)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(session)
 
         return None
