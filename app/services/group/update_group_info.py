@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends, Security
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import col, exists, select
 
 from db.session import get_async_db
@@ -38,8 +38,8 @@ async def update_group_info(
     group.group_name = name or group.group_name
     group.description = description
 
-    group = await db.merge(group)
-    await db.commit()
+    db.add(group)
+    await db.flush()
     await db.refresh(group, attribute_names=["created_by_user"])
 
     return group

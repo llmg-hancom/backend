@@ -76,7 +76,7 @@ async def upload_documents(
         status="pending",  # 처리 대기 상태
     )
     db.add(new_doc)
-    await db.commit()
+    await db.flush()
     await db.refresh(new_doc)
 
     workflow = chain(
