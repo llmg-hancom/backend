@@ -1,27 +1,26 @@
-import json
-import re
 from contextlib import contextmanager
+import json
 from pathlib import Path
+import re
 import time
 
+from celery.utils.log import get_task_logger
 from langchain.messages import HumanMessage, SystemMessage
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field, field_validator
-
-from rag.model import llm
-from celery.utils.log import get_task_logger
-
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
 from rag.cleaning import (
     normalize_regex_pattern,
 )
+from rag.model import llm
 from sqlmodel import Session
 from workers.celery_app import celery_app
+from workers.tasks import cleanup_temp_dir, download_from_s3, upload_tmp_s3
 
 from db.session import engine
-from workers.tasks import _download_from_s3, _upload_tmp_s3, _cleanup_temp_dir
+
 
 logger = get_task_logger(__name__)
 
@@ -95,7 +94,7 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
     file_dir = DOWNLOAD_DIR / f"{doc_id}_{time.time()}"
     file_dir.mkdir(parents=True)
     try:
-        local_path = _download_from_s3(s3_path, file_dir)
+        local_path = download_from_s3(s3_path, file_dir)
         with open(local_path, "r", encoding="utf-8") as f:
             full_text = f.read()
         if len(full_text) > 3000:
@@ -168,7 +167,7 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
         json_path = local_path.with_suffix(".json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(chunks, f, ensure_ascii=False, indent=2)
-        json_s3_path = _upload_tmp_s3(json_path, ext="json")
+        json_s3_path = upload_tmp_s3(json_path, ext="json")
         logger.info(f"[TASK_SUCCESS] 문서 청킹 완료: (doc_id: {doc_id})")
         return str(json_s3_path)
     except FileNotFoundError as e:
@@ -177,4 +176,4 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
         logger.error(f"[TASK_FAILED] 문서 청킹 실패: (doc_id: {doc_id}) - {e}")
         raise e
     finally:
-        _cleanup_temp_dir(file_dir)
+        cleanup_temp_dir(file_dir)

@@ -1,5 +1,6 @@
-from errors.base import BackendBaseError
 from fastapi import status
+
+from errors.base import BackendBaseError
 
 
 class UserForbidden(BackendBaseError):

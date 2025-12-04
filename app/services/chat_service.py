@@ -12,7 +12,7 @@ from db.session import get_async_db
 from errors.document import ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
-from errors.space import SpaceNotFoundError, ForbiddenSpaceAccessError
+from errors.space import ForbiddenSpaceAccessError, SpaceNotFoundError
 from models import (
     ChatSession,
     ChatSpace,
@@ -335,7 +335,7 @@ class ChatService:
             .where(col(ChatSession.deleted_at).is_(None))  # 삭제되지 않은 경우만 조회
             .offset(offset)
             .limit(limit)
-            .options(joinedload(ChatSession.space), joinedload(ChatSession.user))
+            .options(joinedload(ChatSession.space), joinedload(ChatSession.user))  # type:ignore
         )
 
         result = await self.db.exec(query)

@@ -1,20 +1,20 @@
 from datetime import date
 from enum import StrEnum
-from typing import Sequence, Any
+from typing import Any, Sequence
 
+from langchain_core.documents import Document as LCDocument
 from langchain_postgres import PGEngine, PGVectorStore
 from langchain_postgres.v2.indexes import HNSWQueryOptions
 from pydantic import BaseModel
+from rag.context_manager import get_db_session
+from rag.model import embeddings
 from sqlalchemy import Row, RowMapping, text
-
-from langchain_core.documents import Document as LCDocument
 from sqlmodel import select
 
 from db.session import async_engine
-from models import DocumentChunk, ChatSpaceDocument
-from models.document import DocumentScope, Document
-from rag.context_manager import get_db_session
-from rag.model import embeddings
+from models import ChatSpaceDocument, DocumentChunk
+from models.document import Document, DocumentScope
+
 
 pg_engine = PGEngine.from_engine(async_engine)
 

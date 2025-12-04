@@ -25,7 +25,7 @@ async def create_space(
     service: Annotated[ChatService, Depends(ChatService.factory)]
 ) -> SpaceRead:
     space = await service.create_group_chat_space(group, body.name)
-    return space
+    return SpaceRead.model_validate(space)
 
 
 @router.get(

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 from pgvector.sqlalchemy import Vector  # pgvector 확장 기능 사용
 from sqlalchemy import TIMESTAMP, Column, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Relationship, SQLModel, Index, text
+from sqlmodel import Field, Index, Relationship, SQLModel, text
 
 
 if TYPE_CHECKING:

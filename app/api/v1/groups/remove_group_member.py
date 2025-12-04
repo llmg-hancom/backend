@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, status, Security
+from fastapi import APIRouter, Depends, Path, Security, status
 from sqlmodel import Session
 
 from db.session import get_db

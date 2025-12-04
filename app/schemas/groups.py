@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from sqlmodel import Field
 
 from models.group import GroupBase
-from models.group_member import UserRole, GroupMemberBase
+from models.group_member import GroupMemberBase, UserRole
 from models.user import UserRead
 
 

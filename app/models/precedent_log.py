@@ -1,6 +1,7 @@
-from sqlmodel import SQLModel, Field
-from sqlalchemy import TIMESTAMP, Column, func
 from datetime import date, datetime, timezone
+
+from sqlalchemy import TIMESTAMP, Column, func
+from sqlmodel import Field, SQLModel
 
 
 class PrecedentLog(SQLModel, table=True):

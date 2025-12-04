@@ -15,17 +15,17 @@ from errors.auth import InvalidTokenError, UserNotFoundError
 from models.user import User
 
 
-hash = PasswordHash.recommended()
+pw_hash = PasswordHash.recommended()
 
 
 def hash_password(password: str | bytes) -> str:
     """비밀번호를 해시화합니다."""
-    return hash.hash(password)
+    return pw_hash.hash(password)
 
 
 def verify_password(password: str | bytes, hashed_password: str) -> bool:
     """해시화된 비밀번호와 입력된 비밀번호를 비교합니다."""
-    return hash.verify(password, hashed_password)
+    return pw_hash.verify(password, hashed_password)
 
 
 def create_jwt(user_id: int) -> str:

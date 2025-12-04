@@ -1,6 +1,6 @@
 from urllib.parse import urlencode
 
-from pydantic import EmailStr, BaseModel
+from pydantic import BaseModel, EmailStr
 import requests
 from sqlalchemy.orm import joinedload
 from sqlmodel import Session, select
@@ -27,7 +27,7 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
         select(SocialAccount)
         .where(SocialAccount.provider == SocialAccountProvider.GOOGLE)
         .where(SocialAccount.provider_id == user_info.id)
-        .options(joinedload(SocialAccount.user))
+        .options(joinedload(SocialAccount.user)) # type:ignore
     ).one_or_none()
 
     if social_account is None:

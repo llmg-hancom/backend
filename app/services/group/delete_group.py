@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import col, exists, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError

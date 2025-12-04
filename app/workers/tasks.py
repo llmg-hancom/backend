@@ -1,13 +1,11 @@
-import uuid
 from contextlib import contextmanager
 from pathlib import Path
 import shutil
 import time
 from typing import Literal
-
+import uuid
 
 from celery.utils.log import get_task_logger
-
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
@@ -22,6 +20,7 @@ from workers.celery_app import celery_app
 from db.session import engine
 from models.document import Document, DocumentStatus
 from services.document.storage_service import storage_service
+
 
 # (Chunking 로직은 별도 파일로 분리하거나 여기에 구현해야 함)
 # from rag.chunking import get_chunks_from_structured_data
@@ -44,7 +43,7 @@ def get_db_session():
 DOWNLOAD_DIR = Path("/tmp/hwp-tasks")
 
 
-def _download_from_s3(file_uri: str, local_file_dir: Path) -> Path:
+def download_from_s3(file_uri: str, local_file_dir: Path) -> Path:
     logger.info(f"{file_uri}를 {local_file_dir} 디렉토리로 다운로드 중...")
     try:
         local_path: Path = storage_service.download_file(file_uri, local_file_dir)
@@ -54,7 +53,7 @@ def _download_from_s3(file_uri: str, local_file_dir: Path) -> Path:
         raise e
 
 
-def _upload_tmp_s3(local_file: Path, ext: Literal["txt", "json"] = "txt") -> str:
+def upload_tmp_s3(local_file: Path, ext: Literal["txt", "json"] = "txt") -> str:
     logger.info(f"{local_file}를 S3에 업로드 중...")
     unique_name = uuid.uuid4()
     file_key = f"tmp/{ext}/{unique_name}.{ext}"
@@ -138,16 +137,16 @@ def _convert_hwp_to_hwpx(local_hwp_path: Path) -> Path:
     try:
         local_hwpx_path = local_hwp_path.with_suffix(".hwpx")
         logger.info(f".hwp를 .hwpx로 변환 중: {local_hwpx_path}")
-        fromFile: HWPFile = HWPReader.fromFile(str(local_hwp_path))
-        toFile: HWPXFile = Hwp2Hwpx.toHWPX(fromFile)
-        HWPXWriter.toFilepath(toFile, str(local_hwpx_path))
+        from_file: HWPFile = HWPReader.fromFile(str(local_hwp_path))
+        to_file: HWPXFile = Hwp2Hwpx.toHWPX(from_file)
+        HWPXWriter.toFilepath(to_file, str(local_hwpx_path))
         return local_hwpx_path
     except Exception as e:
         logger.error(f"{local_hwp_path}를 .hwpx로 변환 실패: {e}")
         raise e
 
 
-def _cleanup_temp_dir(temp_dir: Path):
+def cleanup_temp_dir(temp_dir: Path):
     logger.info(f"임시 디렉토리 {temp_dir} 정리 중...")
     if temp_dir.exists():
         shutil.rmtree(str(temp_dir))
@@ -177,9 +176,9 @@ def process_document(self, doc_id: int) -> str:
                 logger.info(f"문서 처리 중...: (doc_id: {doc_id})")
                 doc.status = DocumentStatus.processing
                 db.flush()
-            local_path = _download_from_s3(doc.file_path, file_dir)
+            local_path = download_from_s3(doc.file_path, file_dir)
         txt_path = _process_selector(local_path)
-        s3_txt_path = _upload_tmp_s3(txt_path)
+        s3_txt_path = upload_tmp_s3(txt_path)
         logger.info(f"[TASK_SUCCESS] 문서 txt 변환 완료: (doc_id: {doc_id})")
         return str(s3_txt_path)
     except FileNotFoundError as e:
@@ -188,4 +187,4 @@ def process_document(self, doc_id: int) -> str:
         logger.error(f"[TASK_FAILED] 문서 txt 변환 실패: (doc_id: {doc_id}) - {e}")
         raise e
     finally:
-        _cleanup_temp_dir(file_dir)
+        cleanup_temp_dir(file_dir)
