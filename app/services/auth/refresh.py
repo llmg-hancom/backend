@@ -1,6 +1,7 @@
-from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from pydantic import BaseModel
+from sqlalchemy.orm import joinedload
 from sqlmodel import Session, select
 
 from errors.auth import (
@@ -10,18 +11,17 @@ from errors.auth import (
 )
 from errors.general import IllegalStateError
 from models.refresh_token import RefreshToken
-from models.user import User, UserRead
+from models.user import User
 from services.auth.token import token_regenerate
 from utils.auth import (
     hash_refresh_token,
 )
 
 
-@dataclass
-class RefreshSuccess:
+class RefreshSuccess(BaseModel):
     access_token: str
     refresh_token: str
-    user: UserRead
+    user: User
 
 
 def refresh_access_token(refresh_token: str, db: Session):
@@ -30,7 +30,7 @@ def refresh_access_token(refresh_token: str, db: Session):
 
     # 토큰이 존재하는지 확인
     refresh_token_model = db.exec(
-        select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash)
+        select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash).options(joinedload(RefreshToken.user)) # type: ignore
     ).one_or_none()
 
     # 리프레시 토큰이 존재하지 않음
@@ -50,7 +50,7 @@ def refresh_access_token(refresh_token: str, db: Session):
         raise IllegalStateError()
 
     # RefreshToken에 연결된 User 객체 조회 (cast로 타입 단언)
-    user = db.get(User, refresh_token_model.user_id)
+    user = RefreshToken.user
     if not user:
         # RefreshToken은 있는데 User가 없는 비정상적인 상황
         raise UserNotFoundError()
@@ -65,5 +65,5 @@ def refresh_access_token(refresh_token: str, db: Session):
     return RefreshSuccess(
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
-        user=UserRead.model_validate(user),
+        user=user,
     )

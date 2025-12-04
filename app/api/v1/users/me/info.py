@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, status, Security
+from fastapi import APIRouter, Body, Depends, Security, status
 from sqlmodel import Session
 
 from db.session import get_db
@@ -34,4 +34,4 @@ def edit_user_info(
     session.add(user)
     session.flush()
 
-    return user
+    return UserRead.model_validate(user)

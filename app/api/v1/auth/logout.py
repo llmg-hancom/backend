@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Response, status, Depends, Cookie
+from fastapi import APIRouter, Cookie, Depends, Response, status
 from sqlmodel import Session
 
 from db.session import get_db
 from services.auth.logout import delete_token
 from utils.auth import delete_auth_cookie
+
 
 # 💡 login.py 또는 별도 파일에 추가
 router = APIRouter()

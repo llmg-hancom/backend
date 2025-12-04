@@ -1,23 +1,23 @@
 import hashlib
-
-import uuid
 from typing import Annotated
+import uuid
 
-from fastapi import APIRouter, status, UploadFile, File, Depends, Security
+from celery import chain
+from fastapi import APIRouter, Depends, File, Security, UploadFile, status
+from rag.tasks import chunk_user_document
 from sqlalchemy.util.concurrency import asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from workers.tasks import process_document
 
 from db.session import get_async_db
-from errors.document import UnsupportedExtensionError, DuplicateFilesError
+from errors.document import DuplicateFilesError, UnsupportedExtensionError
 from models.document import Document
 from models.user import User
 from schemas.document import UploadResponse
 from services.document.storage_service import storage_service
-from workers.tasks import process_document
-from rag.tasks import chunk_user_document
 from utils.auth import get_current_user
-from celery import chain
+
 
 router = APIRouter(prefix="/documents")
 

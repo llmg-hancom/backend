@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, status, Security
+from fastapi import APIRouter, Security, status
 
 from models.document import Document, DocumentRead
 from utils.documents import require_document_owner
@@ -42,4 +42,4 @@ router = APIRouter()
 def get_docs_info(
     doc: Annotated[Document, Security(require_document_owner)],
 ) -> DocumentRead:
-    return doc
+    return DocumentRead.model_validate(doc)

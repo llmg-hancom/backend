@@ -1,9 +1,10 @@
+from io import StringIO
 import re
 import unicodedata
 
 from bs4 import BeautifulSoup
 import pandas as pd
-from io import StringIO
+
 
 # RAG/LLM 성능을 저해하는 유니코드 "제어" 및 "포맷" 문자 카테고리
 # Cc (Control), Cf (Format), Co (Private Use), Cs (Surrogate)

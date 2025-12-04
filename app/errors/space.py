@@ -1,5 +1,4 @@
 from fastapi import status
-from starlette import status
 
 from errors.base import BackendBaseError
 

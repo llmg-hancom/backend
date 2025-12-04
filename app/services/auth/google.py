@@ -1,13 +1,14 @@
 from urllib.parse import urlencode
 
-from pydantic import EmailStr, BaseModel
+from pydantic import BaseModel, EmailStr
 import requests
+from sqlalchemy.orm import joinedload
 from sqlmodel import Session, select
 
 from core.config import settings
 from errors.general import IllegalStateError
 from models.social_account import SocialAccount, SocialAccountProvider
-from models.user import User, UserRead
+from models.user import User
 from utils.auth import create_jwt, create_refresh_token
 
 
@@ -15,7 +16,7 @@ class LoginSuccess(BaseModel):
     token: str
     refresh_token: str
     token_type: str
-    user: UserRead
+    user: User
 
 
 def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
@@ -26,6 +27,7 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
         select(SocialAccount)
         .where(SocialAccount.provider == SocialAccountProvider.GOOGLE)
         .where(SocialAccount.provider_id == user_info.id)
+        .options(joinedload(SocialAccount.user)) # type:ignore
     ).one_or_none()
 
     if social_account is None:
@@ -58,13 +60,17 @@ def login_with_google_callback(code: str, db: Session) -> LoginSuccess:
         db.add(social_account)
         db.flush()
         db.refresh(social_account, attribute_names=["user"])
+    else:
+        user = social_account.user
+        if user is None:
+            raise IllegalStateError()
 
     # user를 반환한다.
     return LoginSuccess(
         token=create_jwt(social_account.user_id),
         refresh_token=create_refresh_token(),
         token_type="bearer",
-        user=UserRead.model_validate(social_account.user),
+        user=user,
     )
 
 

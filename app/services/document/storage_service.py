@@ -1,14 +1,14 @@
+import logging
 from pathlib import Path
 
 import boto3
-from botocore.exceptions import NoCredentialsError, ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
 from fastapi import UploadFile
 from s3path import S3Path
 
 from core.config import settings
-import logging
-
 from errors.document import FileStorageError
+
 
 logger = logging.getLogger(__name__)
 
