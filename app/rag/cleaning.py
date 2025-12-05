@@ -1,7 +1,6 @@
 from io import StringIO
 import re
 import unicodedata
-
 from bs4 import BeautifulSoup
 import pandas as pd
 
