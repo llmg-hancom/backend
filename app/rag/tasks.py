@@ -150,11 +150,7 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
             clean_patterns = [normalize_regex_pattern(p) for p in raw_patterns]
         else:
             clean_patterns = []
-        final_separators = (
-            [r"<table_data>.*?</table_data>"]
-            + clean_patterns
-            + [r"\n\n", r"\n", " ", ""]
-        )
+        final_separators = clean_patterns + [r"\n\n", r"\n", " ", ""]
         for regex in final_separators:
             logger.info(regex)
         table_pattern = r"<table_data>.*?</table_data>"
