@@ -91,29 +91,17 @@ def process_html_with_tables(html_content: str) -> str:
     soup = BeautifulSoup(html_content, "html.parser")
     tables = soup.find_all("table")
 
-    # 뒤에서부터 처리해야 인덱스 꼬임 방지
     for table in reversed(tables):
-        # --- [A] 레이아웃 판별 로직 (제공해주신 코드 활용) ---
-
-        # 1. 중첩 테이블은 레이아웃일 확률 높음
-        if table.find("table"):
-            table.unwrap()
-            continue
-
-        # 2. 텍스트 밀도/길이 분석
+        # --- [A] 레이아웃 판별 로직 (기존 동일) ---
         rows = table.find_all("tr")
-        total_cells = 0
-        long_text_cells = 0
+        total_cells = sum(len(row.find_all(["td", "th"])) for row in rows)
+        long_text_cells = sum(
+            1
+            for row in rows
+            for cell in row.find_all(["td", "th"])
+            if len(cell.get_text(strip=True)) > 100
+        )
 
-        for row in rows:
-            cells = row.find_all(["td", "th"])
-            total_cells += len(cells)
-            for cell in cells:
-                # 100자 이상이면 데이터라기보다 배치용 문단일 가능성 큼
-                if len(cell.get_text(strip=True)) > 100:
-                    long_text_cells += 1
-
-        # 레이아웃 판단 기준 (튜닝 가능)
         is_layout = (
             (table.find("table") is not None)
             or (long_text_cells > 0)
@@ -122,31 +110,52 @@ def process_html_with_tables(html_content: str) -> str:
 
         # --- [B] 처리 로직 ---
         if is_layout:
-            # 레이아웃이면 표 구조를 버리고 텍스트만 문단에 합류
+            # 레이아웃: 태그 제거하고 텍스트만 남김
             text_content = table.get_text(separator="\n\n", strip=True)
             table.replace_with(text_content)
         else:
-            # 데이터 표면 구조화
+            # 데이터 표: Pandas로 정제
             try:
-                # pandas로 읽으면 rowspan/colspan이 자동으로 평탄화됨 (값이 채워짐)
+                # 1. HTML을 읽어서 DataFrame 리스트 생성
                 dfs = pd.read_html(StringIO(str(table)), flavor="bs4")
                 if not dfs:
                     continue
 
-                df = dfs[0].fillna("")
+                # 2. 첫 번째 DataFrame 선택 (아직 fillna 하지 않음!)
+                df = dfs[0]
 
-                # [선택] Markdown vs CSV
-                # 마크다운 표는 LLM이 보기는 좋지만, 내용이 길면 깨지기 쉬움.
-                # CSV 포맷을 추천하지만, 마크다운을 원하면 to_markdown() 사용 가능
-                # 여기서는 'CSV 형태'를 사용하여 토큰을 아끼고 줄바꿈 오작동 방지
+                # ====================================================
+                # [여기가 핵심 수정 부분입니다]
+                # ====================================================
+
+                # (1) 공백 문자(스페이스, 탭 등)만 있는 셀을 NaN(결측치)으로 변경
+                #     그래야 dropna가 '비어있다'고 인식할 수 있음
+                df = df.replace(r"^\s*$", float("nan"), regex=True)
+
+                # (2) 모든 값이 NaN인 '행(Row)' 삭제
+                df = df.dropna(axis=0, how="all")
+
+                # (3) 모든 값이 NaN인 '열(Column)' 삭제
+                df = df.dropna(axis=1, how="all")
+
+                # (4) 이제 남은 NaN(데이터가 있는 행의 일부 빈칸)을 빈 문자열로 채움
+                df = df.fillna("")
+
+                # ====================================================
+
+                # 3. CSV로 변환
                 processed_table = df.to_csv(index=False, sep=",")
 
-                # 식별하기 좋게 앞뒤로 태그 삽입
+                # (선택사항) 연속된 콤마(,,,)가 너무 많으면 보기 흉하므로 하나로 줄이기
+                # 예: "항목,,,,,값" -> "항목,값"
+                processed_table = re.sub(r",{2,}", ",", processed_table)
+
+                # 4. 태그로 감싸서 교체
                 replacement = f"\n<table_data>\n{processed_table}\n</table_data>\n"
                 table.replace_with(replacement)
 
             except Exception as e:
-                # 변환 실패 시 안전하게 태그만 벗김
+                # 변환 실패 시 텍스트만 유지
                 print(f"Table conversion error: {e}")
                 table.replace_with(table.get_text(separator="\n", strip=True))
 

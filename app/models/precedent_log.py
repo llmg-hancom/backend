@@ -24,6 +24,3 @@ class PrecedentLog(SQLModel, table=True):
         ),
         description="판례 작업 시간",
     )
-
-    precedent_date: date
-
