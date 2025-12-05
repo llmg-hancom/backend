@@ -1,3 +1,4 @@
+import html
 from contextlib import contextmanager
 import json
 from pathlib import Path
@@ -108,6 +109,7 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
         local_path = download_from_s3(s3_path, file_dir)
         with open(local_path, "r", encoding="utf-8") as f:
             full_text = f.read()
+        full_text = html.unescape(full_text)
         if len(full_text) > 3000:
             text_head = full_text[:2000]
         else:
@@ -153,7 +155,7 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
         final_separators = clean_patterns + [r"\n\n", r"\n", " ", ""]
         for regex in final_separators:
             logger.info(regex)
-        table_pattern = r"<table_data>.*?</table_data>"
+        table_pattern = r"<\s*table_data\s*>.*?<\s*/\s*table_data\s*>"
         tables = re.findall(table_pattern, full_text, flags=re.DOTALL)
 
         masked_text = full_text
