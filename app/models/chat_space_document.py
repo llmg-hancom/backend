@@ -12,15 +12,11 @@ if TYPE_CHECKING:
 
 
 class ChatSpaceDocumentBase(SQLModel):
-    space_id: int = Field(foreign_key="chat_spaces.space_id", nullable=False)
-    document_id: int = Field(foreign_key="documents.document_id", nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint(
-            "space_id",
-            "document_id",
-            name="chat_space_documents_space_id_document_id_key",
-        ),
+    space_id: int = Field(
+        foreign_key="chat_spaces.space_id", nullable=False, ondelete="CASCADE"
+    )
+    document_id: int = Field(
+        foreign_key="documents.document_id", nullable=False, ondelete="CASCADE"
     )
 
 
@@ -37,8 +33,15 @@ class ChatSpaceDocument(ChatSpaceDocumentBase, table=True):
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
         ),
     )
-
     # Relationships
     space: "ChatSpace" = Relationship(back_populates="documents")
     document: "Document" = Relationship(back_populates="chat_space_links")
     added_by_user: "User" = Relationship(back_populates="chat_space_documents_added")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "space_id",
+            "document_id",
+            name="chat_space_documents_space_id_document_id_key",
+        ),
+    )

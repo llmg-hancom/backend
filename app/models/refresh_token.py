@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from sqlalchemy import Boolean, false
 from sqlmodel import TIMESTAMP, Column, Field, Relationship, SQLModel, func
 
 
@@ -14,12 +15,12 @@ class RefreshToken(SQLModel, table=True):
     __tablename__ = "refresh_tokens"
 
     token_id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.user_id", nullable=False)
-    token_hash: str = Field(
-        max_length=255, sa_column_kwargs={"unique": True}, nullable=False
+    user_id: int = Field(
+        foreign_key="users.user_id", nullable=False, index=True, ondelete="CASCADE"
     )
+    token_hash: str = Field(max_length=255, unique=True, nullable=False)
     expires_at: datetime = Field(
-        sa_column=Column(TIMESTAMP(timezone=True), nullable=False)
+        sa_column=Column(TIMESTAMP(timezone=True), nullable=False, index=True)
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=timezone.utc),
@@ -27,7 +28,9 @@ class RefreshToken(SQLModel, table=True):
             TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
         ),
     )
-    is_revoked: bool = Field(default=False)
+    is_revoked: bool = Field(
+        default=False, sa_column=Column(Boolean, server_default=false(), nullable=False)
+    )
 
     # Relationship
     user: "User" = Relationship(back_populates="refresh_tokens")

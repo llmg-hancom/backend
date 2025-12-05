@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import TIMESTAMP, Column, func
+from sqlalchemy import TIMESTAMP, Column, func, Text, Index
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class GroupBase(SQLModel):
     group_name: str = Field(max_length=255, nullable=False)
-    description: str | None = Field(default=None)
+    description: str | None = Field(default=None, sa_type=Text)
 
 
 class Group(GroupBase, table=True):
@@ -34,8 +34,15 @@ class Group(GroupBase, table=True):
     # Relationships
     created_by_user: "User" = Relationship(back_populates="created_groups")
     members: list["GroupMember"] = Relationship(
-        back_populates="group", sa_relationship_kwargs={"cascade": "all, delete"}
+        back_populates="group", cascade_delete=True
     )
     chat_spaces: list["ChatSpace"] = Relationship(
-        back_populates="group", sa_relationship_kwargs={"cascade": "all, delete"}
+        back_populates="group", cascade_delete=True
+    )
+    __table_args__ = (
+        Index(
+            "ix_groups_deleted_at",
+            "deleted_at",
+            postgresql_where=Column("deleted_at").is_not(None),
+        ),
     )

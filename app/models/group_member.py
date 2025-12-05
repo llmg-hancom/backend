@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, Column, func
@@ -12,14 +12,16 @@ if TYPE_CHECKING:
     from models.user import User
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     admin = "admin"
     member = "member"
 
 
 class GroupMemberBase(SQLModel):
     role: UserRole = Field(
-        default=UserRole.member, sa_column=Column(SaEnum(UserRole), nullable=False)
+        sa_column=Column(
+            SaEnum(UserRole), server_default=UserRole.member, nullable=False
+        )
     )
     joined_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=timezone.utc),
@@ -33,15 +35,20 @@ class GroupMember(GroupMemberBase, table=True):
     """2.2. GroupMembers (그룹 멤버)"""
 
     __tablename__ = "group_members"
+
+    group_member_id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(
+        foreign_key="users.user_id", nullable=False, ondelete="CASCADE"
+    )
+    group_id: int = Field(
+        foreign_key="groups.group_id", nullable=False, index=True, ondelete="CASCADE"
+    )
+
+    # Relationships
+    user: "User" = Relationship(back_populates="group_memberships")
+    group: "Group" = Relationship(back_populates="members")
     __table_args__ = (
         UniqueConstraint(
             "user_id", "group_id", name="group_members_user_id_group_id_key"
         ),
     )
-    group_member_id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.user_id", nullable=False)
-    group_id: int = Field(foreign_key="groups.group_id", nullable=False)
-
-    # Relationships
-    user: "User" = Relationship(back_populates="group_memberships")
-    group: "Group" = Relationship(back_populates="members")
