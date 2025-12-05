@@ -6,15 +6,17 @@ import time
 
 from celery.utils.log import get_task_logger
 from langchain.messages import HumanMessage, SystemMessage
+from langchain_ollama import ChatOllama
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field, field_validator
+
+from core.config import settings
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
 from rag.cleaning import (
     normalize_regex_pattern,
 )
-from rag.model import llm
 from sqlmodel import Session
 from workers.celery_app import celery_app
 from workers.tasks import cleanup_temp_dir, download_from_s3, upload_tmp_s3
@@ -34,6 +36,14 @@ def get_db_session():
         except Exception:
             raise
 
+
+llm = ChatOllama(
+    model="gpt-oss:latest",
+    validate_model_on_init=True,
+    base_url=settings.OLLAMA_BASE_URL,
+    keep_alive="4h",
+    temperature=0,
+)
 
 # 임시 파일 저장 경로
 DOWNLOAD_DIR = Path("/tmp/hwp-tasks")
@@ -77,7 +87,8 @@ class DocumentAnalysis(BaseModel):
         description="The ISO 639-1 language code representing the main language of the document (e.g., 'en', 'ko', 'ja')."
     )
     keywords: list[str] = Field(
-        description="A list of up to 5 key terms relevant to the document content, optimized for search indexing."
+        description="A list of up to 5 key terms relevant to the document content, optimized for search indexing.",
+        max_length=5,
     )
     summary: str = Field(
         description="A single-sentence summary acting as a preview for the user. Always use the same language as the original document."
@@ -139,14 +150,19 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
             clean_patterns = [normalize_regex_pattern(p) for p in raw_patterns]
         else:
             clean_patterns = []
-        final_separators = clean_patterns + ["\n\n", "\n", " ", ""]
+        final_separators = (
+            [r"<table_data>.*?</table_data>"]
+            + clean_patterns
+            + [r"\n\n", r"\n", " ", ""]
+        )
         for regex in final_separators:
             logger.info(regex)
         splitter = RecursiveCharacterTextSplitter(
             separators=final_separators,
             chunk_size=800,
-            chunk_overlap=100,
+            chunk_overlap=200,
             is_separator_regex=True,
+            keep_separator=True,
         )
         # 4. 문서 청킹 (Raw Chunks 생성)
         raw_chunks = splitter.create_documents([full_text])
