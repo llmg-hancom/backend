@@ -146,10 +146,6 @@ def process_html_with_tables(html_content: str) -> str:
                 # 3. CSV로 변환
                 processed_table = df.to_csv(index=False, sep=",")
 
-                # (선택사항) 연속된 콤마(,,,)가 너무 많으면 보기 흉하므로 하나로 줄이기
-                # 예: "항목,,,,,값" -> "항목,값"
-                processed_table = re.sub(r",{2,}", ",", processed_table)
-
                 # 4. 태그로 감싸서 교체
                 replacement = f"\n<table_data>\n{processed_table}\n</table_data>\n"
                 table.replace_with(replacement)
