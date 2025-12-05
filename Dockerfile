@@ -7,7 +7,7 @@ ENV LANG=C.UTF-8
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 ENV CLASSPATH="/app/resources/*"
-ENV LD_LIBRARY_PATH="${JAVA_HOME}/lib/server:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="${JAVA_HOME}/lib/server"
 
 WORKDIR /app
 COPY pyproject.toml .
