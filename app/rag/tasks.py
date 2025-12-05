@@ -157,6 +157,15 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
         )
         for regex in final_separators:
             logger.info(regex)
+        table_pattern = r"<table_data>.*?</table_data>"
+        tables = re.findall(table_pattern, full_text, flags=re.DOTALL)
+
+        masked_text = full_text
+        for i, table_content in enumerate(tables):
+            # 유니크한 마커로 대체 (정규식이 절대 건드리지 않을 문자열)
+            placeholder = f"__PROTECTED_TABLE_{i}__"
+            masked_text = masked_text.replace(table_content, placeholder)
+
         splitter = RecursiveCharacterTextSplitter(
             separators=final_separators,
             chunk_size=800,
@@ -165,7 +174,7 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
             keep_separator=True,
         )
         # 4. 문서 청킹 (Raw Chunks 생성)
-        raw_chunks = splitter.create_documents([full_text])
+        raw_chunks = splitter.create_documents([masked_text])
 
         # 5. [핵심] 모든 청크에 메타데이터 일괄 주입
         # Pydantic 모델을 dict로 변환하되, '청킹 전략' 필드는 메타데이터에 넣을 필요 없으므로 제외
@@ -175,6 +184,13 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
 
         chunks: list[dict] = []
         for chunk in raw_chunks:
+            if "__PROTECTED_TABLE_" in chunk.page_content:
+                for i, table_content in enumerate(tables):
+                    placeholder = f"__PROTECTED_TABLE_{i}__"
+                    if placeholder in chunk.page_content:
+                        chunk.page_content = chunk.page_content.replace(
+                            placeholder, table_content
+                        )
             # 기존 메타데이터(있다면)에 분석된 메타데이터 병합
             chunk.metadata.update(metadata_to_inject)
             chunks.append(
