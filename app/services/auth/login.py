@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 
 from errors.auth import InvalidCredentialError, UserInactiveError
 from models.user import User
@@ -18,7 +18,9 @@ class LoginSuccess(BaseModel):
 
 def login(email: EmailStr, password: str, db: Session) -> LoginSuccess:
     # 사용자 찾기
-    user = db.exec(select(User).where(User.email == email)).first()
+    user = db.exec(
+        select(User).where(User.email == email, col(User.deleted_at).is_(None))
+    ).one_or_none()
 
     # 유저가 존재하지 않는 경우
     if user is None:

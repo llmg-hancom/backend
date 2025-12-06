@@ -1,13 +1,11 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, status
-from sqlalchemy.orm import joinedload
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
 from errors.chat import ChatSessionNotFoundError, ForbiddenChatSessionAccessError
-from models import GroupMember
 from models.chat_message import ChatMessage
 from models.chat_session import ChatSession
 from models.user import User
@@ -29,7 +27,7 @@ router = APIRouter(prefix="/sessions")
     response_model=PaginationResponse[ChatMessageRead],
 )
 async def get_chat_session_history(
-    session_id: int,
+    chat_session: Annotated[ChatSession, Depends(chat_session_from_session_id_path)],
     params: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
@@ -42,35 +40,17 @@ async def get_chat_session_history(
     - **page**: 페이지 번호 (1부터 시작)
     - **size**: 페이지 당 메시지 수
     """
-    # 1. 세션 존재 여부 및 권한 확인
-    statement = (
-        select(ChatSession)
-        .where(ChatSession.session_id == session_id)
-        .options(joinedload(ChatSession.space)) # type: ignore
-    )
-    result = await db.exec(statement)
-    chat_session = result.one_or_none()
 
-    if not chat_session:
-        raise ChatSessionNotFoundError(session_id)
+    await db.refresh(chat_session)
 
-    is_owner = chat_session.space.owner_user_id == current_user.user_id
-    if chat_session.space.group_id is not None:
-        gm_query = (
-            select(GroupMember)
-            .where(GroupMember.user_id == current_user.user_id)
-            .where(GroupMember.group_id == chat_session.space.group_id)
-        )
-        is_group_member = (await db.exec(gm_query)).first() is not None
-    else:
-        is_group_member = False
+    is_owner = chat_session.user_id == current_user.user_id
 
-    if not (is_owner or is_group_member):
+    if not is_owner:
         raise ForbiddenChatSessionAccessError()
 
     # 2. 전체 메시지 수 조회
     total_count_stmt = select(func.count(ChatMessage.message_id)).where(
-        ChatMessage.session_id == session_id
+        ChatMessage.session_id == chat_session.session_id
     )
     total_count_result = await db.exec(total_count_stmt)
     total = total_count_result.one()
@@ -79,7 +59,7 @@ async def get_chat_session_history(
     offset = (params.page - 1) * params.size
     messages_stmt = (
         select(ChatMessage)
-        .where(ChatMessage.session_id == session_id)
+        .where(ChatMessage.session_id == chat_session.session_id)
         .order_by(
             col(ChatMessage.created_at).desc(),
             col(ChatMessage.message_id).desc(),  # 2차 정렬 기준 추가
@@ -87,8 +67,7 @@ async def get_chat_session_history(
         .offset(offset)
         .limit(params.size)
     )
-    messages_result = await db.exec(messages_stmt)
-    messages = messages_result.all()
+    messages = (await db.exec(messages_stmt)).all()
 
     # 4. 페이지네이션 응답 모델로 반환
     return PaginationResponse(
@@ -106,7 +85,7 @@ async def change_session_info(
     db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> ChatSessionRead:
     result = await service.update_chat_session_title(title=body.title, session=session)
-    await db.refresh(result,attribute_names=["user","space"])
+    await db.refresh(result, attribute_names=["user", "space"])
 
     return ChatSessionRead.model_validate(result)
 

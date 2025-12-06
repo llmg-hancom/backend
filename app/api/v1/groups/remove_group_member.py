@@ -1,9 +1,9 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Security, status
-from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from db.session import get_db
+from db.session import get_async_db
 from models.group import Group
 from services.group.remove_group_member import (
     remove_group_member as remove_group_member_service,
@@ -19,9 +19,11 @@ router = APIRouter()
     status_code=status.HTTP_204_NO_CONTENT,
     summary="그룹에서 유저 탈퇴",
 )
-def remove_group_member(
+async def remove_group_member(
     group: Annotated[Group, Security(require_group_admin)],
     member_id: Annotated[int, Path()],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> None:
-    remove_group_member_service(group=group, deleted_member_id=member_id, session=db)
+    await remove_group_member_service(
+        group=group, deleted_member_id=member_id, session=db
+    )

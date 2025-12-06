@@ -30,7 +30,9 @@ def refresh_access_token(refresh_token: str, db: Session):
 
     # 토큰이 존재하는지 확인
     refresh_token_model = db.exec(
-        select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash).options(joinedload(RefreshToken.user)) # type: ignore
+        select(RefreshToken)
+        .where(RefreshToken.token_hash == refresh_token_hash)
+        .options(joinedload(RefreshToken.user))  # type: ignore
     ).one_or_none()
 
     # 리프레시 토큰이 존재하지 않음
@@ -38,11 +40,10 @@ def refresh_access_token(refresh_token: str, db: Session):
         raise RefreshTokenNotFoundError()
 
     # 리프레시 토큰이 만료되었음
-    if refresh_token_model.expires_at < datetime.now(timezone.utc):
-        raise RefreshTokenExpiredError()
-
-    # 리프레시 토큰이 revoke되었음
-    if refresh_token_model.is_revoked:
+    if (
+        refresh_token_model.expires_at < datetime.now(timezone.utc)
+        or refresh_token_model.is_revoked
+    ):
         raise RefreshTokenExpiredError()
 
     # 토큰 ID가 존재하지 않음 (이론적으로 발생 불가)

@@ -1,9 +1,9 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Security, status
-from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from db.session import get_db
+from db.session import get_async_db
 from models.group import Group
 from models.user import User
 from schemas.groups import GroupUserInviteRequest
@@ -42,10 +42,10 @@ router = APIRouter()
         },
     },
 )
-def invite(
+async def invite(
     user: Annotated[User, Security(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
     group: Annotated[Group, Security(require_group_admin)],
     body: Annotated[GroupUserInviteRequest, Body()],
 ) -> None:
-    invite_service(inviter=user, session=db, group=group, body=body)
+    await invite_service(inviter=user, session=db, group=group, body=body)

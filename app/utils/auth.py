@@ -7,11 +7,11 @@ from fastapi import Depends, Response
 from fastapi.security import APIKeyCookie
 import jwt
 from pwdlib import PasswordHash
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 
 from core.config import settings
 from db.session import get_db
-from errors.auth import InvalidTokenError, UserNotFoundError
+from errors.auth import InvalidTokenError, UserNotFoundError, UserInactiveError
 from models.user import User
 
 
@@ -119,9 +119,16 @@ def get_current_user(
     except (ValueError, TypeError):
         raise InvalidTokenError()
 
-    user = db.exec(select(User).where(User.user_id == user_id)).first()
+    user = db.exec(
+        select(User)
+        .where(User.user_id == user_id)
+        .where(col(User.deleted_at).is_(None))
+    ).one_or_none()
 
     if not user:
         raise UserNotFoundError()
+
+    if not user.is_active:
+        raise UserInactiveError()
 
     return user
