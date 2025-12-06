@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, Path
 from fastapi.params import Security
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 
 from db.session import get_db
 from errors.document import DocumentNotFoundError
@@ -21,15 +21,13 @@ def get_document_from_document_id_path(
     해당 문서가 존재하지 않는다면 오류를 발생시킵니다.
     """
     doc = session.exec(
-        select(Document).where(Document.document_id == document_id)
+        select(Document)
+        .where(Document.document_id == document_id)
+        .where(col(Document.deleted_at).is_(None))
     ).one_or_none()
 
     # 문서가 존재하지 않는 경우
     if doc is None:
-        raise DocumentNotFoundError()
-
-    # 해당 문서의 deleted_at 필드가 존재하는 경우
-    if doc.deleted_at is not None:
         raise DocumentNotFoundError()
 
     return doc

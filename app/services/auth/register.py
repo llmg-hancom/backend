@@ -14,7 +14,7 @@ def register(
     email: EmailStr, password: str, nickname: str, db: Session
 ) -> RegisterSuccess:
     # 중복 확인
-    existing_user = db.exec(select(User).where(User.email == email)).first()
+    existing_user = db.exec(select(User).where(User.email == email)).one_or_none()
 
     if existing_user:
         raise EmailAlreadyExistError()

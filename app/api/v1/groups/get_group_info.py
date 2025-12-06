@@ -1,26 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Security
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, Security
 
-from db.session import get_async_db
-from models import Group, User
+from models import Group
 from schemas.groups import GroupReadWithoutMembers
-from services.group.get_group_info import get_group_info as service
-from utils.auth import get_current_user
-from utils.group import get_group_from_group_id_path
-
+from utils.group import require_group_member
 
 router = APIRouter()
 
-@router.get(
-    "/{group_id}",
-    summary="그룹 상세정보 조회"
-)
+
+@router.get("/{group_id}", summary="그룹 상세정보 조회")
 async def get_group_info(
-    group: Annotated[Group, Depends(get_group_from_group_id_path)],
-    actor: Annotated[User, Security(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_async_db)]
+    group: Annotated[Group, Security(require_group_member)],
 ) -> GroupReadWithoutMembers:
-    result = await service(group=group, db=db)
-    return GroupReadWithoutMembers.model_validate(result)
+    return GroupReadWithoutMembers.model_validate(group)
