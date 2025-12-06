@@ -1,0 +1,32 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, Security
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from db.session import get_async_db
+from models.user import User
+from schemas.groups import GroupReadWithMyRole
+from schemas.pagination import PaginationParams, PaginationResponse
+from services.users.get_my_group import get_my_group as service
+from utils.auth import get_current_user
+
+
+router = APIRouter()
+
+
+@router.get(path="/groups", summary="현재 사용자가 소속된 그룹 조회", tags=["그룹"])
+async def my_groups(
+    user: Annotated[User, Security(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
+    pagination: Annotated[PaginationParams, Query()],
+) -> PaginationResponse[GroupReadWithMyRole]:
+    offset = (pagination.page - 1) * pagination.size
+    limit = pagination.size
+
+    response = await service(actor=user, db=db, offset=offset, limit=limit)
+
+    return PaginationResponse(
+        page=pagination.page,
+        size=pagination.size,
+        data=response,
+    )

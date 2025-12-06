@@ -1,0 +1,51 @@
+x-app-base: &app-base
+  image: ghcr.io/llmg-hancom/backend:latest
+  env_file: .env
+  environment:
+    - POSTGRES_HOST=db
+    - REDIS_URL=redis://redis:6379/
+    - PYTHONPATH=/app
+    - OLLAMA_BASE_URL=http://host.docker.internal:11434
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    - db
+    - redis
+
+services:
+  db:
+    image: ghcr.io/llmg-hancom/pgvector-korean:latest
+    shm_size: '2g'
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    <<: *app-base
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *app-base
+    command: .venv/bin/celery -A workers.celery_app worker -l INFO --concurrency=4
+    mem_limit: '8g'
+    shm_size: '512m'
+
+  beat:
+    <<: *app-base
+    container_name: celery_beat
+    # 실행 명령어: 'beat' 프로세스를 시작하도록 Dockerfile의 CMD를 덮어씀
+    command: .venv/bin/celery -A workers.celery_app beat -l INFO -s /tmp/celerybeat-schedule
+    depends_on:
+      - redis
+      - worker
+
+  redis:
+    image: redis:8.4-rc1-alpine
+
+volumes:
+  postgres_data:
+    external: true
+    name: postgrestest_postgres_data

@@ -1,0 +1,126 @@
+import logging
+from pathlib import Path
+
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+from fastapi import UploadFile
+from s3path import S3Path
+
+from core.config import settings
+from errors.document import FileStorageError
+
+
+logger = logging.getLogger(__name__)
+
+
+class StorageService:
+    def __init__(self):
+        self.s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION,
+        )
+        self.bucket_name = settings.AWS_S3_BUCKET_NAME
+
+    async def upload_file(self, file: UploadFile, file_key: str) -> str:
+        """
+        업로드 파일을 S3에 업로드하고, 접근 가능한 s3:// 경로를 반환합니다.
+        file_key: document 내 저장 경로 (예: private/user_1/uuid/file.hwp)
+        """
+        try:
+            # [중요] UploadFile은 SpooledTemporaryFile 객체이므로
+            # boto3의 upload_fileobj를 사용하여 스트리밍 업로드 가능
+            self.s3_client.upload_fileobj(
+                file.file,
+                self.bucket_name,
+                file_key,
+                ExtraArgs={
+                    "ContentType": file.content_type
+                },  # MIME 타입 메타데이터 저장
+            )
+            s3_path = f"s3://{self.bucket_name}/{file_key}"
+            logger.info(f"파일 업로드 성공: {s3_path}")
+            return s3_path
+
+        except (NoCredentialsError, ClientError) as e:
+            logger.error(f"파일 업로드 실패: {e}")
+            raise FileStorageError()
+        except Exception as e:
+            logger.error(f"알 수 없는 업로드 오류: {e}")
+            raise Exception()
+
+    def upload_local_file(self, file: Path, file_key: str) -> str:
+        """
+        로컬 파일을 S3에 업로드하고, 접근 가능한 s3:// 경로를 반환합니다.
+        file_key: document 내 저장 경로 (예: private/user_1/uuid/file.hwp)
+        """
+        try:
+            self.s3_client.upload_file(str(file), self.bucket_name, file_key)
+            s3_path = f"s3://{self.bucket_name}/{file_key}"
+            logger.info(f"파일 업로드 성공: {s3_path}")
+            return s3_path
+
+        except (NoCredentialsError, ClientError) as e:
+            logger.error(f"파일 업로드 실패: {e}")
+            raise FileStorageError()
+        except Exception as e:
+            logger.error(f"알 수 없는 업로드 오류: {e}")
+            raise Exception()
+
+    def download_file(self, file_uri: str, file_dir: Path) -> Path:
+        """
+        파일을 S3로부터 다운로드하고, 로컬 임시 파일 경로를 반환합니다.
+        file_uri: s3:// 경로
+        file_dir: 로컬 임시 디렉토리 경로
+        """
+        s3_path = S3Path.from_uri(file_uri)
+        file_path = file_dir / s3_path.name
+        # S3에서 파일 다운로드
+        try:
+            self.s3_client.download_file(self.bucket_name, s3_path.key, str(file_path))
+            logger.info(f"파일 다운로드 성공: {s3_path.key} -> {file_path}")
+            return file_path
+        except (NoCredentialsError, ClientError) as e:
+            logger.error(f"파일 다운로드 실패: {e}")
+            raise FileStorageError()
+        except Exception as e:
+            logger.error(f"알 수 없는 다운로드 오류: {e}")
+            raise Exception()
+
+    def delete_file(self, file_uri: str):
+        s3_path = S3Path.from_uri(file_uri)
+        try:
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_path.key)
+            logger.info(f"파일 삭제 성공: {s3_path}")
+        except (NoCredentialsError, ClientError) as e:
+            logger.error(f"파일 삭제 실패: {e}")
+            raise FileStorageError()
+        except Exception as e:
+            logger.error(f"알 수 없는 파일 삭제 오류: {e}")
+            raise Exception()
+
+    def generate_presigned_url(self, pathstr: str, expiration=3600) -> str:
+        """
+        (옵션) 프론트엔드에서 document 파일을 직접 다운로드해야 할 때 사용할 임시 URL 생성
+        """
+        try:
+            # s3://bucket_name/key 형식을 파싱
+            if not pathstr.startswith("s3://"):
+                return ""
+            s3_path = S3Path(pathstr)
+            bucket = s3_path.bucket
+            key = s3_path.key
+
+            url = self.s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket, "Key": key},
+                ExpiresIn=expiration,
+            )
+            return url
+        except Exception as e:
+            logger.error(f"Presigned URL 생성 실패: {e}")
+            return ""
+
+# 싱글톤 인스턴스 생성
+storage_service = StorageService()

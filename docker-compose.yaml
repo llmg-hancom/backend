@@ -1,0 +1,53 @@
+x-app-base: &app-base
+  # backend에서 빌드한 이미지를 공유해서 사용합니다.
+  image: hwp-qna-dev:latest
+  env_file: .env
+  environment:
+    - POSTGRES_HOST=db
+    - REDIS_URL=redis://redis:6379/
+    - PYTHONPATH=/app
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    - db
+    - redis
+
+services:
+  db:
+    image: ghcr.io/llmg-hancom/pgvector-korean:latest
+    shm_size: "2g"
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-base
+    command: .venv/bin/fastapi run
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *app-base
+    shm_size: "512m"
+    mem_limit: "8g"
+    command: .venv/bin/celery -A workers.celery_app worker -l info --concurrency=4
+
+  # 3. Celery Beat (주기적 스케줄링 컨테이너)
+  beat:
+    <<: *app-base
+    container_name: celery_beat
+    # 실행 명령어: 'beat' 프로세스를 시작하도록 Dockerfile의 CMD를 덮어씀
+    command: .venv/bin/celery -A workers.celery_app beat -l info -s /tmp/celerybeat-schedule
+    depends_on:
+      - redis
+      - worker # Worker가 시작된 후 Beat를 시작하는 것이 일반적
+  redis:
+    image: redis:8.4-rc1-alpine
+volumes:
+  postgres_data:
+    name: postgrestest_postgres_data

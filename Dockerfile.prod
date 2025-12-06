@@ -1,0 +1,36 @@
+FROM python:3.13-alpine
+
+RUN addgroup --system --gid 1001 backend
+RUN adduser --system --uid 1001 backend
+
+ENV LANG=C.UTF-8
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+ENV CLASSPATH="/app/resources/*"
+ENV LD_LIBRARY_PATH="${JAVA_HOME}/lib/server"
+
+WORKDIR /app
+COPY pyproject.toml .
+COPY uv.lock .
+
+RUN apk update --no-cache && \
+    apk upgrade --no-cache && \
+    apk add --no-cache openjdk17-jdk uv libstdc++ \
+    && \
+    apk add --no-cache --virtual .build-deps build-base \
+    && \
+    uv venv && \
+    uv pip install . &&\
+    uv pip install gunicorn &&\
+    apk del .build-deps
+
+COPY ./app /app
+
+# 포트 노출
+EXPOSE 8000
+
+# root가 아닌 backend 사용자로 전환
+USER "1001:1001"
+
+# CMD를 개발 서버가 아닌 Gunicorn (운영 서버)으로 변경
+CMD [ ".venv/bin/gunicorn", "-w", "12", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000" ]
