@@ -21,3 +21,5 @@ Thumbs.db
 
 # mise (https://mise.jdx.dev) config file
 mise.local.toml
+# 
+*.json
