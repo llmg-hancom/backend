@@ -52,9 +52,9 @@ async def upload_documents(
     await file.seek(0)
 
     # 3. [중복 검사] DB에서 동일한 해시가 있는지 확인
-    result = await db.exec(select(Document).where(Document.file_hash == file_hash))
-
-    existing_doc = result.first()
+    existing_doc = (
+        await db.exec(select(Document).where(Document.file_hash == file_hash))
+    ).first()
 
     if existing_doc:
         raise DuplicateFilesError()

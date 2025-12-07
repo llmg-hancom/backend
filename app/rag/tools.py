@@ -149,7 +149,7 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
 
     Args:
         query (str): The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here.
-        case_numbers (list[str]): The case numbers (사건번호) to filter precedents by.
+        case_numbers (list[str]): The case numbers (사건번호) to filter precedents by. (e.g. 2025도903,  )
 
     """
     # 사건번호에 공백이 있는 경우 모두 제거

@@ -60,9 +60,14 @@ class DocumentChunk(DocumentChunkBase, table=True):
             postgresql_ops={"embedding": "vector_cosine_ops"},
         ),
         Index(
-            "ix_law_category",
+            "ix_law_name",
             text("(meta ->> '법령명')"),
             postgresql_where=text("(meta ->> '법령명') IS NOT NULL"),
+        ),
+        Index(
+            "ix_law_type",
+            text("(meta ->> '법령타입')"),
+            postgresql_where=text("(meta ->> '법령타입') IS NOT NULL"),
         ),
         Index(
             "ix_law_jo_number",
