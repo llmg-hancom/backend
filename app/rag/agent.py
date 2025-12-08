@@ -12,6 +12,7 @@ from rag.tools import (
     search_private_documents,
     search_public_law_article,
     search_public_law_semantic,
+    analyze_legal_problem,
 )
 
 from models import ChatSession
@@ -72,6 +73,7 @@ You have access to:
    - **Action**: Use `search_precedent_semantic`."""
 
     if include_law and include_precedent:
+        tools.append(analyze_legal_problem)
         # [최적화 4] 복합 전략을 단계별(Step-by-Step) 프로세스로 명시
         prompt += """
 
