@@ -9,9 +9,12 @@ from rag.search import (
     find_law_by_article,
     query_in_precedent,
     query_in_target,
+    fetch_private_ids,
+    query_excluding_target,
 )
 
 from models.document import DocumentScope
+from rag.cleaning import split_problem_into_statements_regex
 
 
 class Context(BaseModel):
@@ -199,3 +202,40 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     else:
         serialized = "Empty: There is no document attached to the chat session. DO NOT call this tool again."
     return serialized, relevant_chunks
+
+
+@tool(parse_docstring=True)
+async def analyze_legal_problem(problem_text: str):
+    """
+    **PRIMARY TOOL for Legal Exam/Multiple-Choice Questions.**
+
+    Use this tool IMMEDIATELY when the user asks to solve a problem that includes:
+    1. A background story or factual scenario (Case).
+    2. Multiple statements/options to verify (e.g., labeled as ㄱ, ㄴ, ㄷ, ㄹ or ①, ②, ③).
+    3. Phrases like "다툼이 있는 경우 판례에 의함" (According to precedents if disputed).
+
+    **Functionality**:
+    - It automatically decomposes the complex problem into individual legal claims.
+    - It searches for Evidence (Laws & Precedents) for EACH statement separately.
+    - It returns a consolidated fact-check report.
+
+    **Input**:
+    - The ENTIRE raw text of the problem. Do not summarize or split it yourself.
+
+    **Why use this?**:
+    - Standard search tools cannot handle complex multi-part questions effectively.
+    - Using this tool prevents hallucinations about Article numbers(조).
+
+    Args:
+        problem_text (str): The raw text of the problem.
+    """
+    # 1. LLM을 이용해 문제를 A, B, C, D 지문으로 분리 (파이썬 로직 또는 가벼운 LLM 호출)
+    statements = split_problem_into_statements_regex(problem_text)
+
+    results = []
+    for stmt in statements:
+        excluded_doc_ids = await fetch_private_ids()
+        search_res, relevant_chunks = await query_excluding_target(stmt, excluded_doc_ids)
+        results.append(f"지문: {stmt}\n관련 법령/판례: {search_res}")
+
+    return "\n\n".join(results)

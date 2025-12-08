@@ -214,8 +214,60 @@ def normalize_regex_pattern(pattern: str) -> str:
     # 예: \n(?=\d+\.) -> (?:^|\n)(?=\d+\.)
     # 설명: 단순히 \n으로 시작하면 문서 맨 첫 줄(앞에 \n 없음)을 놓치므로 (?:^|\n)으로 교체
     if clean_pat.startswith("\n") and "(?=" in clean_pat:
-        content = clean_pat[1:] # 맨 앞 \n 제거
+        content = clean_pat[1:]  # 맨 앞 \n 제거
         return f"(?:^|\n){content}"
 
     # Case 3: 그 외 일반 패턴 (\n\n, \s 등) -> 그대로 반환
     return clean_pat
+
+
+def split_problem_into_statements_regex(text: str) -> list[str]:
+    """
+    정규식을 사용하여 문제를 분할하고, 사실관계를 각 지문에 전파(Broadcasting)합니다.
+    """
+    # 1. 지문 번호 패턴 (ㄱ., ㄴ., ㄷ. 또는 1., 2. 또는 ①, ② 등)
+    # 괄호가 있거나 점이 있는 한글 자모/숫자 패턴
+    statement_marker_pattern = re.compile(
+        r"(\s[ㄱㄴㄷㄹㅁㅂㅅㅇㅊㅋㅌㅍ12345①②③④⑤][.)])"
+    )
+
+    # 2. 객관식 보기/선택지 제거 패턴 (Noise Removal)
+    # 줄바꿈(\n)이나 2칸 이상의 공백 뒤에 오는 '선택지 마커'부터 끝까지를 찾습니다.
+    # 예: " ... 한다.\n A: ㄱ, ㄴ" 또는 " ... 한다. ① ㄱ, ㄷ"
+    # Options: A., A:, ①, 1., (1) 등으로 시작하는 마지막 블록
+    options_removal_pattern = re.compile(
+        r'(\n|\r\n|\s{2,})(?:A[:.]|B[:.]|①|1\.|One\.|Option\sA).*$',
+        re.DOTALL | re.IGNORECASE
+    )
+
+    # 2. 텍스트를 패턴 기준으로 분리
+    # split을 하면 [사실관계, 지문기호1, 지문내용1, 지문기호2, 지문내용2...] 순서로 나옴
+    parts = statement_marker_pattern.split(text)
+
+    if len(parts) < 2:
+        return [text]  # 분할 실패 시 원본 반환
+
+    # 첫 번째 요소는 무조건 '사실 관계(Background Context)'임
+    background_context = parts[0].strip()
+
+    combined_queries = []
+
+    # 지문 기호와 내용을 합치면서 loop
+    # parts[1]부터는 (기호, 내용) 쌍으로 존재함
+    for i in range(1, len(parts), 2):
+        symbol = parts[i]  # 예: "ㄱ."
+        content = parts[i + 1]  # 예: "매매계약 체결 당시..."
+
+        # 내용에서 객관식 보기 제거
+        # 보통 마지막 지문에만 붙어있지만, 안전을 위해 모든 지문 검사
+        cleaned_content = options_removal_pattern.sub('', content).strip()
+
+        # 만약 지우고 났더니 내용이 너무 짧다면(오탐지 가능성), 원본 유지 (Safety check)
+        if len(cleaned_content) < 5:
+            cleaned_content = content.strip()
+
+        # [핵심] 사실관계 + 지문 병합
+        full_query = f"{background_context}\n{symbol} {cleaned_content}"
+        combined_queries.append(full_query)
+
+    return combined_queries

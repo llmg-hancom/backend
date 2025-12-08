@@ -126,6 +126,18 @@ async def fetch_target_ids(
     return target_doc_ids
 
 
+async def fetch_private_ids() -> list[int]:
+    async with get_db_session() as session:
+        statement = select(Document.document_id).where(
+            Document.document_scope == DocumentScope.private
+        )
+        results = await session.exec(statement)
+        target_doc_ids = results.all()
+    return target_doc_ids
+
+
+
+
 async def query_in_target(
     query: str, target_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
 ):
@@ -140,6 +152,19 @@ async def query_in_target(
     )
     return serialized, relevant_chunks
 
+async def query_excluding_target(
+    query: str, excluded_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
+):
+    """특정 document_id 범위 밖에서 검색"""
+    vector_store = await create_vector_store()
+    relevant_chunks = await vector_store.asimilarity_search(
+        query, k=k, filter={"document_id": {"$nin": excluded_doc_ids}}
+    )
+    serialized = "\n\n".join(
+        f"Source: {doc.metadata}\nContent: {doc.page_content}"
+        for doc in relevant_chunks
+    )
+    return serialized, relevant_chunks
 
 PRECEDENT_KEYS = [
     "사건종류명",
