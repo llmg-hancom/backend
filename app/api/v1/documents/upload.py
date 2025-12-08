@@ -85,9 +85,12 @@ async def upload_documents(
         chunk_user_document.s(doc_id=new_doc.document_id),
         embed_document_chunk.s(doc_id=new_doc.document_id),
     )
-    workflow.apply_async(link_error=handle_chain_error.s(new_doc.document_id))
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
-    await asyncio.to_thread(workflow.delay)
+    await asyncio.to_thread(
+        lambda: workflow.apply_async(
+            link_error=handle_chain_error.s(new_doc.document_id)
+        )
+    )
 
     # 7. [즉시 응답] 202 Accepted
     return UploadResponse(

@@ -64,6 +64,22 @@ class SeparatorItem(BaseModel):
         description="The rationale for choosing this separator and its specific role in the hierarchy (e.g., 'Primary splitter for distinct chapters' or 'Splits paragraphs')."
     )
 
+    @field_validator("pattern", mode="before")
+    @classmethod
+    def clean_regex_wrapper(cls, v):
+        if isinstance(v, str):
+            # 문자열 앞뒤 공백 제거
+            v = v.strip()
+            # r"..." 또는 r'...' 형태 제거
+            if v.startswith("r'") and v.endswith("'"):
+                return v[2:-1]
+            if v.startswith('r"') and v.endswith('"'):
+                return v[2:-1]
+            # '/' 래퍼 제거 (JS 스타일)
+            if v.startswith("/") and v.endswith("/"):
+                return v[1:-1]
+        return v
+
     @field_validator("pattern")
     @classmethod
     def validate_regex(cls, v):
