@@ -4,7 +4,7 @@ import uuid
 
 from celery import chain
 from fastapi import APIRouter, Depends, File, Security, UploadFile, status
-from rag.tasks import chunk_user_document
+from rag.tasks import chunk_user_document, embed_document_chunk
 from sqlalchemy.util.concurrency import asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -17,6 +17,7 @@ from models.user import User
 from schemas.document import UploadResponse
 from services.document.storage_service import storage_service
 from utils.auth import get_current_user
+from utils.tasks import handle_chain_error
 
 
 router = APIRouter(prefix="/documents")
@@ -82,7 +83,9 @@ async def upload_documents(
     workflow = chain(
         process_document.s(doc_id=new_doc.document_id),
         chunk_user_document.s(doc_id=new_doc.document_id),
+        embed_document_chunk.s(doc_id=new_doc.document_id),
     )
+    workflow.apply_async(link_error=handle_chain_error.s(new_doc.document_id))
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
     await asyncio.to_thread(workflow.delay)
 
