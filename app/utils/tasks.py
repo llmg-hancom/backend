@@ -24,8 +24,8 @@ def handle_chain_error(request_id, exc, traceback, doc_id):
             if doc:
                 if doc.status != DocumentStatus.ready:
                     doc.status = DocumentStatus.error
-                    logger.info(f"[WORKER] 문서 {doc_id} 상태를 ERROR로 변경함.")
+                    logger.info(f"[CHAIN_ERROR] 문서 {doc_id} 상태를 ERROR로 변경함.")
                 else:
-                    logger.info(f"[WORKER] 문서 {doc_id}는 이미 ready 상태임")
+                    logger.info(f"[CHAIN_ERROR] 문서 {doc_id}는 이미 ready 상태임")
     except Exception as db_e:
         logger.critical(f"에러 상태 업데이트 실패: {db_e}")

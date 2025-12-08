@@ -2,9 +2,11 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security, status
-from sqlmodel import Session
+from sqlalchemy import delete
+from sqlmodel import Session, col
 
 from db.session import get_db
+from models import ChatSpaceDocument
 from models.document import Document
 from utils.documents import require_document_owner
 
@@ -47,10 +49,16 @@ router = APIRouter()
 )
 def delete_documents(
     doc: Annotated[Document, Security(require_document_owner)],
-    session: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> None:
     """
     Document 객체의 deleted_at 속성을 현재 시간으로 추가합니다.
     """
+    # 챗스페이스와의 연결은 즉시 제거
+    db.exec(
+        delete(ChatSpaceDocument).where(
+            col(ChatSpaceDocument.document_id) == doc.document_id
+        )
+    )
     doc.deleted_at = datetime.now(tz=timezone.utc)
-    session.flush()
+    db.add(doc)

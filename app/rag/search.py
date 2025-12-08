@@ -33,22 +33,22 @@ async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVecto
     return vector_store
 
 
-class LawCategory(StrEnum):
-    CIVIL = "민법(법률)"
-    CIVIL_PROCEDURE = "민사소송법(법률)"
-    CRIMINAL = "형법(법률)"
-    CRIMINAL_PROCEDURE = "형사소송법(법률)"
-    LABOR = "근로기준법(법률)"
-    MINIMAL_WAGE = "최저임금법(법률)"
-    PERSONAL_INFORMATION = "개인정보 보호법(법률)"
-    OCCUPATIONAL_SAFETY = "산업안전보건법(법률)"
-    FRAMEWORK_ACT = "행정기본법(법률)"
-    FRAMEWORK_PROCEDURE = "행정소송법(법률)"
-    ADMINISTRATIVE_APPEALS = "행정심판법(법률)"
-    CONSTITUTIONAL_COURT = "헌법재판소법(법률)"
-    PENSION = "국민연금법(법률)"
-    HEALTH_INSURANCE = "국민건강보험법(법률)"
-    FAMILY = "가족관계의 등록 등에 관한 법률(법률)"
+class LawName(StrEnum):
+    CIVIL = "민법"
+    CIVIL_PROCEDURE = "민사소송법"
+    CRIMINAL = "형법"
+    CRIMINAL_PROCEDURE = "형사소송법"
+    LABOR = "근로기준법"
+    MINIMUM_WAGE = "최저임금법"
+    PERSONAL_INFORMATION = "개인정보 보호법"
+    OCCUPATIONAL_SAFETY = "산업안전보건법"
+    FRAMEWORK_ACT = "행정기본법"
+    ADMIN_LITIGATION = "행정소송법"
+    ADMIN_APPEALS = "행정심판법"
+    CONSTITUTIONAL_COURT = "헌법재판소법"
+    PENSION = "국민연금법"
+    HEALTH_INSURANCE = "국민건강보험법"
+    FAMILY = "가족관계의 등록 등에 관한 법률"
 
 
 # 판례 검색을 위한 필터
@@ -179,7 +179,7 @@ async def query_in_precedent(
 
 
 async def find_law_by_article(
-    law_type: LawCategory, article: int
+    law_type: LawName, article: int
 ) -> tuple[str, list[LCDocument]]:
     """법령을 법령명과 조 번호로 검색."""
     relevant_chunks = []

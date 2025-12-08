@@ -1,4 +1,4 @@
-from sqlmodel import select
+from sqlmodel import select, col
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from errors.general import IllegalStateError
@@ -15,10 +15,10 @@ async def get_users_documents(
     query = (
         select(Document)
         .where(Document.uploaded_by_user_id == user.user_id)
-        .where(Document.deleted_at is not None)
+        .where(col(Document.deleted_at).is_(None))
         .offset(offset)
         .limit(limit)
     )
 
     data = (await session.exec(query)).all()
-    return [d for d in data]
+    return list(data)

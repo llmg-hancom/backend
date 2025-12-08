@@ -3,12 +3,14 @@ from typing import Annotated, Literal, Self
 
 from fastapi import Depends, Security
 from pydantic import PositiveInt
+from sqlalchemy import update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload
 from sqlmodel import col, delete, exists, literal, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
+from errors.chat import ForbiddenChatSessionAccessError
 from errors.document import ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
@@ -190,7 +192,14 @@ class ChatService:
         if space.owner_user_id != self.actor.user_id:
             raise ForbiddenSpaceAccessError()
 
+        # 챗스페이스에 속한 세션도 soft delete 설정
+        await self.db.exec(
+            update(ChatSession)
+            .where(col(ChatSession.space_id) == space.space_id)
+            .values(deleted_at=datetime.now(tz=timezone.utc))
+        )
         space.deleted_at = datetime.now(tz=timezone.utc)
+        self.db.add(space)
 
     async def get_chat_space_documents(
         self, space_id: int, offset: int, limit: int
@@ -350,7 +359,7 @@ class ChatService:
 
         # actor의 session인지 확인
         if self.actor.user_id != session.user_id:
-            raise
+            raise ForbiddenChatSessionAccessError()
 
         session.title = title
         self.db.add(session)

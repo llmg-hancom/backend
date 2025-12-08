@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import time
+from typing import Any
 
 from celery.utils.log import get_task_logger
 from langchain.messages import HumanMessage, SystemMessage
@@ -12,13 +13,17 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field, field_validator
 
 from core.config import settings
+from models import Document, DocumentChunk
+from models.document import DocumentStatus
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
 from rag.cleaning import (
     normalize_regex_pattern,
 )
-from sqlmodel import Session
+from sqlmodel import Session, select
+
+from rag.model import embeddings
 from workers.celery_app import celery_app
 from workers.tasks import cleanup_temp_dir, download_from_s3, upload_tmp_s3
 
@@ -49,9 +54,8 @@ llm = ChatOllama(
 # 임시 파일 저장 경로
 DOWNLOAD_DIR = Path("/tmp/hwp-tasks")
 
+
 # LLM 문서 구조 분석을 위한 structured output
-
-
 class SeparatorItem(BaseModel):
     pattern: str = Field(
         description="A raw Python regular expression string compatible with the `re` module. Do NOT enclose in forward slashes (`/`). Ensure backslashes are properly escaped (e.g., '\\n\\n', '(?<=\\.)\\s')."
@@ -59,6 +63,22 @@ class SeparatorItem(BaseModel):
     description: str = Field(
         description="The rationale for choosing this separator and its specific role in the hierarchy (e.g., 'Primary splitter for distinct chapters' or 'Splits paragraphs')."
     )
+
+    @field_validator("pattern", mode="before")
+    @classmethod
+    def clean_regex_wrapper(cls, v):
+        if isinstance(v, str):
+            # 문자열 앞뒤 공백 제거
+            v = v.strip()
+            # r"..." 또는 r'...' 형태 제거
+            if v.startswith("r'") and v.endswith("'"):
+                return v[2:-1]
+            if v.startswith('r"') and v.endswith('"'):
+                return v[2:-1]
+            # '/' 래퍼 제거 (JS 스타일)
+            if v.startswith("/") and v.endswith("/"):
+                return v[1:-1]
+        return v
 
     @field_validator("pattern")
     @classmethod
@@ -103,7 +123,7 @@ class DocumentAnalysis(BaseModel):
 def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
     logger.info(f"[TASK_START] 문서 청킹 시작: (doc_id: {doc_id})")
     # 임시 디렉토리 생성
-    file_dir = DOWNLOAD_DIR / f"{doc_id}_{time.time()}"
+    file_dir = DOWNLOAD_DIR / "chunk" / f"{doc_id}_{time.time()}"
     file_dir.mkdir(parents=True)
     try:
         local_path = download_from_s3(s3_path, file_dir)
@@ -180,7 +200,7 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
             exclude={"suggested_separators", "is_structured"}
         )
 
-        chunks: list[dict] = []
+        chunks: list[dict[str, Any]] = []
         for chunk in raw_chunks:
             if "__PROTECTED_TABLE_" in chunk.page_content:
                 for i, table_content in enumerate(tables):
@@ -207,3 +227,55 @@ def chunk_user_document(self, s3_path: str, doc_id: int) -> str:
         raise e
     finally:
         cleanup_temp_dir(file_dir)
+
+
+@celery_app.task(name="embed-document-chunk-task", bind=True, max_retries=3)
+def embed_document_chunk(self, s3_path: str, doc_id: int) -> dict[str, Any]:
+    logger.info(f"[TASK_START] 문서 청크 임베딩 및 DB 삽입 시작: (doc_id: {doc_id})")
+    # 임시 디렉토리 생성
+    file_dir = DOWNLOAD_DIR / "embed" / f"{doc_id}_{time.time()}"
+    file_dir.mkdir(parents=True)
+    uploaded_chunks_count = 0
+    status = "success"
+    try:
+        local_path = download_from_s3(s3_path, file_dir)
+        with open(local_path, "r", encoding="utf-8") as f:
+            chunks: list[dict[str, Any]] = json.load(f)
+        logger.info(f"[EMBED] 총 {len(chunks)}개 청크 로드 완료.")
+        chunk_contents: list[str] = [chunk["page_content"] for chunk in chunks]
+        if not chunk_contents:
+            raise FileNotFoundError
+        vectors: list[list[float]] = embeddings.embed_documents(chunk_contents)
+        with get_db_session() as session:
+            document = session.exec(
+                select(Document).where(Document.document_id == doc_id)
+            ).one_or_none()
+            if document is None:
+                logger.error(f"[EMBED] 문서를 찾을 수 없습니다: (doc_id: {doc_id})")
+                raise
+            for i, chunk_data in enumerate(chunks):
+                chunk_obj = DocumentChunk(
+                    document_id=doc_id,
+                    content=chunk_data["page_content"],
+                    embeddings=vectors[i],
+                    meta=chunk_data["metadata"],
+                )
+                session.add(chunk_obj)
+                uploaded_chunks_count += 1
+            document.status = DocumentStatus.ready
+
+        logger.info(
+            f"[TASK_SUCCESS] 문서 {doc_id} 처리 완료. {uploaded_chunks_count}개 청크 삽입됨."
+        )
+
+    except FileNotFoundError as e:
+        raise self.retry(exc=e, countdown=2)
+    except Exception as e:
+        logger.error(
+            f"[TASK_FAILED] 문서 청크 임베딩 및 DB 삽입 실패: (doc_id: {doc_id}) - {e}"
+        )
+        status = "failed"
+        raise e
+    finally:
+        cleanup_temp_dir(file_dir)
+        return {"doc_id":doc_id, "chunks":uploaded_chunks_count, "status": status}

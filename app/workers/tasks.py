@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from datetime import timezone, datetime, timedelta
 from pathlib import Path
 import shutil
 import time
@@ -6,6 +7,9 @@ from typing import Literal
 import uuid
 
 from celery.utils.log import get_task_logger
+from sqlalchemy import delete
+
+from models import Group, ChatSpace, ChatSession, RefreshToken
 
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
@@ -14,7 +18,7 @@ from rag.cleaning import (
     clean_rag_text,
     process_html_with_tables,
 )
-from sqlmodel import Session
+from sqlmodel import Session, col, or_
 from workers.celery_app import celery_app
 
 from db.session import engine
@@ -188,3 +192,41 @@ def process_document(self, doc_id: int) -> str:
         raise e
     finally:
         cleanup_temp_dir(file_dir)
+
+
+DATA_DELETE_DAYS = 7
+
+
+@celery_app.task(name="hard-delete-task")
+def hard_delete_task():
+    """
+    Soft Delete 된 데이터를 Hard Delete 하는 작업
+    """
+    logger.info("[TASK_START] Hard Delete 시작")
+    now = datetime.now(timezone.utc)
+    try:
+        with get_db_session() as db:
+            # 영구 삭제할 모델 리스트
+            models_to_delete = [Group, ChatSpace, ChatSession, Document]
+
+            for model in models_to_delete:
+                # Soft Delete 후 기준일이 지난 데이터 Hard Delete
+                stmt = delete(model).where(
+                    col(model.deleted_at) <= now - timedelta(days=DATA_DELETE_DAYS)
+                )
+                db.exec(stmt)
+                db.flush()
+                logger.info(f"Hard Delete 중...: {model.__tablename__}")
+            # 만료된 refresh token 삭제
+            stmt = delete(RefreshToken).where(
+                or_(
+                    RefreshToken.is_revoked,
+                    col(RefreshToken.expires_at) <= now,
+                )
+            )
+            db.exec(stmt)
+            logger.info("Hard Delete 중...: refresh_token")
+            logger.info("[TASK_SUCCESS] Hard Delete 완료")
+    except Exception as e:
+        logger.error(f"[TASK_FAILED] Hard Delete 실패 - {e}")
+        raise e
