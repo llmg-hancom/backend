@@ -46,8 +46,8 @@ try:
 except IndexError:
     BASE_DIR = Path(__file__).resolve().parent
 
-JSON_FILE_PATH = BASE_DIR / "test" / "DATA" / "src" / "downloaded_data" / "Precedent_Data" / "prec_details.json"
-CONTENT_COLUMN = "전문"
+JSON_FILE_PATH = BASE_DIR / "test" / "pipeline" / "src" / "downloaded_data" / "Precedent_Data" / "prec_details.json"
+CONTENT_COLUMN = "판결요지"
 METADATA_COLUMN = ["판례정보일련번호", "사건번호", "법원명", "사건명", "선고일자"]
 
 if not os.getenv("OPENAI_API_KEY"):
@@ -57,30 +57,24 @@ if not os.getenv("OPENAI_API_KEY"):
 OLLAMA_EMBEDDINGS = OllamaEmbeddings(model=OLLAMA_EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
 OPENAI_GENERATOR = ChatOpenAI(model=GENERATOR_LLM_MODEL, temperature=0.1)
 OPENAI_CRITIC = ChatOpenAI(model=CRITIC_LLM_MODEL, temperature=0.1)
-OLLAMA_RAG_LLM = Ollama(model=OLLAMA_RAG_MODEL, base_url=OLLAMA_BASE_URL, temperature=0)
-
-
+# OLLAMA_RAG_LLM = Ollama(model=OLLAMA_RAG_MODEL, base_url=OLLAMA_BASE_URL, temperature=0)
 # --- 2. 데이터 로드 함수 (JSON 파일 로드) ---
 
 def load_documents_from_json(file_path: Path, content_col, meta_cols):
-    """JSON 파일을 로드하여 LangChain Document 리스트로 변환합니다."""
     
     if not file_path.exists():
         print(f"오류: JSON 파일 '{file_path}'를 찾을 수 없습니다.")
         return []
     
     documents = []
-    
+    print(f'파일경로 {file_path}')
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             
         if not isinstance(data, list):
-            if isinstance(data, dict) and 'cases' in data:
-                data = data['cases']
-            else:
-                print("오류: JSON 파일의 최상위 구조가 예상한 리스트 형태가 아닙니다.")
-                return []
+            print("오류: JSON 파일의 최상위 구조가 예상한 리스트 형태가 아닙니다.")
+            return []
 
         for idx, item in enumerate(data):
             if not isinstance(item, dict): continue
@@ -117,28 +111,24 @@ def create_synthetic_testset(docs):
 
     # 💡 V0.2.X: Generator 초기화 (Docstore 대신 Retriever를 사용하게 됩니다.)
     # V0.2.X에서는 LangchainLLMWrapper, LangchainEmbeddingsWrapper 등의 Wrapper가 필요하지 않습니다.
-    generator = TestsetGenerator(
-        generator_llm=OPENAI_GENERATOR, 
-        critic_llm=OPENAI_CRITIC, 
-        embeddings=OLLAMA_EMBEDDINGS, # Ollama 임베딩 직접 전달
-    )
+    generator = TestsetGenerator(llm=OPENAI_GENERATOR,
+                                 embedding_model=OLLAMA_EMBEDDINGS)
 
-    # 💡 V0.2.X: 질문 진화 유형을 generation_config 딕셔너리로 정의
-    generation_config = {
-        "simple": TEST_SIZE * 0.5, 
-        "reasoning": TEST_SIZE * 0.3, 
-        "multi_context": TEST_SIZE * 0.2
-    }
+    
     
     # 💡 V0.2.X: generate() 메서드 사용 및 텍스트 분할기 전달
+    distributions = {
+        'simple': 0.5,
+        'reasoning': 0.3,
+        'multi_context': 0.2
+    }
     try:
-        testset = generator.generate(
-            documents=docs, # 문서 목록
-            test_size=TEST_SIZE, # 생성할 질문 수
-            generation_config=generation_config, # 진화 유형 설정
-            chunk_size=1000, # V0.2.X는 generate() 인자로 청크 크기 설정
-            chunk_overlap=100, 
-        )
+        testset = generator.generate_with_langchain_docs(
+        documents=docs,
+        testset_size=TEST_SIZE,
+        query_distribution=distributions
+        # 💡 V0.2.X: LLM과 임베딩 모델을 generate 호출 시 전달합니다.    
+    )
         
         print(f"✅ 테스트셋 생성 완료. 총 {len(testset.to_pandas())}개 질문 생성.")
         return testset.to_pandas()
@@ -150,77 +140,77 @@ def create_synthetic_testset(docs):
 
 # --- 4. RAG 파이프라인 구축 및 평가 실행 (이전과 동일) ---
 
-def evaluate_rag_pipeline(test_df):
-    """
-    Ollama 기반 RAG 파이프라인을 구축하고 생성된 테스트셋으로 평가를 실행합니다.
-    """
-    if test_df.empty:
-        print("평가를 위한 테스트셋이 없습니다. 종료합니다.")
-        return
+# def evaluate_rag_pipeline(test_df):
+#     """
+#     Ollama 기반 RAG 파이프라인을 구축하고 생성된 테스트셋으로 평가를 실행합니다.
+#     """
+#     if test_df.empty:
+#         print("평가를 위한 테스트셋이 없습니다. 종료합니다.")
+#         return
         
-    print("\n=== 4. RAG 파이프라인 구축 및 평가 시작 ===")
+#     print("\n=== 4. RAG 파이프라인 구축 및 평가 시작 ===")
 
-    test_dataset = Dataset.from_pandas(test_df)
+#     test_dataset = Dataset.from_pandas(test_df)
     
-    def convert_contexts_field(example):
-        try:
-            # ast.literal_eval을 사용하려면 'contexts'가 문자열이어야 합니다.
-            # V0.2.X 생성 결과는 이미 리스트일 수 있으므로 안전하게 처리
-            contexts = example["contexts"]
-            if isinstance(contexts, str):
-                contexts = ast.literal_eval(contexts)
-            return {"contexts": contexts}
-        except Exception:
-            return example
+#     def convert_contexts_field(example):
+#         try:
+#             # ast.literal_eval을 사용하려면 'contexts'가 문자열이어야 합니다.
+#             # V0.2.X 생성 결과는 이미 리스트일 수 있으므로 안전하게 처리
+#             contexts = example["contexts"]
+#             if isinstance(contexts, str):
+#                 contexts = ast.literal_eval(contexts)
+#             return {"contexts": contexts}
+#         except Exception:
+#             return example
 
-    test_dataset = test_dataset.map(convert_contexts_field)
+#     test_dataset = test_dataset.map(convert_contexts_field)
     
-    # RAG 파이프라인 구축
-    rag_embeddings = OLLAMA_EMBEDDINGS # 전역 Ollama 임베딩 사용
+#     # RAG 파이프라인 구축
+#     rag_embeddings = OLLAMA_EMBEDDINGS # 전역 Ollama 임베딩 사용
     
-    documents_for_faiss = [Document(page_content=c) for contexts in test_dataset["contexts"] for c in contexts]
-    if not documents_for_faiss:
-        print("문서 청크를 가져올 수 없어 FAISS 구축 불가.")
-        return
+#     documents_for_faiss = [Document(page_content=c) for contexts in test_dataset["contexts"] for c in contexts]
+#     if not documents_for_faiss:
+#         print("문서 청크를 가져올 수 없어 FAISS 구축 불가.")
+#         return
         
-    vectorstore = FAISS.from_documents(documents_for_faiss, rag_embeddings)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+#     vectorstore = FAISS.from_documents(documents_for_faiss, rag_embeddings)
+#     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-    rag_prompt = PromptTemplate.from_template(
-        """You are an assistant for question-answering tasks. Use the following retrieved context to answer the question in Korean.
-        If you don't know the answer, just say that you don't know.
-        CONTEXT: {context}
-        QUESTION: {question}
-        ANSWER:"""
-    )
+#     rag_prompt = PromptTemplate.from_template(
+#         """You are an assistant for question-answering tasks. Use the following retrieved context to answer the question in Korean.
+#         If you don't know the answer, just say that you don't know.
+#         CONTEXT: {context}
+#         QUESTION: {question}
+#         ANSWER:"""
+#     )
 
-    rag_chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
-        | rag_prompt
-        | OLLAMA_RAG_LLM # 전역 Ollama LLM 사용
-        | StrOutputParser()
-    )
+#     rag_chain = (
+#         {"context": retriever, "question": RunnablePassthrough()}
+#         | rag_prompt
+#         | OLLAMA_RAG_LLM # 전역 Ollama LLM 사용
+#         | StrOutputParser()
+#     )
 
-    print("Ollama RAG Chain을 사용하여 답변을 생성 중...")
-    answers = rag_chain.batch(test_dataset["question"])
+#     print("Ollama RAG Chain을 사용하여 답변을 생성 중...")
+#     answers = rag_chain.batch(test_dataset["question"])
     
-    if "answer" in test_dataset.column_names:
-         test_dataset = test_dataset.remove_columns(["answer"])
-    test_dataset = test_dataset.add_column("answer", answers)
+#     if "answer" in test_dataset.column_names:
+#          test_dataset = test_dataset.remove_columns(["answer"])
+#     test_dataset = test_dataset.add_column("answer", answers)
     
-    print("✅ 답변 생성 완료 및 데이터셋 업데이트 완료.")
+#     print("✅ 답변 생성 완료 및 데이터셋 업데이트 완료.")
 
-    # RAGAS 평가 실행
-    print("\n=== 5. RAGAS 평가 실행 중 ===")
+#     # RAGAS 평가 실행
+#     print("\n=== 5. RAGAS 평가 실행 중 ===")
     
-    result = evaluate(
-        dataset=test_dataset,
-        metrics=[context_precision, faithfulness, answer_relevancy, context_recall],
-    )
+#     result = evaluate(
+#         dataset=test_dataset,
+#         metrics=[context_precision, faithfulness, answer_relevancy, context_recall],
+#     )
 
-    print("\n\n=== RAGAS 평가 최종 결과 ===")
-    print(result)
-    print("✅ RAGAS 평가 워크플로우 성공적으로 완료.")
+#     print("\n\n=== RAGAS 평가 최종 결과 ===")
+#     print(result)
+#     print("✅ RAGAS 평가 워크플로우 성공적으로 완료.")
 
 
 # --- 5. 메인 실행 블록 ---
@@ -234,4 +224,4 @@ if __name__ == "__main__":
     test_df = create_synthetic_testset(docs)
 
     # 3. RAG 파이프라인 구축 및 평가 실행
-    evaluate_rag_pipeline(test_df)
+    # evaluate_rag_pipeline(test_df)

@@ -27,4 +27,3 @@ class AdministrativeAppealDownloader(BaseDownloader):
     def request_detail_and_save(self, list_file_path: str) -> str | None:
        return super().request_detail_and_save(list_file_path)
 
-#  응답 구조만 조금 다르게 하면 base_downloader 클래스로 합칠 수 있을 듯 ?????
