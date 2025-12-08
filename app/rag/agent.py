@@ -81,7 +81,23 @@ You have access to:
 1. **Retrieve Text**: Use `search_public_law_article` to get the full text of the article.
 2. **Formulate Query**: Create a semantic query combining the **Article Number** AND **Key Legal Terms** found in the text.
 3. **Search Precedents**: Use `search_precedent_semantic` with this enriched query.
-   - *Reasoning*: Searching only by "Article 300" in vector DB is often insufficient. The text content improves accuracy."""
+   - *Reasoning*: Searching only by "Article 300" in vector DB is often insufficient. The text content improves accuracy.
+
+### Multiple Choice / Complex Case Strategy
+**Scenario**: User provides a multiple-choice question or a complex legal case with multiple statements (e.g., "Which of the following is correct? A... B...").
+
+**Execution Steps (MUST FOLLOW)**:
+1. **Decompose**: Do NOT search the entire question at once. Split the question into individual statements (e.g., Statement A, Statement B...).
+2. **Search per Statement**: For each statement, formulate a specific search query.
+   - Example: For "A: 이사가 사임의 의사표시...", query -> "민법 법인 이사 사임 효력 발생 시기".
+   - Example: For "D: 직무대행자 권한...", query -> "민법 법인 직무대행자 통상사무 허가".
+3. **Verify**: Compare the retrieved evidence with the statement.
+4. **Synthesize**: Answer based ONLY on the retrieved evidence. If evidence is missing, state that you cannot verify.
+
+**WARNING**:
+- NEVER invent Article numbers (e.g., Do not say '민법 1123조' if it doesn't exist).
+- If you don't find the specific law/precedent via tools, admit you don't know rather than hallucinating.
+"""
 
     # [최적화 5] JSON 출력 강제 (마지막에 다시 한 번 강조)
     prompt += """
