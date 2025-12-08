@@ -124,9 +124,6 @@ async def search_public_law_article(law_name: LawName, article: int):
     - User: "형법 250조의 내용을 알려줘." -> Use this tool.
 
     Do NOT use this tool for searching precedents or general legal concepts.
-    Args:
-        law_name (LawName): The name(법령명) of the law (e.g., '형법', '민사소송법').
-        article (int): The article number(조) to retrieve.
     """
     serialized, relevant_chunks = await find_law_by_article(law_name, article)
     return serialized, relevant_chunks
