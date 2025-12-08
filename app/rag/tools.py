@@ -235,7 +235,7 @@ async def analyze_legal_problem(problem_text: str):
     results = []
     for stmt in statements:
         excluded_doc_ids = await fetch_private_ids()
-        search_res, relevant_chunks = await query_excluding_target(stmt, excluded_doc_ids)
+        search_res, relevant_chunks = await query_excluding_target(stmt, excluded_doc_ids, k=2)
         results.append(f"지문: {stmt}\n관련 법령/판례: {search_res}")
 
     return "\n\n".join(results)

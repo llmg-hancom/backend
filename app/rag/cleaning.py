@@ -228,7 +228,7 @@ def split_problem_into_statements_regex(text: str) -> list[str]:
     # 1. 지문 번호 패턴 (ㄱ., ㄴ., ㄷ. 또는 1., 2. 또는 ①, ② 등)
     # 괄호가 있거나 점이 있는 한글 자모/숫자 패턴
     statement_marker_pattern = re.compile(
-        r"(\s[ㄱㄴㄷㄹㅁㅂㅅㅇㅊㅋㅌㅍ12345①②③④⑤][.)])"
+        r"(\s(?:ㄱ|ㄴ|ㄷ|ㄹ|ㅁ|ㅂ|ㅅ|ㅇ|1|2|3|4|5|①|②|③|④|⑤|[A-Ea-e])[.):])"
     )
 
     # 2. 객관식 보기/선택지 제거 패턴 (Noise Removal)
@@ -236,8 +236,8 @@ def split_problem_into_statements_regex(text: str) -> list[str]:
     # 예: " ... 한다.\n A: ㄱ, ㄴ" 또는 " ... 한다. ① ㄱ, ㄷ"
     # Options: A., A:, ①, 1., (1) 등으로 시작하는 마지막 블록
     options_removal_pattern = re.compile(
-        r'(\n|\r\n|\s{2,})(?:A[:.]|B[:.]|①|1\.|One\.|Option\sA).*$',
-        re.DOTALL | re.IGNORECASE
+        r"(\n|\r\n|\s{2,})(?:정답|선택지|보기)?\s*(?:[①-⑤]|1\.|One\.|Option\sA).*$",
+        re.DOTALL | re.IGNORECASE,
     )
 
     # 2. 텍스트를 패턴 기준으로 분리
@@ -260,7 +260,7 @@ def split_problem_into_statements_regex(text: str) -> list[str]:
 
         # 내용에서 객관식 보기 제거
         # 보통 마지막 지문에만 붙어있지만, 안전을 위해 모든 지문 검사
-        cleaned_content = options_removal_pattern.sub('', content).strip()
+        cleaned_content = options_removal_pattern.sub("", content).strip()
 
         # 만약 지우고 났더니 내용이 너무 짧다면(오탐지 가능성), 원본 유지 (Safety check)
         if len(cleaned_content) < 5:
