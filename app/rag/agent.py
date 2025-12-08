@@ -30,27 +30,30 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         tools.append(search_public_law_semantic)
         tools.append(search_public_law_article)
         prompt += (
-            "\nYou can search for Korean public law using 'search_public_law_semantic'."
-            "and 'search_public_law_article'."
-            "Always use 'search_public_law_semantic' for semantic search."
-            "Always use 'search_public_law_article' when searching by '법령명' and '조'."
-            "Keep in mind that using article number(조) for querying in semantic search will not produce any meaningful result."
+            "\n[Law Search Rules]"
+            "\n1. First, analyze if the user provided a specific 'Law Name'(법령명) and 'Article Number'(조) (e.g., 형법 제250조)."
+            "\n2. IF specific article is present: YOU MUST use 'search_public_law_article'."
+            "\n   - DO NOT use 'search_public_law_semantic' in this case."
+            "\n3. IF NO specific article is present (concept search): Use 'search_public_law_semantic'."
         )
     if include_precedent:
         tools.append(search_precedent_semantic)
         tools.append(search_precedent_by_case_number)
         prompt += (
-            "\nYou can search for Korean precedents using 'search_precedent_semantic'"
-            "and 'search_precedent_by_case_number'."
-            "Always use 'search_precedent_semantic' for semantic search."
-            "Always use 'search_precedent_by_case_number' when searching by '사건번호'."
-            "Keep in mind that using case number(사건번호) for querying in semantic search will not produce any meaningful result."
+            "\n[Precedent Search Rules]"
+            "\n1. First, analyze if the user provided a specific 'Case Number'(사건번호) (e.g., 2016헌마723)."
+            "\n2. IF specific case number is present: YOU MUST use 'search_precedent_by_case_number'."
+            "\n   - DO NOT use 'search_precedent_semantic' in this case."
+            "\n3. IF NO specific Case Number is present (concept search): Use 'search_precedent_semantic'."
         )
     if include_law and include_precedent:
         prompt += (
-            "If the user asks for precedents related to a certain law, "
-            "search for public law first to get information and then query for precedents using"
-            "the information obtained."
+            "\n[Search Strategy for Precedents based on Law Articles]"
+            "\n1. IF the user asks for precedents related to a specific law article(조) (e.g., '민소법 300조 관련 판례'),"
+            "\n   DO NOT search for precedents immediately."
+            "\n2. STEP 1: First, use 'search_public_law_article' to retrieve the full TEXT and meaning of that article."
+            "\n3. STEP 2: Then, formulate a rich semantic query using both the article number AND its content/keywords obtained from STEP 1."
+            "\n4. STEP 3: Use 'search_precedent_semantic' with this enriched query."
         )
     prompt += "\nBe concise and accurate."
     agent = create_agent(

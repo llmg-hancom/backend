@@ -112,12 +112,18 @@ class SearchLawInput(BaseModel):
     response_format="content_and_artifact",
     args_schema=SearchLawInput,
 )
-async def search_public_law_article(category: LawName, article: int):
+async def search_public_law_article(law_name: LawName, article: int):
     """
-    This tool is designed for RAG in LLMs,
-    specifically for searching for Korean public laws by its category and article.
+    Retrieves the exact TEXT of a specific law article.
+    Use this tool ONLY when you have the specific 'Law Name'(법령명) AND 'Article Number'(조).
+
+    Examples:
+    - User: "민법 5조가 뭐야?" -> Use this tool.
+    - User: "형법 250조의 내용을 알려줘." -> Use this tool.
+
+    Do NOT use this tool for searching precedents or general legal concepts.
     """
-    serialized, relevant_chunks = await find_law_by_article(category, article)
+    serialized, relevant_chunks = await find_law_by_article(law_name, article)
     return serialized, relevant_chunks
 
 
@@ -126,8 +132,12 @@ async def search_precedent_semantic(
     query: str, start_date: date | None = None, end_date: date | None = None
 ):
     """
-    This tool is designed for RAG in LLMs,
-    specifically for semantic search for Korean precedents.
+    Searches for legal precedents (court rulings) based on semantic meaning.
+    Use this tool for searching legal concepts, definitions, or precedents related to specific laws.
+    ⚠️ CRITICAL INSTRUCTION:
+    1. If the user provides a specific 'Case Number' (e.g., '2025도903'), DO NOT use this tool. Use 'search_precedent_by_case_number' instead.
+    2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
+    3. HOWEVER, if the user asks for "Precedents related to Civil Act Art 5", YOU MUST use this , after searching for law article.
 
     Args:
         query (str): The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here.
@@ -144,12 +154,16 @@ async def search_precedent_semantic(
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     """
-    This tool is designed for RAG in LLMs,
-    specifically for searching Korean precedents by its case number(사건번호).
+    Searches for precedents within specific 'Case Numbers'(사건번호).
+    Use this tool ONLY when the user provides exact case numbers (e.g., '2025도903').
+
+    ⚠️ CRITICAL INSTRUCTION:
+    The 'query' parameter must NOT contain the case number itself. It should be the topic to search *inside* that case.
+    If there is no specific topic, use a general summary query like "Summary of the case".
 
     Args:
-        query (str): The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here.
-        case_numbers (list[str]): The case numbers (사건번호) to filter precedents by. (e.g. 2025도903,  )
+        query (str): The semantic query to run INSIDE the specified case document (e.g., "What was the sentence?", "Summary").
+        case_numbers (list[str]): List of exact case numbers to filter by. (e.g., ["2025도903", "2024가합123"])
 
     """
     # 사건번호에 공백이 있는 경우 모두 제거
@@ -163,17 +177,22 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     """
-    This tool is designed for RAG in LLMs,
-    specifically for searching private document chunks.
+    Searches for information within the USER UPLOADED private documents.
+    Use this tool when the user asks about their own files, contracts, or specific documents they provided.
+
+    ⚠️ CRITICAL INSTRUCTION:
+    1. If the user query contains a specific case number (e.g., '2001나60578'), DO NOT use this tool. Use 'search_precedent_by_case_number'.
+    2. Do not use this for general legal knowledge or public laws unless the user specifically asks about their file's content regarding it.
 
     Args:
         query (str): The search query for private documents.
     """
     relevant_chunks = []
-    serialized = ""
     target_doc_ids = await fetch_target_ids(
         DocumentScope.private, runtime.context.space_id
     )
     if target_doc_ids:
         serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
+    else:
+        serialized = "Empty: There is no document attached to the chat session. DO NOT call this tool again."
     return serialized, relevant_chunks
