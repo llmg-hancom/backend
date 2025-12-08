@@ -55,7 +55,13 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             "\n3. STEP 2: Then, formulate a rich semantic query using both the article number AND its content/keywords obtained from STEP 1."
             "\n4. STEP 3: Use 'search_precedent_semantic' with this enriched query."
         )
-    prompt += "\nBe concise and accurate."
+    prompt += (
+        "\nBe concise and accurate."
+        "\n[IMPORTANT]"
+        "\nWhen you need to use a tool, output ONLY the raw JSON for the tool call."
+        "Do not output any reasoning, thoughts, or explanations before or after the JSON."
+        "Just the JSON."
+    )
     agent = create_agent(
         model=llm,
         tools=tools,
