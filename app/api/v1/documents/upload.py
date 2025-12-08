@@ -58,7 +58,11 @@ async def upload_documents(
     ).first()
 
     if existing_doc:
-        raise DuplicateFilesError()
+        if existing_doc.deleted_at:
+            await db.delete(existing_doc)
+            await db.flush()
+        else:
+            raise DuplicateFilesError()
 
     # 4. [document 업로드] 고유한 document 경로 생성 및 업로드
     # 경로: private/user_{id}/{uuid}/{filename}
