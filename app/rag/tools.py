@@ -21,9 +21,11 @@ class Context(BaseModel):
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_public_law_semantic(query: str):
     """
-    This tool is designed for RAG in LLMs,
-    specifically for semantic search for Korean public laws.
-
+    Searches for public based on semantic meaning.
+    Use this tool for searching legal concepts, definitions related to specific laws.
+    ⚠️ CRITICAL INSTRUCTION:
+    1. If the user provides a specific 'Law Name'(법령명) and 'Article Number'(조), DO NOT use this tool. Use 'search_public_law_article' instead.
+    2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
     Args:
         query (str): The search query for public laws.
 
@@ -80,10 +82,10 @@ LAW_ALIAS_MAP = {
 
 
 class SearchLawInput(BaseModel):
-    category: str = Field(description="The category of the law(법령명) to search for.")
+    law_name: str = Field(description="The name of the law(법령명) to search for.")
     article: int = Field(description="The article number(조) of the law to search for.")
 
-    @field_validator("category")
+    @field_validator("law_name")
     @classmethod
     def normalize_law_name(cls, v: str) -> str:
         # 입력값 정규화: 공백 제거 및 '(법률)' 제거
@@ -122,6 +124,9 @@ async def search_public_law_article(law_name: LawName, article: int):
     - User: "형법 250조의 내용을 알려줘." -> Use this tool.
 
     Do NOT use this tool for searching precedents or general legal concepts.
+    Args:
+        law_name (LawName): The name(법령명) of the law (e.g., '형법', '민사소송법').
+        article (int): The article number(조) to retrieve.
     """
     serialized, relevant_chunks = await find_law_by_article(law_name, article)
     return serialized, relevant_chunks
@@ -137,7 +142,7 @@ async def search_precedent_semantic(
     ⚠️ CRITICAL INSTRUCTION:
     1. If the user provides a specific 'Case Number' (e.g., '2025도903'), DO NOT use this tool. Use 'search_precedent_by_case_number' instead.
     2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
-    3. HOWEVER, if the user asks for "Precedents related to Civil Act Art 5", YOU MUST use this , after searching for law article.
+    3. HOWEVER, if the user asks for "민사소송법 5조 관련 판례", use this tool after searching for law article.
 
     Args:
         query (str): The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here.
