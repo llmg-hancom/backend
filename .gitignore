@@ -23,4 +23,4 @@ Thumbs.db
 mise.local.toml
 # 
 *.json
-*.pem
+*.pemtest/pipeline/src/hancom-prod-team1.pem
