@@ -56,7 +56,7 @@ API_CONFIGS = {
         "list_root": "LawSearch", 
         "data_root":"law",
         "detail_root": "법령",           # 법령 상세 응답은 '법령' 키를 사용함
-        "filename_prefix": "law",
+        "filename_prefix": "eflaw",
         "detail_param": "MST",           # 법령 상세 조회 시 '법령일련번호'를 'MST' 파라미터로 사용
         "serial_key": "법령일련번호",
         "friendly_name": "현행 법령" # ⭐️ 추가

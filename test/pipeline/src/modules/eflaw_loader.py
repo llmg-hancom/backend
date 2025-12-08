@@ -21,7 +21,7 @@ from modules.base.base_loader import BaseLoader
 logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------
-class LawLoader(BaseLoader):
+class EflawLoader(BaseLoader):
     
     def __init__(self, db_local_port, ollama_local_port):
         # 청킹 스플리터 초기화
@@ -37,7 +37,7 @@ class LawLoader(BaseLoader):
                                 recursive_splitter=recursive_splitter)
 
     
- 
+    
     @override
     def _prepare_document(self, law_data: Dict[str, Any]) -> Dict[str, Any] | None:
         """
@@ -202,6 +202,7 @@ class LawLoader(BaseLoader):
             'status': 'ready'
         }
 
+    
     # ----------------------------------------------------------------------
     # ⭐️ run_etl_pipeline 메서드 (법령 데이터 특성에 맞게 재구성)
     # ----------------------------------------------------------------------

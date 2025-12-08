@@ -49,7 +49,7 @@ API_CONFIGS = {
         "list_root": "LawSearch", 
         "data_root":"law",
         "detail_root": "법령",           # 법령 상세 응답은 '법령' 키를 사용함
-        "filename_prefix": "law",
+        "filename_prefix": "eflaw",
         "detail_param": "MST",           # 법령 상세 조회 시 '법령일련번호'를 'MST' 파라미터로 사용
         "serial_key": "법령일련번호",
         "friendly_name": "현행 법령" # ⭐️ 추가
@@ -132,7 +132,7 @@ class BaseDownloader(ABC):
         try:
             response = requests.get(url, params=params, timeout=20) 
             response.raise_for_status() 
-            
+            time.sleep(0.2)
             # API 응답이 JSON 형식이 아닐 경우 오류 발생 가능
             return response.json()
         except requests.exceptions.HTTPError as e:
@@ -284,7 +284,8 @@ class BaseDownloader(ABC):
 
             # ⭐️ 응답 구조: {'PrecService': {...}}
             if detail_data and detail_root_key in detail_data:
-                detail_item = detail_data[detail_root_key]
+                # { '법령': ~~ }
+                detail_item = detail_data[detail_root_key] 
                 # 🔸 현행 법령 을 위한 예외 코드 
                 if self.TARGET == 'eflaw':
                     filtered_item = {}
@@ -347,4 +348,3 @@ class BaseDownloader(ABC):
                 existing_precedents = []
         
         return existing_precedents, existing_serial_ids
- 

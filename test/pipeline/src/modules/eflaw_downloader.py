@@ -1,13 +1,14 @@
 import os
 from typing import Any, Dict, override
+from modules.base.base_downloader import BaseDownloader
 
-from .base.base_downloader import BaseDownloader
+
 
 # ----------------------------------------------------------------------
 # 현행법령 다운로드 클래스
 # ----------------------------------------------------------------------
 
-class LawDownloader(BaseDownloader):
+class EflawDownloader(BaseDownloader):
 
     def __init__(self, output_dir: str):
         # 스크립트 파일의 절대 경로를 기준으로 폴더 생성 (src/Law_Data)
@@ -28,3 +29,8 @@ class LawDownloader(BaseDownloader):
         return super().request_detail_and_save(list_file_path)
 
 
+ 
+if __name__ == "__main__":
+    downloader = EflawDownloader()
+    list_file_path = downloader.request_list_and_save()
+    downloader.request_detail_and_save(list_file_path)

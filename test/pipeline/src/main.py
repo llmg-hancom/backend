@@ -11,12 +11,12 @@ from modules.decc_downloader import AdministrativeAppealDownloader
 from modules.decc_loader import AdministrativeAppealLoader
 from modules.detc_downloader import ConstitutionalDecisionDownloader
 from modules.detc_loader import ConstitutionalDecisionLoader
-from modules.law_downloader import LawDownloader
-from modules.law_loader import LawLoader
 from modules.expc_downloader import StatuteInterpretationDownloader
 from modules.expc_loader import StatuteInterpretationLoader
 from modules.prec_downloader import PrecedentDownloader
 from modules.prec_loader import PrecedentLoader
+from modules.eflaw_loader import EflawLoader
+from modules.eflaw_downloader import EflawDownloader
 
 OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL')
 OLLAMA_MODEL = os.getenv('OLLAMA_MODEL')
@@ -114,18 +114,18 @@ if __name__ == "__main__":
         script_dir = os.path.join(script_dir, 'downloaded_data')
         # ⭐️⭐️⭐️ 1. Downloader 작업 정의 (로더 클래스 대신 다운로더 클래스 사용) ⭐️⭐️⭐️
         DOWNLOADER_TASKS = [
-            ConstitutionalDecisionDownloader, 
-            AdministrativeAppealDownloader,
-            StatuteInterpretationDownloader,
-            PrecedentDownloader,
-            LawDownloader
+            # ConstitutionalDecisionDownloader, 
+            # AdministrativeAppealDownloader,
+            # StatuteInterpretationDownloader,
+            # PrecedentDownloader,
+            EflawDownloader
         ]
         LOADER_CLASSES = {
             "ConstitutionalDecisionLoader": ConstitutionalDecisionLoader, 
             "AdministrativeAppealLoader": AdministrativeAppealLoader,
             "StatuteInterpretationLoader": StatuteInterpretationLoader,
             "PrecedentLoader": PrecedentLoader,
-            "LawLoader": LawLoader,
+            "EflawLoader": EflawLoader,
         }
         DOWNLOADER_WORKERS = 4 # ⚠️ API 한도 때문에 이 숫자는 작게 유지해야 안전합니다.
         DOWNLOAD_RESULTS = []
