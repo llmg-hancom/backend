@@ -21,11 +21,12 @@ class Context(BaseModel):
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_public_law_semantic(query: str):
     """
-    Searches for public based on semantic meaning.
+    Searches for public laws based on semantic meaning.
     Use this tool for searching legal concepts, definitions related to specific laws.
     ⚠️ CRITICAL INSTRUCTION:
     1. If the user provides a specific 'Law Name'(법령명) and 'Article Number'(조), DO NOT use this tool. Use 'search_public_law_article' instead.
     2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
+
     Args:
         query (str): The search query for public laws.
 
