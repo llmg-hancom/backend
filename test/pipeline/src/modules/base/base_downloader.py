@@ -132,7 +132,7 @@ class BaseDownloader(ABC):
         try:
             response = requests.get(url, params=params, timeout=20) 
             response.raise_for_status() 
-            time.sleep(0.2)
+            
             # API 응답이 JSON 형식이 아닐 경우 오류 발생 가능
             return response.json()
         except requests.exceptions.HTTPError as e:
@@ -325,7 +325,15 @@ class BaseDownloader(ABC):
                         break # 루프를 빠져나갑니다.
                         
             time.sleep(self.API_REQUEST_DELAY) # 딜레이 적용
-        
+        # 3. 마지막으로 남은 데이터 최종 저장 (100개 단위에 도달하지 않은 나머지 데이터)
+        # 현재 총 데이터 개수(len(existing_precedents))가 SAVE_INTERVAL(100)의 배수가 아닐 경우
+        try:
+            with open(self.detail_output_path, 'w', encoding='utf-8') as f:
+                json.dump(existing_precedents, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"❌ {self.FRIENDLY_NAME} ID {prec_id}: 중간 파일 저장 중 오류 발생 - {e}")
+            # 파일 저장 실패는 치명적이므로, 여기서 오류 발생 시 다운로드를 중단하는 것이 안전합니다.
+             # 루프를 빠져나갑니다.
         logger.info(f"\n✅ 모든 {self.FRIENDLY_NAME} 상세 데이터({len(existing_precedents)}건)를 {self.detail_output_path}에 저장했습니다.")
         return self.detail_output_path
     

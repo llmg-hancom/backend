@@ -1,3 +1,5 @@
-SELECT COUNT(*)
-FROM public.document_chunks
-LIMIT 1000;
+SELECT *
+FROM public.documents
+ORDER BY document_id DESC
+LIMIT 100;
+

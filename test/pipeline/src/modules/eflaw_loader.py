@@ -64,7 +64,7 @@ class EflawLoader(BaseLoader):
             return None
 
         # 2. documents 테이블 메타데이터 (file_path, file_name)
-        file_name = f"{law_name} ({enforce_date})"
+        file_name = f"{law_name}"
         file_path = f"eflaw_{law_serial_id}_{enforce_date}"
         
         

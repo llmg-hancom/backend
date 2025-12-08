@@ -153,7 +153,7 @@ if __name__ == "__main__":
         LOADER_TASKS = []
         for result in DOWNLOAD_RESULTS:
             if result['success'] and result['detail_path']:
-                
+                logger.info(result['detail_path'])
                 # 다운로더 클래스명에 따라 적절한 로더 클래스 매핑
                 loader_cls_name = result['name'].replace("Downloader", "Loader")
                 

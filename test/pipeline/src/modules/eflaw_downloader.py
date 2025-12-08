@@ -18,19 +18,19 @@ class EflawDownloader(BaseDownloader):
             )
     @override
     def _request_api(self, url: str, params: Dict[str, Any]) -> Dict[str, Any] | None:
-        return super()._request_api(url,params)
+        # 법령 목록 조회할때는 현행 법령만 조회 하도록 
+        if 'lawSearch' in url:
+            extra_params = {'nw': 3}
+            params = params | extra_params
+        return super()._request_api(url, params)
     
     @override
     def request_list_and_save(self) -> str | None:
-        return super().request_list_and_save()
-    
+        return '/Users/yanghuiyeon/Desktop/rag_team/test/pipeline/src/downloaded_data/Eflaw_Data/eflaw_list.json'
+        # return super().request_list_and_save()
     @override
     def request_detail_and_save(self, list_file_path: str) -> str | None:
         return super().request_detail_and_save(list_file_path)
 
 
  
-if __name__ == "__main__":
-    downloader = EflawDownloader()
-    list_file_path = downloader.request_list_and_save()
-    downloader.request_detail_and_save(list_file_path)
