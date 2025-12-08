@@ -1,5 +1,4 @@
 from datetime import date
-from enum import StrEnum
 from typing import Any, Sequence
 
 from langchain_core.documents import Document as LCDocument
@@ -7,6 +6,7 @@ from langchain_postgres import PGEngine, PGVectorStore
 from langchain_postgres.v2.indexes import HNSWQueryOptions
 from pydantic import BaseModel
 from rag.context_manager import get_db_session
+from rag.law_category import LawName
 from rag.model import embeddings
 from sqlalchemy import Row, RowMapping, text
 from sqlmodel import select
@@ -31,24 +31,6 @@ async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVecto
         index_query_options=HNSWQueryOptions(ef_search=ef_search),
     )
     return vector_store
-
-
-class LawName(StrEnum):
-    CIVIL = "민법"
-    CIVIL_PROCEDURE = "민사소송법"
-    CRIMINAL = "형법"
-    CRIMINAL_PROCEDURE = "형사소송법"
-    LABOR = "근로기준법"
-    MINIMUM_WAGE = "최저임금법"
-    PERSONAL_INFORMATION = "개인정보 보호법"
-    OCCUPATIONAL_SAFETY = "산업안전보건법"
-    FRAMEWORK_ACT = "행정기본법"
-    ADMIN_LITIGATION = "행정소송법"
-    ADMIN_APPEALS = "행정심판법"
-    CONSTITUTIONAL_COURT = "헌법재판소법"
-    PENSION = "국민연금법"
-    HEALTH_INSURANCE = "국민건강보험법"
-    FAMILY = "가족관계의 등록 등에 관한 법률"
 
 
 # 판례 검색을 위한 필터
