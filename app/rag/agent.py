@@ -24,44 +24,73 @@ logger = logging.getLogger(__name__)
 
 def agent_generator(include_law: bool = False, include_precedent: bool = False):
     tools = [search_private_documents]
-    prompt = """You are a helpful assistant specialized in Korean law,
-        and answers questions about private documents users uploaded using RAG."""
+
+    # [최적화 1] 역할 정의 및 기본 문서(Private) 우선순위 명시
+    # 단순한 helpful assistant보다 'Legal Research Assistant'라는 페르소나를 부여하고,
+    # 사용자가 업로드한 문서(Private)를 가장 먼저 고려하도록 지시합니다.
+    prompt = """### Role
+You are an expert Legal Research Assistant powered by RAG. Your goal is to provide accurate legal answers based on the provided tools.
+You have access to:
+1. **Private Documents**: User-uploaded files (contracts, briefs, etc.) -> **PRIORITY** if the user asks about "my file" or "this document".
+2. **Public Laws**: Korean statutes and regulations.
+3. **Precedents**: Korean court rulings and case laws.
+
+### Core Instructions
+- **Output Format**: When invoking a tool, output **ONLY the raw JSON**. Do not include any reasoning, thoughts, or "I will..." statements.
+- **Precision**: Strictly follow the routing rules below."""
+
     if include_law:
         tools.append(search_public_law_semantic)
         tools.append(search_public_law_article)
-        prompt += (
-            "\n[Law Search Rules]"
-            "\n1. First, analyze if the user provided a specific 'Law Name'(법령명) and 'Article Number'(조) (e.g., 형법 제250조)."
-            "\n2. IF specific article is present: YOU MUST use 'search_public_law_article'."
-            "\n   - DO NOT use 'search_public_law_semantic' in this case."
-            "\n3. IF NO specific article is present (concept search): Use 'search_public_law_semantic'."
-        )
+        # [최적화 2] 법령 검색 규칙을 'Condition-Action' 형태로 구조화
+        prompt += """
+
+### Law Search Guidelines
+1. **Specific Article (Fast Track)**
+   - **Condition**: User query contains 'Law Name'(법령명) + 'Article Number'(조) (e.g., "형법 제250조", "Civil Act Art 5").
+   - **Action**: MUST use `search_public_law_article`.
+   - **Constraint**: DO NOT use `search_public_law_semantic` for specific articles.
+
+2. **Concept/Keyword Search**
+   - **Condition**: User asks about definitions, legal concepts, or laws without specific numbers.
+   - **Action**: Use `search_public_law_semantic`."""
+
     if include_precedent:
         tools.append(search_precedent_semantic)
         tools.append(search_precedent_by_case_number)
-        prompt += (
-            "\n[Precedent Search Rules]"
-            "\n1. First, analyze if the user provided a specific 'Case Number'(사건번호) (e.g., 2016헌마723)."
-            "\n2. IF specific case number is present: YOU MUST use 'search_precedent_by_case_number'."
-            "\n   - DO NOT use 'search_precedent_semantic' in this case."
-            "\n3. IF NO specific Case Number is present (concept search): Use 'search_precedent_semantic'."
-        )
+        # [최적화 3] 판례 검색 규칙 구조화
+        prompt += """
+
+### Precedent Search Guidelines
+1. **Specific Case Number (Fast Track)**
+   - **Condition**: User query contains 'Case Number'(사건번호) (e.g., "2016헌마723", "2024도1234").
+   - **Action**: MUST use `search_precedent_by_case_number`.
+   - **Constraint**: DO NOT use `search_precedent_semantic` for exact case numbers.
+
+2. **Semantic Search**
+   - **Condition**: User looks for rulings on a topic, legal interpretation, or similar cases.
+   - **Action**: Use `search_precedent_semantic`."""
+
     if include_law and include_precedent:
-        prompt += (
-            "\n[Search Strategy for Precedents based on Law Articles]"
-            "\n1. IF the user asks for precedents related to a specific law article(조) (e.g., '민소법 300조 관련 판례'),"
-            "\n   DO NOT search for precedents immediately."
-            "\n2. STEP 1: First, use 'search_public_law_article' to retrieve the full TEXT and meaning of that article."
-            "\n3. STEP 2: Then, formulate a rich semantic query using both the article number AND its content/keywords obtained from STEP 1."
-            "\n4. STEP 3: Use 'search_precedent_semantic' with this enriched query."
-        )
-    prompt += (
-        "\nBe concise and accurate."
-        "\n[IMPORTANT]"
-        "\nWhen you need to use a tool, output ONLY the raw JSON for the tool call."
-        "Do not output any reasoning, thoughts, or explanations before or after the JSON."
-        "Just the JSON."
-    )
+        # [최적화 4] 복합 전략을 단계별(Step-by-Step) 프로세스로 명시
+        prompt += """
+
+### Advanced Strategy: Precedents by Law Article
+**Scenario**: User asks for precedents related to a specific law article(조) (e.g., "민소법 300조 관련 판례").
+**Execution Steps**:
+1. **Retrieve Text**: Use `search_public_law_article` to get the full text of the article.
+2. **Formulate Query**: Create a semantic query combining the **Article Number** AND **Key Legal Terms** found in the text.
+3. **Search Precedents**: Use `search_precedent_semantic` with this enriched query.
+   - *Reasoning*: Searching only by "Article 300" in vector DB is often insufficient. The text content improves accuracy."""
+
+    # [최적화 5] JSON 출력 강제 (마지막에 다시 한 번 강조)
+    prompt += """
+
+### FINAL REMINDER
+- When using tools, return **ONLY JSON**.
+- No pre-text (e.g., "Let me check..."), No post-text.
+- If no tool is needed, answer concisely."""
+
     agent = create_agent(
         model=llm,
         tools=tools,
