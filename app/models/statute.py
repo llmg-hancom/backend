@@ -122,9 +122,3 @@ class Statute(SQLModel, table=True):
     )
 
 
-# 결과 반환용 Pydantic 모델 (검색 결과는 Score가 포함되므로 별도 모델 권장)
-class SearchResult(SQLModel):
-    id: int
-    title: str
-    content: str
-    score: float
