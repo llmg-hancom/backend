@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 
+import unicodedata
 from langchain.agents import create_agent
 from rag.context_manager import get_db_session
 from rag.model import llm
@@ -18,7 +19,6 @@ from rag.tools import (
 from models import ChatSession
 from models.chat_message import ChatMessage, ChatRole
 from schemas.chat import ChatRequest
-
 
 logger = logging.getLogger(__name__)
 
@@ -136,15 +136,16 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     3. 완료 시 DB 저장
     """
     agent = agent_generator(request.include_law, request.include_precedent)
+    normalized_query = unicodedata.normalize("NFC", request.query)
     new_question = ChatMessage(
-        content=request.query, session_id=session.session_id, role=ChatRole.user
+        content=normalized_query, session_id=session.session_id, role=ChatRole.user
     )
     # 답변을 모을 버퍼
     full_response = ""
     async for chunk, metadata in agent.astream(
-        {"messages": [{"role": "user", "content": request.query}]},
-        stream_mode="messages",
-        context=Context(space_id=session.space_id),
+            {"messages": [{"role": "user", "content": normalized_query}]},
+            stream_mode="messages",
+            context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content

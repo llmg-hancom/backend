@@ -30,7 +30,7 @@ from workers.celery_app import celery_app
 from workers.tasks import cleanup_temp_dir, download_from_s3, upload_tmp_s3
 
 from db.session import engine
-
+import numpy as np
 
 logger = get_task_logger(__name__)
 
@@ -294,9 +294,10 @@ def embed_statute_name() -> dict[str, Any]:
         try:
             with get_db_session() as db:
                 unembedded: Sequence[Statute] = db.exec(
-                    select(Statute).where(col(Statute.embedding).is_(None)).limit(50)
+                    select(Statute).where(col(Statute.embedding).is_(None)).limit(100)
                 ).all()
                 if not unembedded:
+                    logger.info("남은 법령명 없음!")
                     break
                 raw_text: list[str] = []
                 for statue in unembedded:
@@ -313,9 +314,10 @@ def embed_statute_name() -> dict[str, Any]:
                     result: Sequence[str] = db.exec(stmt).all()
                     statue.content = " ".join(result)
                     raw_text.append("[법령명] " + statue.title + "\n" + statue.content)
-                vectors: list[list[float]] = embeddings.embed_documents(raw_text)
+                vectors = np.array(embeddings.embed_documents(raw_text))
                 for i, statue in enumerate(unembedded):
                     statue.embedding = vectors[i]
+                    db.add(statue)
                 embed_count += len(unembedded)
 
             logger.info(f"{embed_count}/{unembedded_count} 법령명 임베딩 중... ")
@@ -326,6 +328,7 @@ def embed_statute_name() -> dict[str, Any]:
             return {"status": "aborted", "embed_success": embed_count}
     logger.info(f"[TASK_SUCCESS] 법령명 {embed_count}개 임베딩 성공")
     return {"status": "success", "embed_count": embed_count}
+
 
 if __name__ == "__main__":
     embed_statute_name.delay()
