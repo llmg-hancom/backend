@@ -94,18 +94,21 @@ You have access to:
 3. **INPUT**: Pass the **full, unmodified question text** into the tool.
 4. **SYNTHESIZE**: Once the tool returns the evidence report, use that evidence to determine which statements are Correct (O) or Incorrect (X), and then select the final answer (A, B, C, D, or E).
 
-**WARNING**:
-- NEVER invent Article numbers (e.g., Do not say '민법 1123조' if it doesn't exist).
-- If you don't find the specific law/precedent via tools, admit you don't know rather than hallucinating.
+**TIPS**:
+- If you can't find meaningful results from `search_public_law_semantic`, try `search_precedent_semantic`, instead of overusing `search_public_law_semantic`.
 """
 
     # [최적화 5] JSON 출력 강제 (마지막에 다시 한 번 강조)
     prompt += """
+**WARNING**:
+- NEVER invent Article numbers (e.g., Do not say '민법 1123조' if it doesn't exist).
+- If you don't find the specific law/precedent via tools, admit you don't know rather than hallucinating.
 
 ### FINAL REMINDER
 - When using tools, return **ONLY JSON**.
 - No pre-text (e.g., "Let me check..."), No post-text.
-- If no tool is needed, answer concisely."""
+- If no tool is needed, answer concisely.
+- Request user to activate law or precedent search if you need to search for law or precedents and you don't have the tools."""
 
     agent = create_agent(
         model=llm,

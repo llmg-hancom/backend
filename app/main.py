@@ -40,6 +40,13 @@ async def lifespan(_app: FastAPI):
     with Session(engine) as session:
         # 1. vector 확장 기능 활성화
         session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        session.exec(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        session.exec(
+            text("""CREATE OR REPLACE FUNCTION immutable_array_to_string(arr TEXT[], sep TEXT)
+RETURNS TEXT AS $$
+    SELECT array_to_string(arr, sep);
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;""")
+        )
         session.commit()
 
         # 2. 테이블 생성

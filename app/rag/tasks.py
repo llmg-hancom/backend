@@ -4,16 +4,18 @@ import json
 from pathlib import Path
 import re
 import time
-from typing import Any
+from typing import Any, Sequence
 
 from celery.utils.log import get_task_logger
 from langchain.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import text
+from sqlalchemy.sql.functions import count
 
 from core.config import settings
-from models import Document, DocumentChunk
+from models import Document, DocumentChunk, Statute
 from models.document import DocumentStatus
 
 # from models.document_chunk import DocumentChunk
@@ -21,7 +23,7 @@ from models.document import DocumentStatus
 from rag.cleaning import (
     normalize_regex_pattern,
 )
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 
 from rag.model import embeddings
 from workers.celery_app import celery_app
@@ -278,4 +280,52 @@ def embed_document_chunk(self, s3_path: str, doc_id: int) -> dict[str, Any]:
         raise e
     finally:
         cleanup_temp_dir(file_dir)
-        return {"doc_id":doc_id, "chunks":uploaded_chunks_count, "status": status}
+        return {"doc_id": doc_id, "chunks": uploaded_chunks_count, "status": status}
+
+
+@celery_app.task(name="embed-statute-name")
+def embed_statute_name() -> dict[str, Any]:
+    with get_db_session() as db:
+        unembedded_count = db.exec(
+            select(count(Statute.id)).where(col(Statute.embedding).is_(None))
+        ).one()
+    embed_count = 0
+    while True:
+        try:
+            with get_db_session() as db:
+                unembedded: Sequence[Statute] = db.exec(
+                    select(Statute).where(col(Statute.embedding).is_(None)).limit(50)
+                ).all()
+                if not unembedded:
+                    break
+                raw_text: list[str] = []
+                for statue in unembedded:
+                    stmt = (
+                        select(DocumentChunk.content)
+                        .where(DocumentChunk.meta["법령명"].astext == statue.title)
+                        .where(
+                            text(
+                                "(SUBSTRING(meta ->> '조' FROM '제([0-9]+)조')::INT) = 1"
+                            )
+                        )
+                        .order_by(DocumentChunk.chunk_id)
+                    )
+                    result: Sequence[str] = db.exec(stmt).all()
+                    statue.content = " ".join(result)
+                    raw_text.append("[법령명] " + statue.title + "\n" + statue.content)
+                vectors: list[list[float]] = embeddings.embed_documents(raw_text)
+                for i, statue in enumerate(unembedded):
+                    statue.embedding = vectors[i]
+                embed_count += len(unembedded)
+
+            logger.info(f"{embed_count}/{unembedded_count} 법령명 임베딩 중... ")
+        except Exception as e:
+            logger.error(
+                f"[TASK_FAILED] 법령명 임베딩 실패: {e}\n{embed_count}/{unembedded_count}개 임베딩 완료"
+            )
+            return {"status": "aborted", "embed_success": embed_count}
+    logger.info(f"[TASK_SUCCESS] 법령명 {embed_count}개 임베딩 성공")
+    return {"status": "success", "embed_count": embed_count}
+
+if __name__ == "__main__":
+    embed_statute_name.delay()

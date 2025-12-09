@@ -10,6 +10,7 @@ from .precedent_log import PrecedentLog
 from .refresh_token import RefreshToken
 from .social_account import SocialAccount
 from .user import User
+from .statute import Statute
 
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "PrecedentLog",
     "RefreshToken",
     "SocialAccount",
+    "Statute",
     "User",
 ]
