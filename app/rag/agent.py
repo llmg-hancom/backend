@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 
+import unicodedata
 from langchain.agents import create_agent
 from rag.context_manager import get_db_session
 from rag.model import llm
@@ -18,7 +19,6 @@ from rag.tools import (
 from models import ChatSession
 from models.chat_message import ChatMessage, ChatRole
 from schemas.chat import ChatRequest
-
 
 logger = logging.getLogger(__name__)
 
@@ -94,18 +94,21 @@ You have access to:
 3. **INPUT**: Pass the **full, unmodified question text** into the tool.
 4. **SYNTHESIZE**: Once the tool returns the evidence report, use that evidence to determine which statements are Correct (O) or Incorrect (X), and then select the final answer (A, B, C, D, or E).
 
-**WARNING**:
-- NEVER invent Article numbers (e.g., Do not say '민법 1123조' if it doesn't exist).
-- If you don't find the specific law/precedent via tools, admit you don't know rather than hallucinating.
+**TIPS**:
+- If you can't find meaningful results from `search_public_law_semantic`, try `search_precedent_semantic`, instead of overusing `search_public_law_semantic`.
 """
 
     # [최적화 5] JSON 출력 강제 (마지막에 다시 한 번 강조)
     prompt += """
+**WARNING**:
+- NEVER invent Article numbers (e.g., Do not say '민법 1123조' if it doesn't exist).
+- If you don't find the specific law/precedent via tools, admit you don't know rather than hallucinating.
 
 ### FINAL REMINDER
 - When using tools, return **ONLY JSON**.
 - No pre-text (e.g., "Let me check..."), No post-text.
-- If no tool is needed, answer concisely."""
+- If no tool is needed, answer concisely.
+- Request user to activate law or precedent search if you need to search for law or precedents and you don't have the tools."""
 
     agent = create_agent(
         model=llm,
@@ -133,15 +136,16 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     3. 완료 시 DB 저장
     """
     agent = agent_generator(request.include_law, request.include_precedent)
+    normalized_query = unicodedata.normalize("NFC", request.query)
     new_question = ChatMessage(
-        content=request.query, session_id=session.session_id, role=ChatRole.user
+        content=normalized_query, session_id=session.session_id, role=ChatRole.user
     )
     # 답변을 모을 버퍼
     full_response = ""
     async for chunk, metadata in agent.astream(
-        {"messages": [{"role": "user", "content": request.query}]},
-        stream_mode="messages",
-        context=Context(space_id=session.space_id),
+            {"messages": [{"role": "user", "content": normalized_query}]},
+            stream_mode="messages",
+            context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content

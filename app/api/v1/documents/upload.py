@@ -2,6 +2,7 @@ import hashlib
 from typing import Annotated
 import uuid
 
+import unicodedata
 from celery import chain
 from fastapi import APIRouter, Depends, File, Security, UploadFile, status
 from rag.tasks import chunk_user_document, embed_document_chunk
@@ -67,13 +68,14 @@ async def upload_documents(
     # 4. [document 업로드] 고유한 document 경로 생성 및 업로드
     # 경로: private/user_{id}/{uuid}/{filename}
     unique_id = uuid.uuid4()
-    file_key = f"private/user_{current_user.user_id}/{unique_id}/{file.filename}"
+    file_name = unicodedata.normalize("NFC", file.filename)
+    file_key = f"private/user_{current_user.user_id}/{unique_id}/{file_name}"
 
     s3_path = await storage_service.upload_file(file, file_key)
 
     # 5. [DB 저장] 메타데이터 저장
     new_doc = Document(
-        file_name=file.filename,
+        file_name=file_name,
         file_path=s3_path,
         file_hash=file_hash,
         uploaded_by_user_id=current_user.user_id,
