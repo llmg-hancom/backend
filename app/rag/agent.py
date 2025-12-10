@@ -166,13 +166,14 @@ async def event_generator(session: ChatSession, request: ChatRequest):
             full_response += chunk.content
         if metadata["langgraph_node"] == "tools":
             for doc in chunk.artifact:
-                if "법령명" in doc.metadata:
-                    doc.metadata["type"] = "public_law"
-                elif "사건번호" in doc.metadata:
-                    doc.metadata["type"] = "precedent"
+                copied_doc = doc.copy()
+                if "법령명" in copied_doc.metadata:
+                    copied_doc.metadata["type"] = "public_law"
+                elif "사건번호" in copied_doc.metadata:
+                    copied_doc.metadata["type"] = "precedent"
                 else:
-                    doc.metadata["type"] = "private"
-                sources.add(doc.metadata)
+                    copied_doc.metadata["type"] = "private"
+                sources.add(copied_doc.metadata)
         yield f"data: {json.dumps({'token': chunk.content}, ensure_ascii=False)}\n\n"
     sources = list(sources)
     new_answer = ChatMessage(
