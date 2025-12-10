@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 def agent_generator(include_law: bool = False, include_precedent: bool = False):
     tools = [search_private_documents]
+    tools_string = ["search_private_documents"]
+    deactivated_tools = []
 
     # [최적화 1] 역할 정의 및 기본 문서(Private) 우선순위 명시
     # 단순한 helpful assistant보다 'Legal Research Assistant'라는 페르소나를 부여하고,
@@ -43,6 +45,7 @@ You have access to:
     if include_law:
         tools.append(search_public_law_semantic)
         tools.append(search_public_law_article)
+        tools_string += ["search_public_law_semantic", "search_public_law_article"]
         # [최적화 2] 법령 검색 규칙을 'Condition-Action' 형태로 구조화
         prompt += """
 
@@ -55,10 +58,13 @@ You have access to:
 2. **Concept/Keyword Search**
    - **Condition**: User asks about definitions, legal concepts, or laws without specific numbers.
    - **Action**: Use `search_public_law_semantic`."""
+    else:
+        deactivated_tools += ["search_public_law_semantic", "search_public_law_article"]
 
     if include_precedent:
         tools.append(search_precedent_semantic)
         tools.append(search_precedent_by_case_number)
+        tools_string += ["search_precedent_semantic", "search_precedent_by_case_number"]
         # [최적화 3] 판례 검색 규칙 구조화
         prompt += """
 
@@ -71,10 +77,16 @@ You have access to:
 2. **Semantic Search**
    - **Condition**: User looks for rulings on a topic, legal interpretation, or similar cases.
    - **Action**: Use `search_precedent_semantic`."""
+    else:
+        deactivated_tools += [
+            "search_precedent_semantic",
+            "search_precedent_by_case_number",
+        ]
 
     if include_law and include_precedent:
         tools.append(analyze_legal_problem)
         # [최적화 4] 복합 전략을 단계별(Step-by-Step) 프로세스로 명시
+        tools_string.append("analyze_legal_problem")
         prompt += """
 
 ### Advanced Strategy: Precedents by Law Article
@@ -97,18 +109,21 @@ You have access to:
 **TIPS**:
 - If you can't find meaningful results from `search_public_law_semantic`, try `search_precedent_semantic`, instead of overusing `search_public_law_semantic`.
 """
+    else:
+        deactivated_tools.append("analyze_legal_problem")
 
     # [최적화 5] JSON 출력 강제 (마지막에 다시 한 번 강조)
-    prompt += """
+    prompt += f"""
 **WARNING**:
 - NEVER invent Article numbers (e.g., Do not say '민법 1123조' if it doesn't exist).
 - If you don't find the specific law/precedent via tools, admit you don't know rather than hallucinating.
 
 ### FINAL REMINDER
-- When using tools, return **ONLY JSON**.
+- Activated tools : {", ".join(tools_string)}, Deactivated tools: {", ".join(deactivated_tools) if deactivated_tools else "None"}
 - No pre-text (e.g., "Let me check..."), No post-text.
 - If no tool is needed, answer concisely.
-- Request user to activate law or precedent search if you need to search for law or precedents and you don't have the tools."""
+- When using tools, return **ONLY JSON**.
+- When generating the tool name, DO NOT append any special tokens like '<|channel|>', 'commentary', or thoughts."""
 
     agent = create_agent(
         model=llm,
@@ -143,9 +158,9 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     # 답변을 모을 버퍼
     full_response = ""
     async for chunk, metadata in agent.astream(
-            {"messages": [{"role": "user", "content": normalized_query}]},
-            stream_mode="messages",
-            context=Context(space_id=session.space_id),
+        {"messages": [{"role": "user", "content": normalized_query}]},
+        stream_mode="messages",
+        context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content
