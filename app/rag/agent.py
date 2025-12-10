@@ -156,7 +156,8 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     )
     # 답변을 모을 버퍼
     full_response = ""
-    sources = []
+    sources: list[dict] = []
+    sources_id: set[int] = set()
     async for chunk, metadata in agent.astream(
         {"messages": [{"role": "user", "content": normalized_query}]},
         stream_mode="messages",
@@ -166,6 +167,9 @@ async def event_generator(session: ChatSession, request: ChatRequest):
             full_response += chunk.content
         if metadata["langgraph_node"] == "tools":
             for doc in chunk.artifact:
+                if doc.metadata["document_id"] in sources_id:
+                    continue
+                sources_id.add(doc.metadata["document_id"])
                 copied_doc = doc.copy()
                 if "법령명" in copied_doc.metadata:
                     copied_doc.metadata["type"] = "public_law"
