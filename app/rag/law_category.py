@@ -18,6 +18,7 @@ class LawName(StrEnum):
     PENSION = "국민연금법"
     HEALTH_INSURANCE = "국민건강보험법"
     FAMILY = "가족관계의 등록 등에 관한 법률"
+    TRAFFIC = "도로교통법"
 
 
 # 법률 이름 약어 매핑
@@ -60,6 +61,8 @@ LAW_ALIAS_MAP = {
     "가족관계법": LawName.FAMILY,
     "가족법": LawName.FAMILY,  # 민법 친족/상속편을 의미할 수도 있으나, 맥락상 허용
     "가등록법": LawName.FAMILY,
+    # 14. 도로교통법 (Traffic)
+    "교통법": LawName.TRAFFIC,
 }
 LAW_KEYWORDS_MAP = {
     # 1. 민법 (가장 중요: 모든 사적 분쟁의 기본)
