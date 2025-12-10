@@ -31,7 +31,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     token: str | None
-    sources: list[dict[Any, str]] | None
+    sources: list[dict[str, Any]] | None
 
 
 class SpaceDocumentListRequest(BaseModel):
@@ -61,4 +61,4 @@ class ChatMessageRead(ChatMessageBase):
 
     message_id: int
     created_at: datetime
-    sources: list[dict[Any,str]] | None = None
+    sources: list[dict[str,Any]] | None = None
