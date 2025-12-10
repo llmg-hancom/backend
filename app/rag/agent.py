@@ -165,7 +165,7 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content
-        if metadata["langraph_node"] == "tools":
+        if metadata["langgraph_node"] == "tools":
             for doc in chunk.artifact:
                 if "법령명" in doc.metadata:
                     doc.metadata["type"] = "public_law"
