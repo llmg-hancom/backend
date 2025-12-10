@@ -156,7 +156,7 @@ async def query_excluding_target(
 
 
 EXCLUDED_PRECEDENT_KEYS = [
-    "사건요지",
+    "판결요지",
     "판례상세링크",
     "법원종류코드",
     "사건종류코드",
