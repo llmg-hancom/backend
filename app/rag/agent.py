@@ -113,13 +113,12 @@ You have access to:
         deactivated_tools.append("analyze_legal_problem")
 
     # [최적화 5] JSON 출력 강제 (마지막에 다시 한 번 강조)
-    prompt += f"""
+    prompt += """
 **WARNING**:
 - NEVER invent Article numbers (e.g., Do not say '민법 1123조' if it doesn't exist).
 - If you don't find the specific law/precedent via tools, admit you don't know rather than hallucinating.
 
 ### FINAL REMINDER
-- Activated tools : {", ".join(tools_string)}, Deactivated tools: {", ".join(deactivated_tools) if deactivated_tools else "None"}
 - No pre-text (e.g., "Let me check..."), No post-text.
 - If no tool is needed, answer concisely.
 - When using tools, return **ONLY JSON**.
