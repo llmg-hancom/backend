@@ -168,10 +168,10 @@ async def event_generator(session: ChatSession, request: ChatRequest):
             full_response += chunk.content
         if metadata["langgraph_node"] == "tools":
             for doc in chunk.artifact:
-                if doc.metadata["document_id"] in sources_id:
+                if doc.metadata.get("document_id") in sources_id:
                     continue
                 copied_doc = doc.copy()
-                sources_id.add(copied_doc.metadata["document_id"])
+                sources_id.add(copied_doc.metadata.get("document_id"))
                 if "법령명" in copied_doc.metadata:
                     copied_doc.metadata["type"] = "public_law"
                 elif "사건번호" in copied_doc.metadata:
