@@ -173,11 +173,14 @@ async def query_in_precedent(
     """판례 검색. query_filter가 존재하는 경우 chunk_id로 필터링,
     존재하지 않는 경우 제외된 document_id로 필터링"""
     vector_store = await create_vector_store(40, 64)
+    header = ""
     # 검색 조건이 존재하는 경우 chunk id로 필터링
     if query_filter:
         included_chunk_ids = await fetch_target_ids(
             DocumentScope.precedent, search_filter=query_filter
         )
+        if query_filter.case_numbers:
+            header = f"[사건번호] {' '.join(query_filter.case_numbers)}\n"
         search_filter: dict = {"chunk_id": {"$in": included_chunk_ids}}
     # 검색 조건이 없는 경우 성능을 위해 판례가 아닌 범위의 document_id로 필터링
     else:
@@ -186,7 +189,9 @@ async def query_in_precedent(
     relevant_chunks: list[LCDocument] = await vector_store.asimilarity_search(
         query, k=k, filter=search_filter
     )
-    serialized = "\n\n".join(
+    if query_filter.case_numbers and len(query_filter.case_numbers) == 1:
+        header += f"[판결요지] {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
+    serialized = header + "\n\n".join(
         format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
     )
     return serialized, relevant_chunks
