@@ -42,24 +42,24 @@ async def lifespan(_app: FastAPI):
         session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         session.exec(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         session.commit()
-        try:
-            if settings.ENVIRONMENT == "production":
+        if settings.ENVIRONMENT == "development":
+            try:
                 session.exec(
                     text("""CREATE OR REPLACE FUNCTION immutable_array_to_string(arr TEXT[], sep TEXT)
                         RETURNS TEXT AS
                     $$
                     SELECT ARRAY_TO_STRING(arr, sep);
                     $$ LANGUAGE sql IMMUTABLE
-                                    PARALLEL SAFE;""")
+                                    PARALLEL SAFE""")
                 )
                 session.commit()
-        except InternalError as e:
-            # "tuple concurrently updated" 에러라면 무시
-            if "tuple concurrently updated" in str(e):
-                session.rollback()
-                print("Function already created by another worker. Skipping.")
-            else:
-                raise e  # 다른 에러면 예외 발생
+            except InternalError as e:
+                # "tuple concurrently updated" 에러라면 무시
+                if "tuple concurrently updated" in str(e):
+                    session.rollback()
+                    print("Function already created by another worker. Skipping.")
+                else:
+                    raise e  # 다른 에러면 예외 발생
         session.commit()
 
         # 2. 테이블 생성

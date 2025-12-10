@@ -4,7 +4,6 @@ import unicodedata
 from bs4 import BeautifulSoup
 import pandas as pd
 
-
 # RAG/LLM 성능을 저해하는 유니코드 "제어" 및 "포맷" 문자 카테고리
 # Cc (Control), Cf (Format), Co (Private Use), Cs (Surrogate)
 BLACKLISTED_CATEGORIES: set[str] = {"Cc", "Cf", "Co", "Cs"}
@@ -102,9 +101,9 @@ def process_html_with_tables(html_content: str) -> str:
         )
 
         is_layout = (
-            (table.find("table") is not None)
-            or (long_text_cells > 0)
-            or (total_cells < 2)
+                (table.find("table") is not None)
+                or (long_text_cells > 0)
+                or (total_cells < 2)
         )
 
         # --- [B] 처리 로직 ---
@@ -221,7 +220,7 @@ def normalize_regex_pattern(pattern: str) -> str:
     return clean_pat
 
 
-def split_problem_into_statements_regex(text: str) -> list[str]:
+def split_problem_into_statements_regex(text: str) -> tuple[str, list[str]]:
     """
     정규식을 사용하여 문제를 분할하고, 사실관계를 각 지문에 전파(Broadcasting)합니다.
     """
@@ -248,12 +247,12 @@ def split_problem_into_statements_regex(text: str) -> list[str]:
     parts = statement_marker_pattern.split(text)
 
     if len(parts) < 2:
-        return [text]  # 분할 실패 시 원본 반환
+        return "", [text]  # 분할 실패 시 원본 반환
 
     # 첫 번째 요소는 무조건 '사실 관계(Background Context)'임
     background_context = parts[0].strip()
 
-    combined_queries = []
+    individual_queries = []
 
     # 지문 기호와 내용을 합치면서 loop
     # parts[1]부터는 (기호, 내용) 쌍으로 존재함
@@ -270,7 +269,7 @@ def split_problem_into_statements_regex(text: str) -> list[str]:
             cleaned_content = content.strip()
 
         # [핵심] 사실관계 + 지문 병합
-        full_query = f"{background_context}\n{symbol} {cleaned_content}"
-        combined_queries.append(full_query)
+        full_query = f"{symbol} {cleaned_content}"
+        individual_queries.append(full_query)
 
-    return combined_queries
+    return background_context, individual_queries
