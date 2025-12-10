@@ -43,15 +43,16 @@ async def lifespan(_app: FastAPI):
         session.exec(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         session.commit()
         try:
-            session.exec(
-                text("""CREATE OR REPLACE FUNCTION immutable_array_to_string(arr TEXT[], sep TEXT)
-                    RETURNS TEXT AS
-                $$
-                SELECT ARRAY_TO_STRING(arr, sep);
-                $$ LANGUAGE sql IMMUTABLE
-                                PARALLEL SAFE;""")
-            )
-            session.commit()
+            if settings.ENVIRONMENT == "production":
+                session.exec(
+                    text("""CREATE OR REPLACE FUNCTION immutable_array_to_string(arr TEXT[], sep TEXT)
+                        RETURNS TEXT AS
+                    $$
+                    SELECT ARRAY_TO_STRING(arr, sep);
+                    $$ LANGUAGE sql IMMUTABLE
+                                    PARALLEL SAFE;""")
+                )
+                session.commit()
         except InternalError as e:
             # "tuple concurrently updated" 에러라면 무시
             if "tuple concurrently updated" in str(e):

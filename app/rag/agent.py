@@ -4,6 +4,7 @@ import logging
 
 import unicodedata
 from langchain.agents import create_agent
+
 from rag.context_manager import get_db_session
 from rag.model import llm
 from rag.tools import (
@@ -169,8 +170,8 @@ async def event_generator(session: ChatSession, request: ChatRequest):
             for doc in chunk.artifact:
                 if doc.metadata["document_id"] in sources_id:
                     continue
-                sources_id.add(doc.metadata["document_id"])
                 copied_doc = doc.copy()
+                sources_id.add(copied_doc.metadata["document_id"])
                 if "법령명" in copied_doc.metadata:
                     copied_doc.metadata["type"] = "public_law"
                 elif "사건번호" in copied_doc.metadata:
