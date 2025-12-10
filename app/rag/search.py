@@ -280,7 +280,7 @@ SELECT COALESCE(s.id, k.id)                          AS id,
 FROM semantic_search s
          FULL OUTER JOIN keyword_search k ON s.id = k.id
 ORDER BY final_score DESC
-LIMIT :limit;
+LIMIT :limit
 """)
 
     params = {"embedding": query_vector, "query_text": query_text, "limit": limit}
@@ -292,9 +292,9 @@ LIMIT :limit;
     return [SearchResult(id=r.id, title=r.title, score=r.final_score) for r in results]
 
 
-async def search_with_statute_filter(query_text: str, statue_titles: list[str] | None = None, k: int = 5,
-                                     fetch_k: int = 20,
-                                     ef_search: int = 40) -> tuple[str, list[LCDocument]]:
+async def law_search_with_statute_title(query_text: str, statue_titles: list[str] | None = None, k: int = 5,
+                                        fetch_k: int = 20,
+                                        ef_search: int = 40) -> tuple[str, list[LCDocument]]:
     query_vector = np.array(await embeddings.asembed_query(query_text))
     sql_query = select(DocumentChunk)
     if statue_titles:

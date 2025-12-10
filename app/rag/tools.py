@@ -11,7 +11,7 @@ from rag.search import (
     query_in_target,
     fetch_private_ids,
     query_excluding_target,
-    EXCLUDED_PRECEDENT_KEYS, search_statute_title, search_with_statute_filter,
+    EXCLUDED_PRECEDENT_KEYS, search_statute_title, law_search_with_statute_title,
 )
 from rag.law_category import LawName, LAW_ALIAS_MAP
 
@@ -200,8 +200,8 @@ async def analyze_legal_problem(problem_text: str):
     results = [f"[사실관계] {background}\n[관련 법령명] {", ".join(target_statute_titles)}"]
     relevant_chunks: list[LCDocument] = []
     for stmt in statements:
-        search_res, chunks = await search_with_statute_filter(background + "\n" + stmt, target_statute_titles,
-                                                              k=3)
+        search_res, chunks = await law_search_with_statute_title(background + "\n" + stmt, target_statute_titles,
+                                                                 k=3)
         results.append(f"[지문] {stmt}\n관련 법령/판례: [{search_res}]")
         relevant_chunks += chunks
 
