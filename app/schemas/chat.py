@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -23,10 +23,6 @@ class AllSpacesRead(BaseModel):
     spaces: list[SpaceRead]
 
 
-class Source(BaseModel):
-    file_name: str
-
-
 class ChatRequest(BaseModel):
     query: str
     include_law: bool = False
@@ -35,7 +31,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     token: str | None
-    sources: list[Source] | None
+    sources: list[dict[Any, str]] | None
 
 
 class SpaceDocumentListRequest(BaseModel):
@@ -65,4 +61,4 @@ class ChatMessageRead(ChatMessageBase):
 
     message_id: int
     created_at: datetime
-    sources: dict | None = None
+    sources: list[dict[Any,str]] | None = None
