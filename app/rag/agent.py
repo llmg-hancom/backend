@@ -156,7 +156,7 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     )
     # 답변을 모을 버퍼
     full_response = ""
-    sources = set()
+    sources = []
     async for chunk, metadata in agent.astream(
         {"messages": [{"role": "user", "content": normalized_query}]},
         stream_mode="messages",
@@ -173,9 +173,8 @@ async def event_generator(session: ChatSession, request: ChatRequest):
                     copied_doc.metadata["type"] = "precedent"
                 else:
                     copied_doc.metadata["type"] = "private"
-                sources.add(copied_doc.metadata)
+                sources.append(copied_doc.metadata)
         yield f"data: {json.dumps({'token': chunk.content}, ensure_ascii=False)}\n\n"
-    sources = list(sources)
     new_answer = ChatMessage(
         content=full_response,
         session_id=session.session_id,
