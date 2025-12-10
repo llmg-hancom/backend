@@ -1,6 +1,7 @@
 from datetime import date
 
 from langchain.tools import ToolRuntime, tool
+from langchain_core.documents import Document as LCDocument
 from pydantic import BaseModel, Field, field_validator
 from rag.search import (
     SearchFilter,
@@ -10,7 +11,7 @@ from rag.search import (
     query_in_target,
     fetch_private_ids,
     query_excluding_target,
-    EXCLUDED_PRECEDENT_KEYS,
+    EXCLUDED_PRECEDENT_KEYS, search_statute_title, search_with_statute_filter,
 )
 from rag.law_category import LawName, LAW_ALIAS_MAP
 
@@ -94,7 +95,7 @@ async def search_public_law_article(law_name: LawName, article: int):
 
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_precedent_semantic(
-    query: str, start_date: date | None = None, end_date: date | None = None
+        query: str, start_date: date | None = None, end_date: date | None = None
 ):
     """
     Searches for legal precedents (court rulings) based on semantic meaning.
@@ -163,7 +164,7 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     return serialized, relevant_chunks
 
 
-@tool(parse_docstring=True)
+@tool(response_format="content_and_artifact", parse_docstring=True)
 async def analyze_legal_problem(problem_text: str):
     """
     **PRIMARY TOOL for Legal Exam/Multiple-Choice Questions.**
@@ -189,17 +190,19 @@ async def analyze_legal_problem(problem_text: str):
         problem_text (str): The raw text of the problem.
     """
     # 1. LLM을 이용해 문제를 A, B, C, D 지문으로 분리 (파이썬 로직 또는 가벼운 LLM 호출)
-    statements = split_problem_into_statements_regex(problem_text)
+    background, statements = split_problem_into_statements_regex(problem_text)
+    if background == "":
+        return "유효한 객관식 문제가 아닙니다. 다른 도구를 이용하세요.", []
 
-    results = []
+    target_statutes = await search_statute_title(background)
+    target_statute_titles = [s.title for s in target_statutes]
+
+    results = [f"[사실관계] {background}\n[관련 법령명] {", ".join(target_statute_titles)}"]
+    relevant_chunks: list[LCDocument] = []
     for stmt in statements:
-        excluded_doc_ids = await fetch_private_ids()
-        search_res, relevant_chunks = await query_excluding_target(
-            stmt,
-            excluded_doc_ids,
-            excluded_meta_keys=EXCLUDED_PRECEDENT_KEYS,
-            k=3,
-        )
-        results.append(f"지문: {stmt}\n관련 법령/판례: [{search_res}]")
+        search_res, chunks = await search_with_statute_filter(background + "\n" + stmt, target_statute_titles,
+                                                              k=3)
+        results.append(f"[지문] {stmt}\n관련 법령/판례: [{search_res}]")
+        relevant_chunks += chunks
 
-    return "\n\n".join(results)
+    return "\n\n".join(results), relevant_chunks

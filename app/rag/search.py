@@ -1,8 +1,10 @@
 from datetime import date
 from typing import Any, Sequence
 
+import numpy as np
 from langchain_core.documents import Document as LCDocument
 from langchain_postgres import PGEngine, PGVectorStore
+from langchain_postgres._utils import maximal_marginal_relevance
 from langchain_postgres.v2.indexes import HNSWQueryOptions
 from pydantic import BaseModel
 
@@ -11,7 +13,7 @@ from rag.context_manager import get_db_session
 from rag.law_category import LawName
 from rag.model import embeddings
 from sqlalchemy import Row, RowMapping, text
-from sqlmodel import select, SQLModel
+from sqlmodel import select, SQLModel, or_
 
 from db.session import async_engine
 from models import ChatSpaceDocument, DocumentChunk
@@ -41,7 +43,7 @@ class SearchFilter(BaseModel):
     case_numbers: list[str] | None = None
 
 
-def format_doc(doc: LCDocument, excluded_keys: list[str]) -> str:
+def format_doc(doc: LCDocument, excluded_keys: list[str] | None = None) -> str:
     """llm에게 줄 정보 제한 및 추출"""
 
     # 2. 값이 제외되지 않은 경우에만 "키: 값" 문자열 생성 (None이나 빈 문자열은 제외)
@@ -49,8 +51,8 @@ def format_doc(doc: LCDocument, excluded_keys: list[str]) -> str:
         f"'{k}': {v}"
         for k, v in doc.metadata.items()
         if (k not in excluded_keys)
-        and v
-        != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+           and v
+           != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
     ]
 
     # 3. 메타데이터와 본문 결합
@@ -59,10 +61,10 @@ def format_doc(doc: LCDocument, excluded_keys: list[str]) -> str:
 
 
 async def fetch_target_ids(
-    document_scope: DocumentScope,
-    space_id: int | None = None,
-    search_filter: SearchFilter | None = None,
-):
+        document_scope: DocumentScope,
+        space_id: int | None = None,
+        search_filter: SearchFilter | None = None,
+) -> list[int]:
     """query 검색 범위 설정. 법령, 개인 문서의 경우 항상 해당하는 document_id 반환.
     판례의 경우 search_filter가 존재하면 해당 조건을 만족하는 chunk_id 반환,
     search_filter가 존재하지 않으면 판례가 **아닌** document_id 반환."""
@@ -120,8 +122,8 @@ async def fetch_private_ids() -> list[int]:
 
 
 async def query_in_target(
-    query: str, target_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
-):
+        query: str, target_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
+) -> tuple[str, list[LCDocument]]:
     """특정 document_id 범위 내에서 검색"""
     vector_store = await create_vector_store()
     relevant_chunks = await vector_store.asimilarity_search(
@@ -135,11 +137,11 @@ async def query_in_target(
 
 
 async def query_excluding_target(
-    query: str,
-    excluded_doc_ids: Sequence[Row[Any] | RowMapping | Any],
-    excluded_meta_keys: list[str] | None = None,
-    k: int = 5,
-):
+        query: str,
+        excluded_doc_ids: Sequence[Row[Any] | RowMapping | Any],
+        excluded_meta_keys: list[str] | None = None,
+        k: int = 5,
+) -> tuple[str, list[LCDocument]]:
     """특정 document_id 범위 밖에서 검색"""
     vector_store = await create_vector_store()
     relevant_chunks = await vector_store.asimilarity_search(
@@ -166,9 +168,9 @@ EXCLUDED_PRECEDENT_KEYS = [
 
 
 async def query_in_precedent(
-    query: str,
-    query_filter: SearchFilter | None = None,
-    k: int = 5,
+        query: str,
+        query_filter: SearchFilter | None = None,
+        k: int = 5,
 ) -> tuple[str, list[LCDocument]]:
     """판례 검색. query_filter가 존재하는 경우 chunk_id로 필터링,
     존재하지 않는 경우 제외된 document_id로 필터링"""
@@ -198,7 +200,7 @@ async def query_in_precedent(
 
 
 async def find_law_by_article(
-    law_type: LawName, article: int
+        law_type: LawName, article: int
 ) -> tuple[str, list[LCDocument]]:
     """법령을 법령명과 조 번호로 검색."""
     relevant_chunks = []
@@ -228,21 +230,20 @@ async def find_law_by_article(
 class SearchResult(SQLModel):
     id: int
     title: str
-    content: str
     score: float
 
 
-async def search_statutes_filtered(
-    query_text: str,
-    statute_type: StatuteType | None = None,  # 법령구분명 용 필터
-    limit: int = 5,
+async def search_statute_title(
+        query_text: str,
+        statute_type: StatuteType | None = None,  # 법령구분명 용 필터
+        limit: int = 5,
 ) -> list[SearchResult]:
     # 질문 임베딩
     query_vector = await embeddings.asembed_query(query_text)
     # 필터 조건문 생성
     filter_clause = ""
     if statute_type:
-        filter_clause = "WHERE statute_type = :statute_type AND embedding IS NOT NULL"
+        filter_clause = "AND statute_type = :statute_type"
 
     sql_query = text(f"""
 WITH semantic_search AS (SELECT id,
@@ -250,6 +251,7 @@ WITH semantic_search AS (SELECT id,
                                 content,
                                 1.0 / (ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) + 60) AS score
                          FROM statutes
+                         WHERE embedding IS NOT NULL
                          {filter_clause}
                          ORDER BY embedding <=> :embedding
                          LIMIT 20),
@@ -287,4 +289,39 @@ LIMIT :limit;
     async with get_db_session() as db:
         results = (await db.exec(sql_query, params=params)).all()
 
-    return [SearchResult(id=r.id, title=r.title, content=r.content, score=r.final_score) for r in results]
+    return [SearchResult(id=r.id, title=r.title, score=r.final_score) for r in results]
+
+
+async def search_with_statute_filter(query_text: str, statue_titles: list[str] | None = None, k: int = 5,
+                                     fetch_k: int = 20,
+                                     ef_search: int = 40) -> tuple[str, list[LCDocument]]:
+    query_vector = np.array(await embeddings.asembed_query(query_text))
+    sql_query = select(DocumentChunk)
+    if statue_titles:
+        sql_query = sql_query.where(
+            or_(DocumentChunk.meta["법령명"].astext.in_(statue_titles), DocumentChunk.meta["사건번호"].astext.is_not(None)))
+    else:
+        sql_query = sql_query.where(
+            or_(DocumentChunk.meta["법령명"].astext.is_not(None), DocumentChunk.meta["사건번호"].astext.is_not(None)))
+    sql_query = sql_query.order_by(
+        DocumentChunk.embedding.cosine_distance(query_vector)).limit(fetch_k)
+    async with get_db_session() as db:
+        await db.exec(text("SET hnsw.ef_search = :ef_search"), params={"ef_search": ef_search})
+        candidates: list[DocumentChunk] = (await db.exec(sql_query)).all()
+    doc_embeddings = [chunk.embedding for chunk in candidates]
+    selected_indices = maximal_marginal_relevance(
+        query_embedding=query_vector,
+        embedding_list=doc_embeddings,  # 후보군 fetch_k개의 벡터 리스트
+        k=k,  # 최종적으로 뽑을 개수
+        lambda_mult=0.5  # 0~1 사이 (0.5가 기본, 낮을수록 다양성 중시)
+    )
+    # 4. 결과 매핑 (인덱스를 이용해 원본 내용 가져오기)
+    relevant_chunks: list[LCDocument] = []
+    for i in selected_indices:
+        added_meta = candidates[i].meta.copy()
+        added_meta["document_id"] = candidates[i].document_id
+        relevant_chunks.append(LCDocument(page_content=candidates[i].content, metadata=added_meta))
+    serialized = "\n\n".join(
+        format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
+    )
+    return serialized, relevant_chunks
