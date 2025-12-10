@@ -166,7 +166,7 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content
-        if metadata["langgraph_node"] == "tools":
+        if metadata["langgraph_node"] == "tools" and chunk.artifact:
             for doc in chunk.artifact:
                 if doc.metadata.get("document_id") in sources_id:
                     continue
