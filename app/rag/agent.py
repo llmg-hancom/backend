@@ -157,6 +157,7 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     )
     # 답변을 모을 버퍼
     full_response = ""
+    sources = set()
     async for chunk, metadata in agent.astream(
         {"messages": [{"role": "user", "content": normalized_query}]},
         stream_mode="messages",
@@ -164,9 +165,22 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content
+        if metadata["langraph_node"] == "tools":
+            for doc in chunk.artifact:
+                if "법령명" in doc.metadata:
+                    doc.metadata["type"] = "public_law"
+                elif "사건번호" in doc.metadata:
+                    doc.metadata["type"] = "precedent"
+                else:
+                    doc.metadata["type"] = "private"
+                sources.add(doc.metadata)
         yield f"data: {json.dumps({'token': chunk.content}, ensure_ascii=False)}\n\n"
+    sources = list(sources)
     new_answer = ChatMessage(
-        content=full_response, session_id=session.session_id, role=ChatRole.ai
+        content=full_response,
+        session_id=session.session_id,
+        role=ChatRole.ai,
+        sources=sources if sources else None,
     )
     asyncio.create_task(save_chat_log([new_question, new_answer]))
     # 스트림 종료 신호 (선택 사항)
