@@ -3,6 +3,8 @@ from datetime import date
 from langchain.tools import ToolRuntime, tool
 from langchain_core.documents import Document as LCDocument
 from pydantic import BaseModel, Field, ConfigDict
+
+from models.statute import StatuteType
 from rag.search import (
     fetch_target_ids,
     find_law_by_article,
@@ -270,7 +272,7 @@ async def analyze_legal_problem(problem_text: str):
     if background == "":
         return "유효한 객관식 문제가 아닙니다. 다른 도구를 이용하세요.", []
 
-    target_statutes = await search_statute_title(background)
+    target_statutes = await search_statute_title(background, statute_type=StatuteType.ACT)
     target_statute_titles = [s.title for s in target_statutes]
 
     results = [
