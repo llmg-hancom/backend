@@ -4,23 +4,48 @@ from langchain.tools import ToolRuntime, tool
 from langchain_core.documents import Document as LCDocument
 from pydantic import BaseModel, Field, field_validator
 from rag.search import (
-    SearchFilter,
     fetch_target_ids,
     find_law_by_article,
-    query_in_precedent,
     query_in_target,
-    fetch_private_ids,
-    query_excluding_target,
-    EXCLUDED_PRECEDENT_KEYS, search_statute_title, search_with_statute_filter,
+    search_statute_title,
+    legal_similarity_search,
+    StatuteFilter,
+    PrecedentFilter,
 )
 from rag.law_category import LawName, LAW_ALIAS_MAP
 
 from models.document import DocumentScope
 from rag.cleaning import split_problem_into_statements_regex
 
+EXCLUDED_PRECEDENT_KEYS = [
+    "판결요지",
+    "판례상세링크",
+    "법원종류코드",
+    "사건종류코드",
+    "판례정보일련번호",
+    "document_id",
+]
+
 
 class Context(BaseModel):
     space_id: int
+
+
+def format_doc(doc: LCDocument, excluded_keys: list[str] | None = None) -> str:
+    """llm에게 줄 정보 제한 및 추출"""
+
+    # 2. 값이 제외되지 않은 경우에만 "키: 값" 문자열 생성 (None이나 빈 문자열은 제외)
+    meta_parts = [
+        f"'{k}': {v}"
+        for k, v in doc.metadata.items()
+        if (k not in excluded_keys)
+        and v
+        != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+    ]
+
+    # 3. 메타데이터와 본문 결합
+    meta_str = ", ".join(meta_parts)
+    return f"Source: {meta_str}\nContent: {doc.page_content}"
 
 
 @tool(response_format="content_and_artifact", parse_docstring=True)
@@ -41,7 +66,8 @@ async def search_public_law_semantic(query: str):
     serialized = ""
     target_doc_ids = await fetch_target_ids(DocumentScope.public_law)
     if target_doc_ids:
-        serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
+        relevant_chunks = await query_in_target(query, target_doc_ids)
+    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
 
@@ -89,13 +115,16 @@ async def search_public_law_article(law_name: LawName, article: int):
 
     Do NOT use this tool for searching precedents or general legal concepts.
     """
-    serialized, relevant_chunks = await find_law_by_article(law_name, article)
+    relevant_chunks = await find_law_by_article(law_name, article)
+    serialized = f"법령명: {law_name}\n" + "\n".join(
+        doc.page_content for doc in relevant_chunks
+    )
     return serialized, relevant_chunks
 
 
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_precedent_semantic(
-        query: str, start_date: date | None = None, end_date: date | None = None
+    query: str, start_date: date | None = None, end_date: date | None = None
 ):
     """
     Searches for legal precedents (court rulings) based on semantic meaning.
@@ -112,8 +141,13 @@ async def search_precedent_semantic(
         end_date (date | None): Optional. The end date for filtering precedents by its decision date. Only precedents up to this date will be considered.
 
     """
-    search_filter = SearchFilter(start_date=start_date, end_date=end_date)
-    serialized, relevant_chunks = await query_in_precedent(query, search_filter)
+    precedent_filter = PrecedentFilter(start_date=start_date, end_date=end_date)
+    relevant_chunks = await legal_similarity_search(
+        query, "precedent", precedent_filter=precedent_filter, fetch_k=40, ef_search=64
+    )
+    serialized = "\n\n".join(
+        format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
+    )
     return serialized, relevant_chunks
 
 
@@ -134,8 +168,17 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     """
     # 사건번호에 공백이 있는 경우 모두 제거
     case_numbers = [cn.replace(" ", "") for cn in case_numbers]
-    search_filter = SearchFilter(case_numbers=case_numbers)
-    serialized, relevant_chunks = await query_in_precedent(query, search_filter)
+    precedent_filter = PrecedentFilter(case_numbers=case_numbers)
+    relevant_chunks = await legal_similarity_search(
+        query, "precedent", precedent_filter=precedent_filter
+    )
+    header = f"[사건번호] {','.join(case_numbers)}\n"
+    # 판례 1개에 대해서만 검색하는 경우 판결요지 포함
+    if len(case_numbers) == 1:
+        header += f"[판결요지] {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
+    serialized = header + "\n\n".join(
+        format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
+    )
     return serialized, relevant_chunks
 
 
@@ -197,12 +240,22 @@ async def analyze_legal_problem(problem_text: str):
     target_statutes = await search_statute_title(background)
     target_statute_titles = [s.title for s in target_statutes]
 
-    results = [f"[사실관계] {background}\n[관련 법령명] {", ".join(target_statute_titles)}"]
+    results = [
+        f"[사실관계] {background}\n[관련 법령명] {', '.join(target_statute_titles)}"
+    ]
     relevant_chunks: list[LCDocument] = []
     for stmt in statements:
-        search_res, chunks = await search_with_statute_filter(background + "\n" + stmt, target_statute_titles,
-                                                              k=3)
+        chunks = await legal_similarity_search(
+            background + "\n" + stmt,
+            statute_filter=StatuteFilter(titles=target_statute_titles),
+            k=3,
+        )
+        search_res = "\n\n".join(
+            format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in chunks
+        )
         results.append(f"[지문] {stmt}\n관련 법령/판례: [{search_res}]")
         relevant_chunks += chunks
 
     return "\n\n".join(results), relevant_chunks
+
+
