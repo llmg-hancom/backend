@@ -40,8 +40,8 @@ def format_doc(doc: LCDocument, excluded_keys: list[str] | None = None) -> str:
         f"'{k}': {v}"
         for k, v in doc.metadata.items()
         if (k not in excluded_keys)
-        and v
-        != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+           and v
+           != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
     ]
 
     # 3. 메타데이터와 본문 결합
@@ -49,11 +49,11 @@ def format_doc(doc: LCDocument, excluded_keys: list[str] | None = None) -> str:
     return f"Source: {meta_str}\nContent: {doc.page_content}"
 
 
-async def find_statute_title(query: str) -> StatuteTitle | str:
+async def find_statute_title(query: str) -> tuple[StatuteTitle | str | list[str], bool]:
     clean_input = query.replace(" ", "").replace("(법률)", "")
 
     if clean_input in LAW_ALIAS_MAP:
-        return LAW_ALIAS_MAP[clean_input]
+        return LAW_ALIAS_MAP[clean_input], True
 
     # Enum 멤버들과 비교
     for member in StatuteTitle:
@@ -63,62 +63,77 @@ async def find_statute_title(query: str) -> StatuteTitle | str:
 
         # 정규화된 값이 일치하면, DB에 저장된 '정확한 값(member)'을 반환
         if clean_input == normalized_member:
-            return member
+            return member, True
     # 주요 법이 아니라 Enum 안에 없는 경우 DB를 통해 법령명 Hybrid Search 실행
     candidates = await search_statute_title(query)
-    # 검색한 법령명 중 약칭이나
+    # Hybrid Search로 검색된 결과의 법령명과 약칭 중에 정확한 일치가 있는 경우
     for candidate in candidates:
         if (
-            candidate.title.replace(" ", "") == clean_input
-            or clean_input in candidate.alias
+                candidate.title.replace(" ", "") == clean_input
+                or clean_input in candidate.alias
         ):
-            return candidate.title
-    return candidates[0].title
+            return candidate.title, True
+    return [item.title for item in candidates], False
 
 
-@tool(response_format="content_and_artifact", parse_docstring=True)
-async def search_public_law_semantic(query: str):
+class SearchLawSemanticInput(BaseModel, extra='forbid'):
+    query: str = Field(description="The search query for public laws.")
+    statute_name: str | None = Field(default=None, description="Optional. The name of the statute(법령명) to search for.")
+
+
+@tool(response_format="content_and_artifact", args_schema=SearchLawSemanticInput)
+async def search_public_law_semantic(query: str, statute_name: str | None = None):
     """
     Searches for public laws based on semantic meaning.
     Use this tool for searching legal concepts, definitions related to specific laws.
+    You can specify 'Statute Name'(법령명) to search from.
 
     ⚠️ CRITICAL INSTRUCTION:
-    1. If the user provides a specific 'Law Name'(법령명) and 'Article Number'(조), DO NOT use this tool. Use 'search_public_law_article' instead.
+    1. If the user provides a specific 'Statute Name'(법령명) AND 'Article Number'(조), DO NOT use this tool. Use 'search_public_law_article' instead.
     2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
-
-    Args:
-        query (str): The search query for public laws.
-
     """
+    header = ""
+    # 법령명이 주어졌을때, 법령명이 약칭을 포함해 정확하면 그 법령명에서만 검색, 정확하지 않으면 관련성 높은 5개 법령명에서 검색
+    if statute_name:
+        exact_name, is_exact = await find_statute_title(statute_name)
+        if is_exact:
+            statute_filter = StatuteFilter(titles=[exact_name])
+        else:
+            statute_filter = StatuteFilter(titles=exact_name)
+            header = f"[Note] 정확한 법령명을 찾지 못해 다음 법령명 목록에서 검색됨: {", ".join(exact_name)}\n"
+    # 법령명이 주어지지 않으면 전체 범위에서 검색
+    else:
+        statute_filter = None
+
     relevant_chunks = await legal_similarity_search(
-        query, "public_law", k=8, fetch_k=60, ef_search=120
+        query, "public_law", statute_filter=statute_filter, k=8, fetch_k=60, ef_search=120
     )
-    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
+    serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
 
-class SearchLawInput(BaseModel):
-    law_name: str = Field(description="The name of the law(법령명) to search for.")
+class SearchLawArticleInput(BaseModel, extra="forbid"):
+    statute_name: str = Field(description="The name of the statute(법령명) to search for.")
     article: int = Field(description="The article number(조) of the law to search for.")
-    model_config = ConfigDict(extra="forbid")
 
 
-@tool(
-    response_format="content_and_artifact",
-    args_schema=SearchLawInput,
-)
-async def search_public_law_article(law_name: str, article: int):
+@tool(response_format="content_and_artifact", args_schema=SearchLawArticleInput)
+async def search_public_law_article(statute_name: str, article: int):
     """
     Retrieves the exact TEXT of a specific law article.
-    Use this tool ONLY when you have the specific 'Law Name'(법령명) AND 'Article Number'(조).
+    Use this tool ONLY when you have the specific 'Statute Name'(법령명) AND 'Article Number'(조).
 
     Examples:
     - User: "민법 5조가 뭐야?" -> Use this tool.
     - User: "형법 250조의 내용을 알려줘." -> Use this tool.
 
+    ⚠️ CRITICAL INSTRUCTION:
     Do NOT use this tool for searching precedents or general legal concepts.
+    Do NOT use this tool if you have only 'Statute Name'(법령명) without 'Article Number'(조). Use "search_public_law_semantic" instead.
     """
-    exact_title = await find_statute_title(law_name)
+    exact_title, is_exact = await find_statute_title(statute_name)
+    if not is_exact:
+        exact_title = exact_title[0]
     relevant_chunks = await find_law_by_article(exact_title, article)
     serialized = f"법령명: {exact_title}\n" + "\n".join(
         doc.page_content for doc in relevant_chunks
@@ -127,7 +142,7 @@ async def search_public_law_article(law_name: str, article: int):
 
 
 # 입력 스키마 정의
-class SearchPrecedentSemanticInput(BaseModel):
+class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
     query: str = Field(
         description="The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here."
     )
@@ -140,13 +155,10 @@ class SearchPrecedentSemanticInput(BaseModel):
         description="Optional. The end date for filtering precedents by its decision date. Only precedents up to this date will be considered.",
     )
 
-    # [핵심] 정의되지 않은 필드(case_numbers 등)가 들어오면 에러 발생시킴
-    model_config = ConfigDict(extra="forbid")
 
-
-@tool(response_format="content_and_artifact")
+@tool(response_format="content_and_artifact", args_schema=SearchPrecedentSemanticInput)
 async def search_precedent_semantic(
-    query: str, start_date: date | None = None, end_date: date | None = None
+        query: str, start_date: date | None = None, end_date: date | None = None
 ):
     """
     Searches for legal precedents (court rulings) based on semantic meaning.
@@ -167,7 +179,14 @@ async def search_precedent_semantic(
     return serialized, relevant_chunks
 
 
-@tool(response_format="content_and_artifact", parse_docstring=True)
+class SearchPrecedentCaseNumber(BaseModel, extra="forbid"):
+    query: str = Field(
+        description="The semantic query to run INSIDE the specified case document (e.g., 'What was the sentence?', '판결요지').")
+    case_numbers: list[str] = Field(
+        description="List of exact case numbers to filter by. (e.g., ['2025도903', '2024가합123'])")
+
+
+@tool(response_format="content_and_artifact", args_schema=SearchPrecedentCaseNumber)
 async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     """
     Searches for precedents within specific 'Case Numbers'(사건번호).
@@ -175,12 +194,7 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
 
     ⚠️ CRITICAL INSTRUCTION:
     The 'query' parameter must NOT contain the case number itself. It should be the topic to search *inside* that case.
-    If there is no specific topic, use a general summary query like "Summary of the case".
-
-    Args:
-        query (str): The semantic query to run INSIDE the specified case document (e.g., "What was the sentence?", "Summary").
-        case_numbers (list[str]): List of exact case numbers to filter by. (e.g., ["2025도903", "2024가합123"])
-
+    If there is no specific topic, use a general summary query like "판결요지".
     """
     # 사건번호에 공백이 있는 경우 모두 제거
     case_numbers = [cn.replace(" ", "") for cn in case_numbers]
@@ -273,5 +287,3 @@ async def analyze_legal_problem(problem_text: str):
         relevant_chunks += chunks
 
     return "\n\n".join(results), relevant_chunks
-
-
