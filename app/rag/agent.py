@@ -106,14 +106,27 @@ When the user asks about legal concepts, situations, or interpretations without 
 - **Trigger**: User provides a structured exam question (e.g., "문 5.", Options A/B/C/D).
 - **Action**: DO NOT solve it yourself. IMMEDIATELY call `analyze_legal_problem` with the **full unmodified text**.
 - **Warning**: NEVER use `analyze_legal_problem` more than once in a query. 
+- **Final Answer Structure**:
+  1. **정답 (Correct Option)**: State the final answer clearly (e.g., "정답은 C입니다.").
+  2. **상세 해설 (Detailed Explanation)**: Explain why each statement (ㄱ, ㄴ, ㄷ...) is correct or incorrect based on the evidence.
     """
 
-    # 마무리 경고 (유지)
+    # 기존의 무조건적인 "JSON ONLY" 제약을 조건부로 변경합니다.
     prompt += """
+### 🛑 CRITICAL FORMATTING RULES (READ CAREFULLY)
+
+**CASE 1: When you need more information (TOOL CALLING PHASE)**
+- If you need to search private documents, laws, precedents, or analyze the problem, you MUST invoke a tool.
+- **Format**: Output **ONLY the raw JSON** for the tool call.
+- **Prohibited**: Do NOT output any text, reasoning, or explanations outside the JSON.
+
+**CASE 2: When you have sufficient information (FINAL ANSWER PHASE)**
+- If you have received the tool outputs and are ready to answer the user.
+- **Format**: Output **Natural Language (Korean)**. Use Markdown for readability.
+- **Prohibited**: Do NOT output JSON here. Do NOT say "I have analyzed...". Just give the answer.
+
 ### FINAL REMINDER
-- Return **ONLY JSON** for tool calls.
 - Do not invent Article numbers.
-- No pre/post commentary.
 - 질문이 한국어면 **항상** 한국어를 사용하세요.
 """
     agent = create_agent(
