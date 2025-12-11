@@ -2,17 +2,16 @@ from datetime import date
 
 from langchain.tools import ToolRuntime, tool
 from langchain_core.documents import Document as LCDocument
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ConfigDict
 from rag.search import (
     fetch_target_ids,
     find_law_by_article,
     query_in_target,
-    search_statute_title,
     legal_similarity_search,
     StatuteFilter,
     PrecedentFilter,
 )
-from rag.law_category import LawName, LAW_ALIAS_MAP
+from rag.law_category import StatuteTitle, LAW_ALIAS_MAP, search_statute_title
 
 from models.document import DocumentScope
 from rag.cleaning import split_problem_into_statements_regex
@@ -50,6 +49,33 @@ def format_doc(doc: LCDocument, excluded_keys: list[str] | None = None) -> str:
     return f"Source: {meta_str}\nContent: {doc.page_content}"
 
 
+async def find_statute_title(query: str) -> StatuteTitle | str:
+    clean_input = query.replace(" ", "").replace("(법률)", "")
+
+    if clean_input in LAW_ALIAS_MAP:
+        return LAW_ALIAS_MAP[clean_input]
+
+    # Enum 멤버들과 비교
+    for member in StatuteTitle:
+        # DB 값 정규화: 공백 제거
+        # 예: "개인정보 보호법" -> "개인정보보호법"
+        normalized_member = member.value.replace(" ", "")
+
+        # 정규화된 값이 일치하면, DB에 저장된 '정확한 값(member)'을 반환
+        if clean_input == normalized_member:
+            return member
+    # 주요 법이 아니라 Enum 안에 없는 경우 DB를 통해 법령명 Hybrid Search 실행
+    candidates = await search_statute_title(query)
+    # 검색한 법령명 중 약칭이나
+    for candidate in candidates:
+        if (
+            candidate.title.replace(" ", "") == clean_input
+            or clean_input in candidate.alias
+        ):
+            return candidate.title
+    return candidates[0].title
+
+
 @tool(response_format="content_and_artifact", parse_docstring=True)
 async def search_public_law_semantic(query: str):
     """
@@ -64,11 +90,9 @@ async def search_public_law_semantic(query: str):
         query (str): The search query for public laws.
 
     """
-    relevant_chunks = []
-    serialized = ""
-    target_doc_ids = await fetch_target_ids(DocumentScope.public_law)
-    if target_doc_ids:
-        relevant_chunks = await query_in_target(query, target_doc_ids)
+    relevant_chunks = await legal_similarity_search(
+        query, "public_law", fetch_k=40, ef_search=100
+    )
     serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
@@ -76,37 +100,14 @@ async def search_public_law_semantic(query: str):
 class SearchLawInput(BaseModel):
     law_name: str = Field(description="The name of the law(법령명) to search for.")
     article: int = Field(description="The article number(조) of the law to search for.")
-
-    @field_validator("law_name")
-    @classmethod
-    def normalize_law_name(cls, v: str) -> str:
-        # 입력값 정규화: 공백 제거 및 '(법률)' 제거
-        # 예: "개인정보 보호법" -> "개인정보보호법"
-        clean_input = v.replace(" ", "").replace("(법률)", "")
-
-        if clean_input in LAW_ALIAS_MAP:
-            return LAW_ALIAS_MAP[clean_input]
-
-        # Enum 멤버들과 비교
-        for member in LawName:
-            # DB 값 정규화: 공백 제거
-            # 예: "개인정보 보호법" -> "개인정보보호법"
-            normalized_member = member.value.replace(" ", "")
-
-            # 정규화된 값이 일치하면, DB에 저장된 '정확한 값(member)'을 반환
-            if clean_input == normalized_member:
-                return member
-
-        raise ValueError(
-            f"지원하지 않거나 정확하지 않은 법률 명칭입니다: {v}. (가능한 목록: 형법, 행정소송법, 근로기준법...)"
-        )
+    model_config = ConfigDict(extra="forbid")
 
 
 @tool(
     response_format="content_and_artifact",
     args_schema=SearchLawInput,
 )
-async def search_public_law_article(law_name: LawName, article: int):
+async def search_public_law_article(law_name: str, article: int):
     """
     Retrieves the exact TEXT of a specific law article.
     Use this tool ONLY when you have the specific 'Law Name'(법령명) AND 'Article Number'(조).
@@ -117,14 +118,33 @@ async def search_public_law_article(law_name: LawName, article: int):
 
     Do NOT use this tool for searching precedents or general legal concepts.
     """
-    relevant_chunks = await find_law_by_article(law_name, article)
-    serialized = f"법령명: {law_name}\n" + "\n".join(
+    exact_title = await find_statute_title(law_name)
+    relevant_chunks = await find_law_by_article(exact_title, article)
+    serialized = f"법령명: {exact_title}\n" + "\n".join(
         doc.page_content for doc in relevant_chunks
     )
     return serialized, relevant_chunks
 
 
-@tool(response_format="content_and_artifact", parse_docstring=True)
+# 입력 스키마 정의
+class SearchPrecedentSemanticInput(BaseModel):
+    query: str = Field(
+        description="The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here."
+    )
+    start_date: date | None = Field(
+        default=None,
+        description="Optional. The start date for filtering precedents by its decision date. Only precedents from this date onwards will be considered.",
+    )
+    end_date: date | None = Field(
+        default=None,
+        description="Optional. The end date for filtering precedents by its decision date. Only precedents up to this date will be considered.",
+    )
+
+    # [핵심] 정의되지 않은 필드(case_numbers 등)가 들어오면 에러 발생시킴
+    model_config = ConfigDict(extra="forbid")
+
+
+@tool(response_format="content_and_artifact")
 async def search_precedent_semantic(
     query: str, start_date: date | None = None, end_date: date | None = None
 ):
@@ -136,16 +156,10 @@ async def search_precedent_semantic(
     2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
     3. HOWEVER, if the user asks for "민사소송법 5조 관련 판례", use this tool after searching for law article.
 
-    Args:
-        query (str): The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here.
-        start_date (date | None): Optional. The start date for filtering precedents by its decision date.
-                                  Only precedents from this date onwards will be considered.
-        end_date (date | None): Optional. The end date for filtering precedents by its decision date. Only precedents up to this date will be considered.
-
     """
     precedent_filter = PrecedentFilter(start_date=start_date, end_date=end_date)
     relevant_chunks = await legal_similarity_search(
-        query, "precedent", precedent_filter=precedent_filter, fetch_k=40, ef_search=64
+        query, "precedent", precedent_filter=precedent_filter, fetch_k=40, ef_search=100
     )
     serialized = "\n\n".join(
         format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
