@@ -92,10 +92,10 @@ When the user asks about legal concepts, situations, or interpretations without 
         tools.append(search_public_law_semantic)
         prompt += "- Use `search_public_law_semantic` for all concept and definition queries.\n"
 
-        # 3. 복합 전략 및 문제 풀이 (기존 로직 유지하되 다듬음)
-        if include_law and include_precedent:
-            tools.append(analyze_legal_problem)
-            prompt += """
+    # 3. 복합 전략 및 문제 풀이 (기존 로직 유지하되 다듬음)
+    if include_law and include_precedent:
+        tools.append(analyze_legal_problem)
+        prompt += """
 
 ### 3. Advanced & Complex Strategies
 **Strategy A: Precedents by Law Article**
@@ -109,8 +109,8 @@ When the user asks about legal concepts, situations, or interpretations without 
 - **Action**: DO NOT solve it yourself. IMMEDIATELY call `analyze_legal_problem` with the **full unmodified text**.
     """
 
-        # 마무리 경고 (유지)
-        prompt += """
+    # 마무리 경고 (유지)
+    prompt += """
 ### FINAL REMINDER
 - Return **ONLY JSON** for tool calls.
 - Do not invent Article numbers.
@@ -152,9 +152,9 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     sources: list[dict] = []
     sources_id: set[int] = set()
     async for chunk, metadata in agent.astream(
-        {"messages": [{"role": "user", "content": normalized_query}]},
-        stream_mode="messages",
-        context=Context(space_id=session.space_id),
+            {"messages": [{"role": "user", "content": normalized_query}]},
+            stream_mode="messages",
+            context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content

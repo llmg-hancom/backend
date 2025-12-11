@@ -78,7 +78,8 @@ async def find_statute_title(query: str) -> tuple[StatuteTitle | str | list[str]
 
 class SearchLawSemanticInput(BaseModel, extra='forbid'):
     query: str = Field(description="The search query for public laws.")
-    statute_name: str | None = Field(default=None, description="Optional. The name of the statute(법령명) to search for.")
+    statute_name: str | None = Field(default=None,
+                                     description="Optional. The name or abbreviation of the statute(법령명) to search for.")
 
 
 @tool(response_format="content_and_artifact", args_schema=SearchLawSemanticInput)
@@ -113,7 +114,7 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
 
 
 class SearchLawArticleInput(BaseModel, extra="forbid"):
-    statute_name: str = Field(description="The name of the statute(법령명) to search for.")
+    statute_name: str = Field(description="The name or abbreviation of the statute(법령명) to search for.")
     article: int = Field(description="The article number(조) of the law to search for.")
 
 
@@ -131,11 +132,13 @@ async def search_public_law_article(statute_name: str, article: int):
     Do NOT use this tool for searching precedents or general legal concepts.
     Do NOT use this tool if you have only 'Statute Name'(법령명) without 'Article Number'(조). Use "search_public_law_semantic" instead.
     """
+    header = ""
     exact_title, is_exact = await find_statute_title(statute_name)
     if not is_exact:
         exact_title = exact_title[0]
+        header = f"[Note] {statute_name}은 정확한 법령명 또는 약칭이 아님\n"
     relevant_chunks = await find_law_by_article(exact_title, article)
-    serialized = f"법령명: {exact_title}\n" + "\n".join(
+    serialized = header + f"법령명: {exact_title}\n" + "\n".join(
         doc.page_content for doc in relevant_chunks
     )
     return serialized, relevant_chunks
