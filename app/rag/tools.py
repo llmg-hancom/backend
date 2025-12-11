@@ -91,7 +91,7 @@ async def search_public_law_semantic(query: str):
 
     """
     relevant_chunks = await legal_similarity_search(
-        query, "public_law", fetch_k=40, ef_search=100
+        query, "public_law", k=8, fetch_k=60, ef_search=120
     )
     serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
