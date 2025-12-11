@@ -11,10 +11,10 @@ from pydantic import BaseModel
 
 from models.statute import StatuteType
 from rag.context_manager import get_db_session
-from rag.law_category import LawName
+from rag.law_category import StatuteTitle
 from rag.model import embeddings
 from sqlalchemy import Row, RowMapping, text
-from sqlmodel import select, SQLModel, or_
+from sqlmodel import select, or_
 
 from db.session import async_engine
 from models import ChatSpaceDocument, Document, DocumentChunk
@@ -230,13 +230,15 @@ async def query_in_target(
     return relevant_chunks
 
 
-async def find_law_by_article(law_type: LawName, article: int) -> list[LCDocument]:
+async def find_law_by_article(
+    statute_title: StatuteTitle | str, article: int
+) -> list[LCDocument]:
     """법령을 법령명과 조 번호로 검색."""
     relevant_chunks = []
     async with get_db_session() as session:
         statement = (
             select(DocumentChunk)
-            .where(DocumentChunk.meta["법령명"].astext == str(law_type))
+            .where(DocumentChunk.meta["법령명"].astext == str(statute_title))
             .where(
                 text(
                     "(SUBSTRING(meta ->> '조' FROM '제([0-9]+)조')::INT) = :article"
@@ -254,69 +256,6 @@ async def find_law_by_article(law_type: LawName, article: int) -> list[LCDocumen
 
 
 # 결과 반환용 Pydantic 모델 (검색 결과는 Score가 포함되므로 별도 모델 권장)
-class SearchResult(SQLModel):
-    id: int
-    title: str
-    score: float
-
-
-async def search_statute_title(
-    query_text: str,
-    statute_type: StatuteType | None = None,  # 법령구분명 용 필터
-    limit: int = 5,
-) -> list[SearchResult]:
-    # 질문 임베딩
-    query_vector = await embeddings.aembed_query(query_text)
-    # 필터 조건문 생성
-    filter_clause = ""
-    if statute_type:
-        filter_clause = "AND statute_type = :statute_type"
-
-    sql_query = text(f"""
-WITH semantic_search AS (SELECT id,
-                                title,
-                                content,
-                                1.0 / (ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) + 60) AS score
-                         FROM statutes
-                         WHERE embedding IS NOT NULL
-                         {filter_clause}
-                         ORDER BY embedding <=> :embedding
-                         LIMIT 20),
-     keyword_search AS (SELECT id,
-                               title,
-                               -- 점수 계산 시에도 동일 함수 사용
-                               GREATEST(
-                                       similarity(title, :query_text),
-                                       similarity(immutable_array_to_string(alias::TEXT[], ' '), :query_text)
-                               )           AS sim_score,
-                               -- 랭킹용 점수 계산
-                               1.0 / (ROW_NUMBER() OVER (
-                                   ORDER BY GREATEST(similarity(title, :query_text),
-                                                     (similarity(immutable_array_to_string(alias::TEXT[], ' '),
-                                                                 :query_text))) DESC
-                                   ) + 60) AS score
-                        FROM statutes
-                        WHERE (title % :query_text)
-                           OR
-                           -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
-                            (immutable_array_to_string(alias::TEXT[], ' ') % :query_text)
-                        LIMIT 20)
-SELECT COALESCE(s.id, k.id)                          AS id,
-       COALESCE(s.title, k.title)                    AS title,
-       (COALESCE(s.score, 0) + COALESCE(k.score, 0)) AS final_score
-FROM semantic_search s
-         FULL OUTER JOIN keyword_search k ON s.id = k.id
-ORDER BY final_score DESC
-LIMIT :limit
-""")
-
-    params = {"embedding": query_vector, "query_text": query_text, "limit": limit}
-    if statute_type:
-        params["statute_type"] = statute_type.value  # Enum의 실제 값("대통령령") 전달
-    async with get_db_session() as db:
-        results = (await db.exec(sql_query, params=params)).all()
-
-    return [SearchResult(id=r.id, title=r.title, score=r.final_score) for r in results]
 
 
 @deprecated("Use `legal_similarity_search` for legal search instead.")
