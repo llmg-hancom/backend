@@ -33,6 +33,8 @@ class Context(BaseModel):
 
 def format_doc(doc: LCDocument, excluded_keys: list[str] | None = None) -> str:
     """llm에게 줄 정보 제한 및 추출"""
+    if excluded_keys is None:
+        excluded_keys = []
 
     # 2. 값이 제외되지 않은 경우에만 "키: 값" 문자열 생성 (None이나 빈 문자열은 제외)
     meta_parts = [
