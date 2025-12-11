@@ -273,9 +273,9 @@ class SearchResult(BaseModel):
 
 
 async def search_statute_title(
-    query_text: str,
-    statute_type: StatuteType | None = None,  # 법령구분명 용 필터
-    limit: int = 5,
+        query_text: str,
+        statute_type: StatuteType | None = None,  # 법령구분명 용 필터
+        limit: int = 5,
 ) -> list[SearchResult]:
     # 질문 임베딩
     query_vector = await embeddings.aembed_query(query_text)
@@ -293,7 +293,7 @@ WITH semantic_search AS (SELECT id,
                          FROM statutes
                          WHERE embedding IS NOT NULL {filter_clause}
                          ORDER BY embedding <=> :embedding
-                         LIMIT 20),
+                         LIMIT 40),
      keyword_search AS (SELECT id,
                                title,
                                alias,
@@ -318,7 +318,7 @@ WITH semantic_search AS (SELECT id,
 -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
                             (immutable_array_to_string(alias::TEXT[]
                                  , ' ') % :query_text)
-                        LIMIT 20)
+                        LIMIT 40)
 SELECT COALESCE(s.id, k.id)                          AS id,
        COALESCE(s.title, k.title)                    AS title,
        COALESCE(s.alias, k.alias)                    AS alias,
@@ -335,6 +335,7 @@ LIMIT :limit
     if statute_type:
         params["statute_type"] = statute_type
     async with get_db_session() as db:
+        await db.exec(text(f"SET hnsw.ef_search = 100"))
         results = (await db.exec(sql_query, params=params)).all()
 
     return [

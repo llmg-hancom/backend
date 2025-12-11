@@ -286,7 +286,7 @@ async def analyze_legal_problem(problem_text: str):
         chunks = await legal_similarity_search(
             background + "\n" + stmt,
             statute_filter=StatuteFilter(titles=target_statute_titles),
-            k=3,
+            k=2,
         )
         search_res = "\n\n".join(
             format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in chunks
