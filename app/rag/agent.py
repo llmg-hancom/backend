@@ -115,6 +115,7 @@ When the user asks about legal concepts, situations, or interpretations without 
 - Return **ONLY JSON** for tool calls.
 - Do not invent Article numbers.
 - No pre/post commentary.
+- 질문이 한국어면 **항상** 한국어를 사용하세요.
 """
     agent = create_agent(
         model=llm,
