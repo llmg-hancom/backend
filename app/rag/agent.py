@@ -26,8 +26,6 @@ logger = logging.getLogger(__name__)
 
 def agent_generator(include_law: bool = False, include_precedent: bool = False):
     tools = [search_private_documents]
-    tools_string = ["search_private_documents"]
-    deactivated_tools = []
 
     # [최적화 1] 역할 정의 및 기본 문서(Private) 우선순위 명시
     # 단순한 helpful assistant보다 'Legal Research Assistant'라는 페르소나를 부여하고,
@@ -107,6 +105,7 @@ When the user asks about legal concepts, situations, or interpretations without 
 **Strategy B: Legal Exam / Multiple-Choice Questions**
 - **Trigger**: User provides a structured exam question (e.g., "문 5.", Options A/B/C/D).
 - **Action**: DO NOT solve it yourself. IMMEDIATELY call `analyze_legal_problem` with the **full unmodified text**.
+- **Warning**: NEVER use `analyze_legal_problem` more than once in a query. 
     """
 
     # 마무리 경고 (유지)

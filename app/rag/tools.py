@@ -264,6 +264,9 @@ async def analyze_legal_problem(problem_text: str):
     - Standard search tools cannot handle complex multi-part questions effectively.
     - Using this tool prevents hallucinations about Article numbers(조).
 
+    ⚠️ CRITICAL INSTRUCTION:
+    - DO NOT call this tool more than once.
+
     Args:
         problem_text (str): The raw text of the problem.
     """
