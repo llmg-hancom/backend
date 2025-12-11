@@ -126,7 +126,8 @@ When the user asks about legal concepts, situations, or interpretations without 
 - **Prohibited**: Do NOT output JSON here. Do NOT say "I have analyzed...". Just give the answer.
 
 ### FINAL REMINDER
-- Do not invent Article numbers.
+- DO NOT output "analysis" anywhere.
+- DO NOT invent Article numbers.
 - 질문이 한국어면 **항상** 한국어를 사용하세요.
 """
     agent = create_agent(
