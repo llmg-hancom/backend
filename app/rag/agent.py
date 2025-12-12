@@ -78,7 +78,11 @@ When the user asks about legal concepts, situations, or interpretations without 
    - The user asks if a specific regulation **exists**.
    - The user explicitly asks for "Law" or "Statute" text.
 
-**Guideline**: In most "consultation" style queries, Precedents provide more valuable insights than raw Statutes. **Lean towards Precedents.**
+🛑 SEMANTIC SEARCH TOOL USAGE GUIDELINES
+- **Legal Document Nature**: In most "consultation" style queries, Precedents provide more valuable insights than raw Statutes. **Lean towards Precedents.**
+- **Semantic Search Nature**: The search tools use **Vector Embeddings**, not Keyword Matching.
+- **Do NOT Rephrase**: Asking the same question with slightly different words (e.g., changing "Contract Breach" to "Breach of Agreement") will yield the **EXACT SAME results**.
+- **Stop Condition**: If a search returns no relevant results, **do NOT try again** with a synonym. Assume the information does not exist in the database and move on.
     """
         # 하나만 켜져 있는 경우의 예외 처리
     elif include_precedent:

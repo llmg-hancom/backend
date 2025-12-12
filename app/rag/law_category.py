@@ -45,6 +45,7 @@ LAW_ALIAS_MAP = {
     "형소법": StatuteTitle.CRIMINAL_PROCEDURE,
     "형소": StatuteTitle.CRIMINAL_PROCEDURE,
     # 3. 근로기준법 (Labor Standards) -> 실무에서 가장 많이 줄여 씀
+    "근로계약법": StatuteTitle.LABOR,
     "근기법": StatuteTitle.LABOR,
     "근로법": StatuteTitle.LABOR,
     "노동법": StatuteTitle.LABOR,  # 엄밀히는 노동조합법 등도 포함하지만, 일반인은 근기법을 의도하는 경우가 많음
@@ -273,9 +274,9 @@ class SearchResult(BaseModel):
 
 
 async def search_statute_title(
-        query_text: str,
-        statute_type: StatuteType | None = None,  # 법령구분명 용 필터
-        limit: int = 5,
+    query_text: str,
+    statute_type: StatuteType | None = None,  # 법령구분명 용 필터
+    limit: int = 5,
 ) -> list[SearchResult]:
     # 질문 임베딩
     query_vector = await embeddings.aembed_query(query_text)
@@ -335,7 +336,7 @@ LIMIT :limit
     if statute_type:
         params["statute_type"] = statute_type
     async with get_db_session() as db:
-        await db.exec(text(f"SET hnsw.ef_search = 100"))
+        await db.exec(text("SET hnsw.ef_search = 100"))
         results = (await db.exec(sql_query, params=params)).all()
 
     return [

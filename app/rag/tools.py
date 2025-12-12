@@ -105,7 +105,7 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
             statute_filter = StatuteFilter(titles=[exact_name])
         else:
             statute_filter = StatuteFilter(titles=exact_name)
-            header = f"[Note] 정확한 법령명을 찾지 못해 다음 법령명 목록에서 검색됨: {', '.join(exact_name)}\n"
+            header = f"[System Message]\n정확한 법령명을 찾지 못해 다음 법령명 목록에서 검색됨: {', '.join(exact_name)}\n"
     # 법령명이 주어지지 않으면 전체 범위에서 검색
     else:
         statute_filter = None
@@ -118,6 +118,15 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
         fetch_k=60,
         ef_search=120,
     )
+    if not relevant_chunks:
+        return (
+            """
+[System Message]
+No relevant law articles found. 
+NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
+Please STOP searching for this specific topic and try a completely different legal concept, or conclude that no information is available.
+"""
+        ), []
     serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
@@ -152,8 +161,16 @@ async def search_public_law_article(statute_name: str, article: int):
     exact_title, is_exact = await find_statute_title(statute_name)
     if not is_exact:
         exact_title = exact_title[0]
-        header = f"[Note] {statute_name}은 정확한 법령명 또는 약칭이 아님\n"
+        header = f"[System Message]\n{statute_name}은 정확한 법령명 또는 약칭이 아님.\n"
     relevant_chunks = await find_law_by_article(exact_title, article)
+    if not relevant_chunks:
+        return (
+            """
+[System Message]
+No relevant information found.
+""",
+            [],
+        )
     serialized = (
         header
         + f"법령명: {exact_title}\n"
@@ -197,6 +214,16 @@ async def search_precedent_semantic(
     relevant_chunks = await legal_similarity_search(
         query, "precedent", precedent_filter=precedent_filter, fetch_k=40, ef_search=100
     )
+    if not relevant_chunks:
+        return (
+            """
+[System Message]
+No relevant precedents found. 
+NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
+Please STOP searching for this specific topic and try a completely different legal concept, or conclude that no information is available.
+""",
+            [],
+        )
     serialized = "\n\n".join(
         format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
     )
@@ -228,10 +255,18 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     relevant_chunks = await legal_similarity_search(
         query, "precedent", precedent_filter=precedent_filter
     )
+    if not relevant_chunks:
+        return (
+            """
+[System Message]
+No relevant information found.
+""",
+            [],
+        )
     header = f"[사건번호] {','.join(case_numbers)}\n"
     excluded_keys = EXCLUDED_PRECEDENT_KEYS
     # 판례 1개에 대해서만 검색하는 경우 판결요지 포함
-    if len(case_numbers) == 1:
+    if relevant_chunks and len(case_numbers) == 1:
         header += f"[판결요지] {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
         header += f"[판시사항] {relevant_chunks[0].metadata.get('판시사항', '없음')}\n"
         excluded_keys.add("판시사항")
@@ -262,7 +297,10 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     if target_doc_ids:
         serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
     else:
-        serialized = "Empty: There is no document attached to the chat session. DO NOT call this tool again."
+        serialized = """
+[System Message]
+There is no document attached to the chat session. DO NOT call this tool again.
+"""
     return serialized, relevant_chunks
 
 
