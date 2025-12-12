@@ -2,7 +2,7 @@ from datetime import date
 
 from langchain.tools import ToolRuntime, tool
 from langchain_core.documents import Document as LCDocument
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 from models.statute import StatuteType
 from rag.search import (
@@ -18,32 +18,32 @@ from rag.law_category import StatuteTitle, LAW_ALIAS_MAP, search_statute_title
 from models.document import DocumentScope
 from rag.cleaning import split_problem_into_statements_regex
 
-EXCLUDED_PRECEDENT_KEYS = [
+EXCLUDED_PRECEDENT_KEYS = {
     "판결요지",
     "판례상세링크",
     "법원종류코드",
     "사건종류코드",
     "판례정보일련번호",
     "document_id",
-]
+}
 
 
 class Context(BaseModel):
     space_id: int
 
 
-def format_doc(doc: LCDocument, excluded_keys: list[str] | None = None) -> str:
+def format_doc(doc: LCDocument, excluded_keys: set[str] | None = None) -> str:
     """llm에게 줄 정보 제한 및 추출"""
     if excluded_keys is None:
-        excluded_keys = []
+        excluded_keys = set()
 
     # 2. 값이 제외되지 않은 경우에만 "키: 값" 문자열 생성 (None이나 빈 문자열은 제외)
     meta_parts = [
         f"'{k}': {v}"
         for k, v in doc.metadata.items()
         if (k not in excluded_keys)
-           and v
-           != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+        and v
+        != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
     ]
 
     # 3. 메타데이터와 본문 결합
@@ -71,17 +71,19 @@ async def find_statute_title(query: str) -> tuple[StatuteTitle | str | list[str]
     # Hybrid Search로 검색된 결과의 법령명과 약칭 중에 정확한 일치가 있는 경우
     for candidate in candidates:
         if (
-                candidate.title.replace(" ", "") == clean_input
-                or clean_input in candidate.alias
+            candidate.title.replace(" ", "") == clean_input
+            or clean_input in candidate.alias
         ):
             return candidate.title, True
     return [item.title for item in candidates], False
 
 
-class SearchLawSemanticInput(BaseModel, extra='forbid'):
+class SearchLawSemanticInput(BaseModel, extra="forbid"):
     query: str = Field(description="The search query for public laws.")
-    statute_name: str | None = Field(default=None,
-                                     description="Optional. The name or abbreviation of the statute(법령명) to search for.")
+    statute_name: str | None = Field(
+        default=None,
+        description="Optional. The name or abbreviation of the statute(법령명) to search for.",
+    )
 
 
 @tool(response_format="content_and_artifact", args_schema=SearchLawSemanticInput)
@@ -103,21 +105,33 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
             statute_filter = StatuteFilter(titles=[exact_name])
         else:
             statute_filter = StatuteFilter(titles=exact_name)
-            header = f"[Note] 정확한 법령명을 찾지 못해 다음 법령명 목록에서 검색됨: {", ".join(exact_name)}\n"
+            header = f"[Note] 정확한 법령명을 찾지 못해 다음 법령명 목록에서 검색됨: {', '.join(exact_name)}\n"
     # 법령명이 주어지지 않으면 전체 범위에서 검색
     else:
         statute_filter = None
 
     relevant_chunks = await legal_similarity_search(
-        query, "public_law", statute_filter=statute_filter, k=8, fetch_k=60, ef_search=120
+        query,
+        "public_law",
+        statute_filter=statute_filter,
+        k=8,
+        fetch_k=60,
+        ef_search=120,
     )
     serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
 
 class SearchLawArticleInput(BaseModel, extra="forbid"):
-    statute_name: str = Field(description="The name or abbreviation of the statute(법령명) to search for.")
-    article: int = Field(description="The article number(조) of the law to search for.")
+    statute_name: str = Field(
+        description="The name or abbreviation of the statute(법령명) to search for."
+    )
+    article: int = Field(
+        description=(
+            "The article number(조) of the law to search for."
+            "You need to input number that comes before `조`, NOT after. (e.g. `제5조의10` -> `5`)"
+        )
+    )
 
 
 @tool(response_format="content_and_artifact", args_schema=SearchLawArticleInput)
@@ -140,8 +154,10 @@ async def search_public_law_article(statute_name: str, article: int):
         exact_title = exact_title[0]
         header = f"[Note] {statute_name}은 정확한 법령명 또는 약칭이 아님\n"
     relevant_chunks = await find_law_by_article(exact_title, article)
-    serialized = header + f"법령명: {exact_title}\n" + "\n".join(
-        doc.page_content for doc in relevant_chunks
+    serialized = (
+        header
+        + f"법령명: {exact_title}\n"
+        + "\n".join(doc.page_content for doc in relevant_chunks)
     )
     return serialized, relevant_chunks
 
@@ -149,7 +165,10 @@ async def search_public_law_article(statute_name: str, article: int):
 # 입력 스키마 정의
 class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
     query: str = Field(
-        description="The search query for precedents. This should be a concise and clear question or statement. DO NOT include case number(사건번호) or year/date here."
+        description=(
+            "The search query for precedents. This should be a concise and clear question or statement."
+            " DO NOT include statute article number(조), case number(사건번호) or year/date here."
+        )
     )
     start_date: date | None = Field(
         default=None,
@@ -163,7 +182,7 @@ class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
 
 @tool(response_format="content_and_artifact", args_schema=SearchPrecedentSemanticInput)
 async def search_precedent_semantic(
-        query: str, start_date: date | None = None, end_date: date | None = None
+    query: str, start_date: date | None = None, end_date: date | None = None
 ):
     """
     Searches for legal precedents (court rulings) based on semantic meaning.
@@ -186,9 +205,11 @@ async def search_precedent_semantic(
 
 class SearchPrecedentCaseNumber(BaseModel, extra="forbid"):
     query: str = Field(
-        description="The semantic query to run INSIDE the specified case document (e.g., 'What was the sentence?', '판결요지').")
+        description="The semantic query to run INSIDE the specified case document (e.g., 'What was the sentence?', '판결요지')."
+    )
     case_numbers: list[str] = Field(
-        description="List of exact case numbers to filter by. (e.g., ['2025도903', '2024가합123'])")
+        description="List of exact case numbers to filter by. (e.g., ['2025도903', '2024가합123'])"
+    )
 
 
 @tool(response_format="content_and_artifact", args_schema=SearchPrecedentCaseNumber)
@@ -208,11 +229,14 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
         query, "precedent", precedent_filter=precedent_filter
     )
     header = f"[사건번호] {','.join(case_numbers)}\n"
+    excluded_keys = EXCLUDED_PRECEDENT_KEYS
     # 판례 1개에 대해서만 검색하는 경우 판결요지 포함
     if len(case_numbers) == 1:
         header += f"[판결요지] {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
+        header += f"[판시사항] {relevant_chunks[0].metadata.get('판시사항', '없음')}\n"
+        excluded_keys.add("판시사항")
     serialized = header + "\n\n".join(
-        format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
+        format_doc(doc, excluded_keys) for doc in relevant_chunks
     )
     return serialized, relevant_chunks
 
@@ -275,7 +299,9 @@ async def analyze_legal_problem(problem_text: str):
     if background == "":
         return "유효한 객관식 문제가 아닙니다. 다른 도구를 이용하세요.", []
 
-    target_statutes = await search_statute_title(background, statute_type=StatuteType.ACT)
+    target_statutes = await search_statute_title(
+        background, statute_type=StatuteType.ACT
+    )
     target_statute_titles = [s.title for s in target_statutes]
 
     results = [

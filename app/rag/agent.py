@@ -100,7 +100,7 @@ When the user asks about legal concepts, situations, or interpretations without 
 - **Scenario**: User asks for precedents related to a specific law article (e.g., "민소법 300조 관련 판례").
 - **Action**: 
   1. Call `search_public_law_article` (get text).
-  2. Call `search_precedent_semantic` (query = Article Number(조) + Key Terms from text).
+  2. Call `search_precedent_semantic` (query = Statute name + Key Terms from text. (DO NOT include Article number(조) here.)).
 
 **Strategy B: Legal Exam / Multiple-Choice Questions**
 - **Trigger**: User provides a structured exam question (e.g., "문 5.", Options A/B/C/D).
@@ -128,6 +128,7 @@ When the user asks about legal concepts, situations, or interpretations without 
 ### FINAL REMINDER
 - DO NOT output "analysis" anywhere.
 - DO NOT invent Article numbers.
+- DO NOT answer legal questions without using any tool.
 - 질문이 한국어면 **항상** 한국어를 사용하세요.
 """
     agent = create_agent(
@@ -165,9 +166,9 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     sources: list[dict] = []
     sources_id: set[int] = set()
     async for chunk, metadata in agent.astream(
-            {"messages": [{"role": "user", "content": normalized_query}]},
-            stream_mode="messages",
-            context=Context(space_id=session.space_id),
+        {"messages": [{"role": "user", "content": normalized_query}]},
+        stream_mode="messages",
+        context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response += chunk.content
