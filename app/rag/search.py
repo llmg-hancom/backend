@@ -14,7 +14,7 @@ from rag.context_manager import get_db_session
 from rag.law_category import StatuteTitle
 from rag.model import embeddings
 from sqlalchemy import Row, RowMapping, text
-from sqlmodel import select, or_
+from sqlmodel import select, or_, col
 
 from db.session import async_engine
 from models import ChatSpaceDocument, Document, DocumentChunk
@@ -189,17 +189,17 @@ async def fetch_target_ids(
                     statement = select(DocumentChunk.chunk_id)
                     if search_filter.start_date:
                         statement = statement.where(
-                            DocumentChunk.meta["선고일자"].astext
+                            col(DocumentChunk.meta)["선고일자"].astext
                             >= search_filter.start_date.strftime("%Y%m%d")
                         )
                     if search_filter.end_date:
                         statement = statement.where(
-                            DocumentChunk.meta["선고일자"].astext
+                            col(DocumentChunk.meta)["선고일자"].astext
                             <= search_filter.end_date.strftime("%Y%m%d")
                         )
                     if search_filter.case_numbers:
                         statement = statement.where(
-                            DocumentChunk.meta["사건번호"].astext.in_(
+                            col(DocumentChunk.meta)["사건번호"].astext.in_(
                                 search_filter.case_numbers
                             )
                         )
