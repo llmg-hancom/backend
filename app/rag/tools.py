@@ -253,9 +253,7 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     case_numbers = [cn.replace(" ", "") for cn in case_numbers]
     precedent_filter = PrecedentFilter(case_numbers=case_numbers)
     relevant_chunks = await legal_similarity_search(
-        query,
-        "precedent",
-        precedent_filter=precedent_filter,
+        query, "precedent", precedent_filter=precedent_filter, k=3
     )
     if not relevant_chunks:
         return (
@@ -296,7 +294,7 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
         DocumentScope.private, runtime.context.space_id
     )
     if target_doc_ids:
-        relevant_chunks = await query_in_target(query, target_doc_ids)
+        relevant_chunks = await query_in_target(query, target_doc_ids, k=2)
     else:
         return (
             """
@@ -355,7 +353,7 @@ async def analyze_legal_problem(problem_text: str):
         chunks = await legal_similarity_search(
             background + "\n" + stmt,
             statute_filter=StatuteFilter(titles=target_statute_titles),
-            k=2,
+            k=3,
         )
         search_res = "\n\n".join(
             format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in chunks
