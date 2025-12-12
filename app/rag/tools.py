@@ -295,12 +295,16 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
         DocumentScope.private, runtime.context.space_id
     )
     if target_doc_ids:
-        serialized, relevant_chunks = await query_in_target(query, target_doc_ids)
+        relevant_chunks = await query_in_target(query, target_doc_ids)
     else:
-        serialized = """
+        return (
+            """
 [System Message]
 There is no document attached to the chat session. DO NOT call this tool again.
-"""
+""",
+            [],
+        )
+    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
 
