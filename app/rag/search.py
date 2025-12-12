@@ -71,8 +71,8 @@ async def legal_similarity_search(
     statute_filter: StatuteFilter | None = None,
     precedent_filter: PrecedentFilter | None = None,
     k: int = 5,
-    fetch_k: int = 20,
-    ef_search: int = 40,
+    fetch_k: int = 40,
+    ef_search: int = 80,
 ) -> list[LCDocument]:
     query_vector = np.array(await embeddings.aembed_query(query_text))
     if precedent_filter and not precedent_filter.is_empty:

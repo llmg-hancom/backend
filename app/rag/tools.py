@@ -256,8 +256,6 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
         query,
         "precedent",
         precedent_filter=precedent_filter,
-        fetch_k=60,
-        ef_search=120,
     )
     if not relevant_chunks:
         return (
@@ -294,7 +292,6 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     Args:
         query (str): The search query for private documents.
     """
-    relevant_chunks = []
     target_doc_ids = await fetch_target_ids(
         DocumentScope.private, runtime.context.space_id
     )
