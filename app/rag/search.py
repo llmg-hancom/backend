@@ -296,6 +296,7 @@ async def query_in_precedent(
     )
     if query_filter.case_numbers and len(query_filter.case_numbers) == 1:
         header += f"[판결요지] {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
+        header += f"[판시시항] {relevant_chunks[0].metadata.get('판시사항', '없음')}\n"
     return relevant_chunks
 
 
@@ -303,7 +304,6 @@ async def query_in_precedent(
 async def query_excluding_target(
     query: str,
     excluded_doc_ids: Sequence[Row[Any] | RowMapping | Any],
-    excluded_meta_keys: list[str] | None = None,
     k: int = 5,
 ) -> list[LCDocument]:
     """특정 document_id 범위 밖에서 검색"""
