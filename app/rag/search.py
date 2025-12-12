@@ -70,7 +70,7 @@ async def legal_similarity_search(
     target: Literal["public_law", "precedent", "legal"] = "legal",
     statute_filter: StatuteFilter | None = None,
     precedent_filter: PrecedentFilter | None = None,
-    k: int = 5,
+    k: int = 3,
     fetch_k: int = 40,
     ef_search: int = 80,
 ) -> list[LCDocument]:
