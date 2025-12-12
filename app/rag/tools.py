@@ -253,7 +253,11 @@ async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
     case_numbers = [cn.replace(" ", "") for cn in case_numbers]
     precedent_filter = PrecedentFilter(case_numbers=case_numbers)
     relevant_chunks = await legal_similarity_search(
-        query, "precedent", precedent_filter=precedent_filter
+        query,
+        "precedent",
+        precedent_filter=precedent_filter,
+        fetch_k=60,
+        ef_search=120,
     )
     if not relevant_chunks:
         return (
