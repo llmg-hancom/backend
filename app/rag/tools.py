@@ -27,7 +27,8 @@ COURT_PRECEDENT_HEADERS = [
     "사건번호", "사건명", "종국일자",
     "심판대상조문", "참조조문", "참조판례", "판결유형", "사건종류명",
 ]
-COMMON_MISNOMERS = {"법인법", "회사법", "주식회사법", "기업법", "상사법", "계약법", "불법행위법", "채권법", "친족상속법"}
+COMMON_MISNOMERS = {"법인법", "회사법", "주식회사법", "기업법", "상사법",
+                    "계약법", "불법행위법", "채권법", "친족상속법", "가정법원법"}
 
 
 class Context(BaseModel):
@@ -190,7 +191,9 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
                 try 'search_precedent_semantic' instead, or conclude that no information is available.
                 """)
         ), []
-    serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
+    serialized = (f"{header}{"\n\n".join(format_doc(doc) for doc in relevant_chunks)}\n"
+                  f"[System Message]\n"
+                  f"NOTE: This is a semantic search. DO NOT rephrase the query with synonyms.")
     return serialized, relevant_chunks
 
 
@@ -298,7 +301,9 @@ async def search_precedent_semantic(
                 """),
             [],
         )
-    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
+    serialized = ("\n\n".join(format_doc(doc) for doc in relevant_chunks) +
+                  f"[System Message]\n"
+                  f"NOTE: This is a semantic search. DO NOT rephrase the query with synonyms.")
     return serialized, relevant_chunks
 
 
