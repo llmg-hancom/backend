@@ -133,7 +133,7 @@ async def find_statute_title(query: str) -> tuple[StatuteTitle | str | list[str]
     return [item.title for item in candidates], False
 
 
-class SearchLawSemanticInput(BaseModel, extra="forbid"):
+class SearchLawSemanticInput(BaseModel):
     query: str = Field(
         description="The search query for public laws. This should be a concise and clear question or statement.\n"
                     "DO NOT include statute article number(조) here.")
@@ -194,7 +194,7 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
     return serialized, relevant_chunks
 
 
-class SearchLawArticleInput(BaseModel, extra="forbid"):
+class SearchLawArticleInput(BaseModel):
     statute_name: str = Field(
         description="The name or abbreviation of the statute(법령명) to search for."
     )
@@ -204,7 +204,6 @@ class SearchLawArticleInput(BaseModel, extra="forbid"):
             "You need to input number that comes before `조`, NOT after. (e.g. `제5조의10` -> `5`)"
         )
     )
-    runtime: ToolRuntime[Context]
 
 
 @tool(args_schema=SearchLawArticleInput)
@@ -254,7 +253,7 @@ async def search_public_law_article(statute_name: str, article: int, runtime: To
 
 
 # 입력 스키마 정의
-class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
+class SearchPrecedentSemanticInput(BaseModel):
     query: str = Field(
         description=(
             "The search query for precedents. This should be a concise and clear question or statement.\n"
@@ -303,7 +302,7 @@ async def search_precedent_semantic(
     return serialized, relevant_chunks
 
 
-class SearchPrecedentCaseNumber(BaseModel, extra="forbid"):
+class SearchPrecedentCaseNumber(BaseModel):
     query: str = Field(
         description="The semantic query to run INSIDE the specified case document (e.g., 'What was the sentence?', '판결요지')."
     )
