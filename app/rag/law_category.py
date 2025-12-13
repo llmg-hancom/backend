@@ -100,13 +100,17 @@ LAW_ALIAS_MAP = {
     "부정청탁법": StatuteTitle.IMPROPER_SOLICITATION,
     "김영란법": StatuteTitle.IMPROPER_SOLICITATION,
     # === 약칭은 아니지만 LLM이 자주 실수하는 법령명 목록 ===
-    # 23. 상법 (Commercial)
+    # 상법 (Commercial)
     "법인법": StatuteTitle.COMMERCIAL,
     "회사법": StatuteTitle.COMMERCIAL,  # '회사법'도 자주 틀리는 용어 (상법의 일부임)
-    # 23. 민법 (Civil)
+    "주식회사법": StatuteTitle.COMMERCIAL,
+    "기업법": StatuteTitle.COMMERCIAL,
+    "상사법": StatuteTitle.COMMERCIAL,
+    # 민법 (Civil)
     "계약법": StatuteTitle.CIVIL,  # '계약법'이라는 단행법도 없음 (민법 채권편)
     "불법행위법": StatuteTitle.CIVIL,  # 마찬가지
     "채권법": StatuteTitle.CIVIL,
+    "친족상속법": StatuteTitle.CIVIL,
 }
 LAW_KEYWORDS_MAP: dict[str, list[str]] = {
     # 1. 민법 (가장 중요: 모든 사적 분쟁의 기본)
@@ -282,9 +286,9 @@ class SearchResult(BaseModel):
 
 
 async def search_statute_title(
-    query_text: str,
-    statute_type: StatuteType | None = None,  # 법령구분명 용 필터
-    limit: int = 5,
+        query_text: str,
+        statute_type: StatuteType | None = None,  # 법령구분명 용 필터
+        limit: int = 5,
 ) -> list[SearchResult]:
     # 질문 임베딩
     query_vector = await embeddings.aembed_query(query_text)
