@@ -16,41 +16,93 @@ from rag.search import (
 )
 from rag.law_category import StatuteTitle, LAW_ALIAS_MAP, search_statute_title
 
-from models.document import DocumentScope
 from rag.cleaning import split_problem_into_statements_regex
 
-EXCLUDED_PRECEDENT_KEYS = {
-    "판결요지",
-    "판례상세링크",
-    "법원종류코드",
-    "사건종류코드",
-    "판례정보일련번호",
-    "document_id",
-}
+PRECEDENT_HEADERS = [
+    "법원명", "사건번호", "사건명", "선고일자", "선고",
+    "참조조문", "참조판례", "판결유형", "사건종류명",
+]
+
+COURT_PRECEDENT_HEADERS = [
+    "사건번호", "사건명", "종국일자",
+    "심판대상조문", "참조조문", "참조판례", "판결유형", "사건종류명",
+]
 
 
 class Context(BaseModel):
     space_id: int
 
 
-def format_doc(doc: LCDocument, excluded_keys: set[str] | None = None) -> str:
-    """llm에게 줄 정보 제한 및 추출"""
-    if excluded_keys is None:
-        excluded_keys = set()
+def format_precedent(doc: LCDocument):
+    meta_parts: list[str] = []
+    if "선고일자" in doc.metadata:  # 일반 판례인 경우
+        meta_parts = [
+            f"'{k}': {v}"
+            for k in PRECEDENT_HEADERS
+            # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+            if (v := doc.metadata.get(k)) and v != "정보없음"
+        ]
+    elif "종국일자" in doc.metadata:
+        meta_parts = [
+            f"'{k}': {v}"
+            for k in COURT_PRECEDENT_HEADERS
+            # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+            if (v := doc.metadata.get(k)) and v != "정보없음"
+        ]
+    # 3. 메타데이터와 본문 결합
+    meta_str = "법원명: 헌법재판소, " + ", ".join(meta_parts)
 
-    # 2. 값이 제외되지 않은 경우에만 "키: 값" 문자열 생성 (None이나 빈 문자열은 제외)
-    meta_parts = [
-        f"'{k}': {v}"
-        for k, v in doc.metadata.items()
-        if (k not in excluded_keys)
-           and v is not None
-           and v
-           != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
-    ]
+    return f"Source: {meta_str}\nContent: {doc.page_content}"
+
+
+def format_doc(doc: LCDocument) -> str:
+    """llm에게 줄 정보 제한 및 추출"""
+
+    if "선고일자" in doc.metadata:  # 일반 판례인 경우
+        meta_parts = [
+            f"'{k}': {v}"
+            for k in PRECEDENT_HEADERS
+            # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+            if (v := doc.metadata.get(k)) and v != "정보없음"
+        ]
+        summary = doc.metadata.get("판결요지")
+        points = doc.metadata.get("판시사항")
+    elif "종국일자" in doc.metadata:  # 헌재 판례인 경우
+        meta_parts = ["'법원명': 헌법재판소"] + [
+            f"'{k}': {v}"
+            for k in COURT_PRECEDENT_HEADERS
+            # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+            if (v := doc.metadata.get(k)) and v != "정보없음"
+        ]
+        summary = doc.metadata.get("판결요지")
+        points = doc.metadata.get("판시사항")
+    else:  # 나머지 문서의 경우 (법령, 개인 문서)
+        meta_parts = [
+            f"'{k}': {v}"
+            for k, v in doc.metadata.items()
+            # key가 document_id가 아니고, 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+            if k != "document_id" and v and v != "정보없음"
+        ]
+
+        # 3. 메타데이터와 본문 결합
+        meta_str = ", ".join(meta_parts)
+        return f"Source: {meta_str}\nContent: {doc.page_content}"
+
+    content: str = ""
+    if summary:
+        content += f"'판시사항': {summary}\n"
+    if points:
+        content += f"'판결요지': {points}\n"
+
+    if not content:
+        content = doc.page_content
+    else:
+        if len(content) <= 300:
+            content = content + doc.page_content
 
     # 3. 메타데이터와 본문 결합
     meta_str = ", ".join(meta_parts)
-    return f"Source: {meta_str}\nContent: {doc.page_content}"
+    return f"Source: {meta_str}\nSummary: {content}"
 
 
 async def find_statute_title(query: str) -> tuple[StatuteTitle | str | list[str], bool]:
@@ -176,7 +228,7 @@ async def search_public_law_article(statute_name: str, article: int):
         )
     serialized = (
             header
-            + f"법령명: {exact_title}\n"
+            + f"'법령명': {exact_title}\n"
             + "\n".join(doc.page_content for doc in relevant_chunks)
     )
     return serialized, relevant_chunks
@@ -198,17 +250,6 @@ class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
         default=None,
         description="Optional. The end date for filtering precedents by its decision date. Only precedents up to this date will be considered.",
     )
-
-
-PRECEDENT_HEADERS = [
-    "사건번호", "사건명", "선고일자", "선고", "법원명",
-    "판결요지", "판시사항", "참조조문", "참조판례", "판결유형", "사건종류명"
-]
-
-COURT_PRECEDENT_HEADERS = [
-    "사건번호", "사건명", "종국일자", "선고",
-    "판결요지", "판시사항", "심판대상조문", "참조조문", "참조판례", "판결유형", "사건종류명"
-]
 
 
 @tool(response_format="content_and_artifact", args_schema=SearchPrecedentSemanticInput)
@@ -238,9 +279,7 @@ async def search_precedent_semantic(
                 """),
             [],
         )
-    serialized = "\n\n".join(
-        format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in relevant_chunks
-    )
+    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
 
 
@@ -257,7 +296,7 @@ class SearchPrecedentCaseNumber(BaseModel, extra="forbid"):
 async def search_precedent_by_case_number(query: str, case_number: str):
     """
     Searches for precedents within specific 'Case Number'(사건번호).
-    Use this tool ONLY when the user provides exact case number (e.g., '2025도903').
+    Use this tool ONLY when you have exact case number (e.g., '2025도903').
 
     ⚠️ CRITICAL INSTRUCTION:
     The 'query' parameter must NOT contain the case number itself. It should be the topic to search *inside* that case.
@@ -277,16 +316,10 @@ async def search_precedent_by_case_number(query: str, case_number: str):
                 """),
             [],
         )
-    header = f"사건번호: {case_number}\n"
-    excluded_keys = EXCLUDED_PRECEDENT_KEYS
-    # 판례 1개에 대해서만 검색하는 경우 판결요지 포함
-    if relevant_chunks:
-        header += f"판결요지: {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
-        header += f"판시사항: {relevant_chunks[0].metadata.get('판시사항', '없음')}\n"
-        excluded_keys.add("판시사항")
-    serialized = f"{header}검색결과:\n" + "\n\n".join(
-        format_doc(doc, excluded_keys) for doc in relevant_chunks
-    )
+    header = format_doc(relevant_chunks[0])
+    serialized = f"{header}\nContents:\n" + "\n\n".join(
+        f"{f"섹션명: {section}\n" if (section := doc.metadata.get('섹션명')) else f"검색 결과{i + 1} "}내용: {doc.page_content}"
+        for i, doc in enumerate(relevant_chunks))
     return serialized, relevant_chunks
 
 
@@ -368,7 +401,7 @@ async def analyze_legal_problem(problem_text: str):
             k=3,
         )
         search_res = "\n\n".join(
-            format_doc(doc, EXCLUDED_PRECEDENT_KEYS) for doc in chunks
+            format_doc(doc) for doc in chunks
         )
         results.append(f"[지문] {stmt}\n관련 법령/판례: [{search_res}]")
         relevant_chunks += chunks

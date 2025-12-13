@@ -92,6 +92,15 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         tools.append(search_public_law_semantic)
         prompt += "- Use `search_public_law_semantic` for all concept and definition queries.\n"
 
+    if include_precedent:
+        prompt += textwrap.dedent("""
+        #### Advanced Precedent Research Strategy (Browse & Read)
+        1. **Initial Search**: Use `search_precedent_semantic` to get a list of relevant case summaries.
+        2. **Review**: Check the Summary to see if the legal principle matches the user's situation.
+        3. **Deep Dive (Crucial)**: 
+           - If the summary is sufficient to answer, use it.
+           - **IF** you need to know the specific facts (facts of the case) or detailed reasoning to give a precise answer, **YOU MUST** call `search_precedent_by_case_number` with the specific Case Number found in the summary.
+        """)
     # 3. 복합 전략 및 문제 풀이 (기존 로직 유지하되 다듬음)
     if include_law and include_precedent:
         tools.append(analyze_legal_problem)
@@ -101,16 +110,16 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             **Strategy A: Precedents by Law Article**
             - **Scenario**: User asks for precedents related to a specific law article (e.g., "민소법 300조 관련 판례").
             - **Action**: 
-              1. Call `search_public_law_article` (get text).
-              2. Call `search_precedent_semantic` (query = Statute name + Key Terms from text. (DO NOT include Article number(조) here.)).
+               1. Call `search_public_law_article` (get text).
+               2. Call `search_precedent_semantic` (query = Statute name + Key Terms from text. DO NOT include Article number(조) here.).
             
             **Strategy B: Legal Exam / Multiple-Choice Questions**
             - **Trigger**: User provides a structured exam question (e.g., "문 5.", Options A/B/C/D).
             - **Action**: DO NOT solve it yourself. IMMEDIATELY call `analyze_legal_problem` with the **full unmodified text**.
             - **Warning**: NEVER use `analyze_legal_problem` more than once in a query. 
             - **Final Answer Structure**:
-              1. **정답 (Correct Option)**: State the final answer clearly (e.g., "정답은 C입니다.").
-              2. **상세 해설 (Detailed Explanation)**: Explain why each statement (ㄱ, ㄴ, ㄷ...) is correct or incorrect based on the evidence.
+               1. **정답 (Correct Option)**: State the final answer clearly (e.g., "정답은 C입니다.").
+               2. **상세 해설 (Detailed Explanation)**: Explain why each statement (ㄱ, ㄴ, ㄷ...) is correct or incorrect based on the evidence.
             """)
 
     # 기존의 무조건적인 "JSON ONLY" 제약을 조건부로 변경합니다.
@@ -132,8 +141,8 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         - DO NOT invent Article numbers.
         - DO NOT answer legal questions without using any tool.
         - Do NOT rephrase using the same semantic search tool.
-        - 질문이 한국어면 **항상** 한국어를 사용하세요.
-        """)
+        - 질문이 한국어면 **항상** 한국어를 사용하세요.""")
+
     agent = create_agent(
         model=llm,
         tools=tools,
