@@ -3,8 +3,8 @@ from datetime import date
 
 from langchain.tools import ToolRuntime, tool
 from langchain_core.documents import Document as LCDocument
+from langchain_core.messages import ToolMessage
 from pydantic import BaseModel, Field
-
 from models.statute import StatuteType
 from rag.search import (
     fetch_target_ids,
@@ -27,6 +27,7 @@ COURT_PRECEDENT_HEADERS = [
     "사건번호", "사건명", "종국일자",
     "심판대상조문", "참조조문", "참조판례", "판결유형", "사건종류명",
 ]
+COMMON_MISNOMERS = {"법인법", "회사법", "주식회사법", "기업법", "상사법", "계약법", "불법행위법", "채권법", "친족상속법"}
 
 
 class Context(BaseModel):
@@ -133,10 +134,12 @@ async def find_statute_title(query: str) -> tuple[StatuteTitle | str | list[str]
 
 
 class SearchLawSemanticInput(BaseModel, extra="forbid"):
-    query: str = Field(description="The search query for public laws.")
+    query: str = Field(
+        description="The search query for public laws. This should be a concise and clear question or statement.\n"
+                    "DO NOT include statute article number(조) here.")
     statute_name: str | None = Field(
         default=None,
-        description="Optional. The name or abbreviation of the statute(법령명) to search for.",
+        description="Optional. The name or abbreviation of the statute(법령명) to search for."
     )
 
 
@@ -150,6 +153,8 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
     ⚠️ CRITICAL INSTRUCTION:
     1. If the user provides a specific 'Statute Name'(법령명) AND 'Article Number'(조), DO NOT use this tool. Use 'search_public_law_article' instead.
     2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
+    3. Do NOT invent statute names.
+    4. **Do NOT Rephrase**: Asking the same question with slightly different words or order will yield the **EXACT SAME results**.
     """
     header = ""
     # 법령명이 주어졌을때, 법령명이 약칭을 포함해 정확하면 그 법령명에서만 검색, 정확하지 않으면 관련성 높은 5개 법령명에서 검색
@@ -159,7 +164,9 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
             statute_filter = StatuteFilter(titles=[exact_name])
         else:
             statute_filter = StatuteFilter(titles=exact_name)
-            header = f"[System Message]\n정확한 법령명을 찾지 못해 다음 법령명 목록에서 검색됨: {', '.join(exact_name)}\n"
+            header = (
+                f"[System Message]\n'{statute_name}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
+                f"Results are from the following statutes instead: {', '.join(exact_name)}\n")
     # 법령명이 주어지지 않으면 전체 범위에서 검색
     else:
         statute_filter = None
@@ -174,12 +181,13 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
     )
     if not relevant_chunks:
         return (
-            textwrap.dedent("""
+                header +
+                textwrap.dedent(f"""
                 [System Message]
                 No relevant law articles found. 
                 NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
                 Please STOP searching for this specific topic and try a completely different legal concept, \
-                or conclude that no information is available.
+                try 'search_precedent_semantic' instead, or conclude that no information is available.
                 """)
         ), []
     serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
@@ -198,8 +206,8 @@ class SearchLawArticleInput(BaseModel, extra="forbid"):
     )
 
 
-@tool(response_format="content_and_artifact", args_schema=SearchLawArticleInput)
-async def search_public_law_article(statute_name: str, article: int):
+@tool(args_schema=SearchLawArticleInput)
+async def search_public_law_article(statute_name: str, article: int, runtime: ToolRuntime[Context]):
     """
     Retrieves the exact TEXT of a specific law article.
     Use this tool ONLY when you have the specific 'Statute Name'(법령명) AND 'Article Number'(조).
@@ -209,29 +217,39 @@ async def search_public_law_article(statute_name: str, article: int):
     - User: "형법 250조의 내용을 알려줘." -> Use this tool.
 
     ⚠️ CRITICAL INSTRUCTION:
-    Do NOT use this tool for searching precedents or general legal concepts.
-    Do NOT use this tool if you have only 'Statute Name'(법령명) without 'Article Number'(조). Use "search_public_law_semantic" instead.
+    1. Do NOT use this tool for searching precedents or general legal concepts.
+    2. Do NOT use this tool if you have only 'Statute Name'(법령명) without 'Article Number'(조). Use "search_public_law_semantic" instead.
     """
     header = ""
     exact_title, is_exact = await find_statute_title(statute_name)
     if not is_exact:
         exact_title = exact_title[0]
-        header = f"[System Message]\n{statute_name}은 정확한 법령명 또는 약칭이 아님.\n"
+        header = (
+            f"[System Message]\n'{statute_name}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
+            f"Results are from the following statute instead: {exact_title}\n")
+    else:
+        if statute_name in COMMON_MISNOMERS:
+            header = (
+                f"[System Message]\n'{statute_name}' is NOT a valid Korean statute title.\n"
+                f"Use the following statute title instead: {exact_title}\n")
     relevant_chunks = await find_law_by_article(exact_title, article)
     if not relevant_chunks:
         return (
+            header +
             textwrap.dedent("""
                 [System Message]
                 법령 조문 검색 실패.
                 """),
             [],
         )
+    # already_searched: set[int] = runtime.state.get("searched_chunks", set())
+    # new_searches = [doc.metadata.get("chunk_id") for doc in relevant_chunks]
     serialized = (
             header
             + f"'법령명': {exact_title}\n"
             + "\n".join(doc.page_content for doc in relevant_chunks)
     )
-    return serialized, relevant_chunks
+    return ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id)
 
 
 # 입력 스키마 정의
@@ -239,7 +257,7 @@ class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
     query: str = Field(
         description=(
             "The search query for precedents. This should be a concise and clear question or statement.\n"
-            " DO NOT include statute article number(조), case number(사건번호) or year/date here."
+            "DO NOT include statute article number(조), case number(사건번호) or year/date here."
         )
     )
     start_date: date | None = Field(
@@ -263,6 +281,7 @@ async def search_precedent_semantic(
     1. If the user provides a specific 'Case Number' (e.g., '2025도903'), DO NOT use this tool. Use 'search_precedent_by_case_number' instead.
     2. If the user wants to read the raw TEXT of a law article (e.g., "민사소송법 5조를 읽어줘"), DO NOT use this tool. Use 'search_public_law_article'.
     3. HOWEVER, if the user asks for "민사소송법 5조 관련 판례", use this tool after searching for law article.
+    4. **Do NOT Rephrase**: Asking the same question with slightly different words or order will yield the **EXACT SAME results**.
 
     """
     precedent_filter = PrecedentFilter(start_date=start_date, end_date=end_date)

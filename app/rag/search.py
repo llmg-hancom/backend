@@ -203,7 +203,6 @@ async def query_in_target(
 
     return relevant_chunks
 
-
 async def find_law_by_article(
         statute_title: StatuteTitle | str, article: int
 ) -> list[LCDocument]:
