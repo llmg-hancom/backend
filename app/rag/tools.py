@@ -192,7 +192,7 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
                 """)
         ), []
     serialized = (f"{header}{"\n\n".join(format_doc(doc) for doc in relevant_chunks)}\n"
-                  f"[System Message]\n"
+                  f"\n[System Message]\n"
                   f"NOTE: This is a semantic search. DO NOT rephrase the query with synonyms.")
     return serialized, relevant_chunks
 
@@ -302,7 +302,7 @@ async def search_precedent_semantic(
             [],
         )
     serialized = ("\n\n".join(format_doc(doc) for doc in relevant_chunks) +
-                  f"[System Message]\n"
+                  f"\n[System Message]\n"
                   f"NOTE: This is a semantic search. DO NOT rephrase the query with synonyms.")
     return serialized, relevant_chunks
 
