@@ -150,7 +150,7 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         - **Prohibited**: Do NOT output JSON here. Do NOT say "I have analyzed...". Just give the answer.
         
         ### FINAL REMINDER
-        - DO NOT invent Statute names, Article numbers, or case numbers.
+        - DO NOT invent Statute names, Article numbers, or case numbers. You don't know ANY articles or cases you haven't searched for.
         - DO NOT answer legal questions without using any tool.
         - Do NOT rephrase using the same semantic search tool.
         - 질문이 한국어면 **항상** 한국어를 사용하세요.""")
