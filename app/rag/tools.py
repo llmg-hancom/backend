@@ -204,6 +204,7 @@ class SearchLawArticleInput(BaseModel, extra="forbid"):
             "You need to input number that comes before `조`, NOT after. (e.g. `제5조의10` -> `5`)"
         )
     )
+    runtime: ToolRuntime[Context]
 
 
 @tool(args_schema=SearchLawArticleInput)
