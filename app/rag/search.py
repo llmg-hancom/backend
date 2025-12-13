@@ -14,11 +14,10 @@ from rag.context_manager import get_db_session
 from rag.law_category import StatuteTitle
 from rag.model import embeddings
 from sqlalchemy import Row, RowMapping, text
-from sqlmodel import select, or_, col
+from sqlmodel import select, or_
 
 from db.session import async_engine
-from models import ChatSpaceDocument, Document, DocumentChunk
-from models.document import DocumentScope
+from models import ChatSpaceDocument, DocumentChunk
 
 pg_engine = PGEngine.from_engine(async_engine)
 
@@ -54,7 +53,7 @@ class StatuteFilter(BaseModel):
 
 
 class PrecedentFilter(BaseModel):
-    case_numbers: list[str] | None = None
+    case_number: str | None = None
     start_date: date | None = None
     end_date: date | None = None
 
@@ -66,14 +65,32 @@ class PrecedentFilter(BaseModel):
 
 # 법/판례 유사도 검색
 async def legal_similarity_search(
-    query_text: str,
-    target: Literal["public_law", "precedent", "legal"] = "legal",
-    statute_filter: StatuteFilter | None = None,
-    precedent_filter: PrecedentFilter | None = None,
-    k: int = 3,
-    fetch_k: int = 40,
-    ef_search: int = 80,
+        query_text: str,
+        target: Literal["public_law", "precedent", "legal"] = "legal",
+        statute_filter: StatuteFilter | None = None,
+        precedent_filter: PrecedentFilter | None = None,
+        k: int = 3,
+        fetch_k: int = 40,
+        ef_search: int = 80,
 ) -> list[LCDocument]:
+    """
+    법률 및 판례 유사도 검색을 수행합니다.
+
+    Args:
+        query_text (str): 검색할 쿼리 텍스트.
+        target (Literal["public_law", "precedent", "legal"], optional): 검색 대상.
+            "public_law"는 법령만, "precedent"는 판례만, "legal"은 법령과 판례 모두를 검색합니다.
+            기본값은 "legal"입니다.
+        statute_filter (StatuteFilter | None, optional): 법령 검색을 위한 필터.
+        precedent_filter (PrecedentFilter | None, optional): 판례 검색을 위한 필터.
+        k (int, optional): 최종적으로 반환할 문서 청크의 개수. 기본값은 3입니다.
+        fetch_k (int, optional): 초기 검색에서 가져올 후보 문서 청크의 개수. 기본값은 40입니다.
+        ef_search (int, optional): HNSW 인덱스 검색 시 ef_search 파라미터 값. 기본값은 80입니다.
+
+    Returns:
+        list[LCDocument]: 검색된 관련 문서 청크 목록. 각 청크는 Langchain의 Document 객체입니다.
+
+    """
     query_vector = np.array(await embeddings.aembed_query(query_text))
     if precedent_filter and not precedent_filter.is_empty:
         target = "precedent"
@@ -127,12 +144,8 @@ async def legal_similarity_search(
                     DocumentChunk.meta["사건번호"].astext.is_not(None)
                 )
             else:
-                if precedent_filter.case_numbers:
-                    sql_query = sql_query.where(
-                        DocumentChunk.meta["사건번호"].astext.in_(
-                            precedent_filter.case_numbers
-                        )
-                    )
+                if precedent_filter.case_number:
+                    sql_query = sql_query.where(DocumentChunk.meta["사건번호"].astext == precedent_filter.case_number)
                 if precedent_filter.start_date:
                     sql_query = sql_query.where(
                         DocumentChunk.meta["선고일자"].astext
@@ -168,58 +181,19 @@ async def legal_similarity_search(
 
 
 async def fetch_target_ids(
-    document_scope: DocumentScope,
-    space_id: int | None = None,
-    search_filter: SearchFilter | None = None,
+        space_id: int | None = None,
 ) -> list[int]:
-    """query 검색 범위 설정. 법령, 개인 문서의 경우 항상 해당하는 document_id 반환.
-    판례의 경우 search_filter가 존재하면 해당 조건을 만족하는 chunk_id 반환,
-    search_filter가 존재하지 않으면 판례가 **아닌** document_id 반환."""
+    """space_id에 속한 개인 문서 id 목록 반환."""
     async with get_db_session() as session:
-        match document_scope:
-            # 법령 검색의 경우 법령인 document id를 반환
-            case DocumentScope.public_law:
-                statement = select(Document.document_id).where(
-                    Document.document_scope == DocumentScope.public_law
-                )
-            # 판례 검색
-            case DocumentScope.precedent:
-                # search_filter가 존재하는 경우 범위 내 chunk_id 반환
-                if search_filter:
-                    statement = select(DocumentChunk.chunk_id)
-                    if search_filter.start_date:
-                        statement = statement.where(
-                            col(DocumentChunk.meta)["선고일자"].astext
-                            >= search_filter.start_date.strftime("%Y%m%d")
-                        )
-                    if search_filter.end_date:
-                        statement = statement.where(
-                            col(DocumentChunk.meta)["선고일자"].astext
-                            <= search_filter.end_date.strftime("%Y%m%d")
-                        )
-                    if search_filter.case_numbers:
-                        statement = statement.where(
-                            col(DocumentChunk.meta)["사건번호"].astext.in_(
-                                search_filter.case_numbers
-                            )
-                        )
-                # search_filter가 존재하지 않는 경우 판례가 **아닌** 범위의 document_id 반환
-                else:
-                    statement = select(Document.document_id).where(
-                        Document.document_scope != DocumentScope.precedent
-                    )
-            # 개인 문서 검색의 경우 space_id에 속한 document_id 반환
-            case DocumentScope.private:
-                statement = select(ChatSpaceDocument.document_id).where(
-                    ChatSpaceDocument.space_id == space_id
-                )
-        results = await session.exec(statement)
-        target_doc_ids = results.all()
+        statement = select(ChatSpaceDocument.document_id).where(
+            ChatSpaceDocument.space_id == space_id
+        )
+        target_doc_ids = (await session.exec(statement)).all()
     return target_doc_ids
 
 
 async def query_in_target(
-    query: str, target_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
+        query: str, target_doc_ids: Sequence[Row[Any] | RowMapping | Any], k: int = 5
 ) -> list[LCDocument]:
     """특정 document_id 범위 내에서 검색"""
     vector_store = await create_vector_store()
@@ -231,7 +205,7 @@ async def query_in_target(
 
 
 async def find_law_by_article(
-    statute_title: StatuteTitle | str, article: int
+        statute_title: StatuteTitle | str, article: int
 ) -> list[LCDocument]:
     """법령을 법령명과 조 번호로 검색."""
     relevant_chunks = []
@@ -252,63 +226,4 @@ async def find_law_by_article(
             md = {k: v for k, v in chunk.meta.items() if v != "정보없음"}
             relevant_chunks.append(LCDocument(page_content=chunk.content, metadata=md))
 
-    return relevant_chunks
-
-
-# 결과 반환용 Pydantic 모델 (검색 결과는 Score가 포함되므로 별도 모델 권장)
-
-
-@deprecated("Use `legal_similarity_search` for legal search instead.")
-async def fetch_private_ids() -> list[int]:
-    async with get_db_session() as session:
-        statement = select(Document.document_id).where(
-            Document.document_scope == DocumentScope.private
-        )
-        results = await session.exec(statement)
-        target_doc_ids = results.all()
-    return target_doc_ids
-
-
-@deprecated("Use `legal_similarity_search` for legal search instead.")
-async def query_in_precedent(
-    query: str,
-    query_filter: SearchFilter | None = None,
-    k: int = 5,
-) -> list[LCDocument]:
-    """판례 검색. query_filter가 존재하는 경우 chunk_id로 필터링,
-    존재하지 않는 경우 제외된 document_id로 필터링"""
-    vector_store = await create_vector_store(40, 64)
-    header = ""
-    # 검색 조건이 존재하는 경우 chunk id로 필터링
-    if query_filter:
-        included_chunk_ids = await fetch_target_ids(
-            DocumentScope.precedent, search_filter=query_filter
-        )
-        if query_filter.case_numbers:
-            header = f"[사건번호] {' '.join(query_filter.case_numbers)}\n"
-        search_filter: dict = {"chunk_id": {"$in": included_chunk_ids}}
-    # 검색 조건이 없는 경우 성능을 위해 판례가 아닌 범위의 document_id로 필터링
-    else:
-        excluded_doc_ids = await fetch_target_ids(DocumentScope.precedent)
-        search_filter: dict = {"document_id": {"$nin": excluded_doc_ids}}
-    relevant_chunks: list[LCDocument] = await vector_store.asimilarity_search(
-        query, k=k, filter=search_filter
-    )
-    if query_filter.case_numbers and len(query_filter.case_numbers) == 1:
-        header += f"[판결요지] {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
-        header += f"[판시시항] {relevant_chunks[0].metadata.get('판시사항', '없음')}\n"
-    return relevant_chunks
-
-
-@deprecated("deprecated")
-async def query_excluding_target(
-    query: str,
-    excluded_doc_ids: Sequence[Row[Any] | RowMapping | Any],
-    k: int = 5,
-) -> list[LCDocument]:
-    """특정 document_id 범위 밖에서 검색"""
-    vector_store = await create_vector_store()
-    relevant_chunks = await vector_store.asimilarity_search(
-        query, k=k, filter={"document_id": {"$nin": excluded_doc_ids}}
-    )
     return relevant_chunks

@@ -1,3 +1,4 @@
+import textwrap
 from datetime import date
 
 from langchain.tools import ToolRuntime, tool
@@ -42,8 +43,9 @@ def format_doc(doc: LCDocument, excluded_keys: set[str] | None = None) -> str:
         f"'{k}': {v}"
         for k, v in doc.metadata.items()
         if (k not in excluded_keys)
-        and v
-        != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+           and v is not None
+           and v
+           != "정보없음"  # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
     ]
 
     # 3. 메타데이터와 본문 결합
@@ -71,8 +73,8 @@ async def find_statute_title(query: str) -> tuple[StatuteTitle | str | list[str]
     # Hybrid Search로 검색된 결과의 법령명과 약칭 중에 정확한 일치가 있는 경우
     for candidate in candidates:
         if (
-            candidate.title.replace(" ", "") == clean_input
-            or clean_input in candidate.alias
+                candidate.title.replace(" ", "") == clean_input
+                or clean_input in candidate.alias
         ):
             return candidate.title, True
     return [item.title for item in candidates], False
@@ -120,12 +122,13 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
     )
     if not relevant_chunks:
         return (
-            """
-[System Message]
-No relevant law articles found. 
-NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
-Please STOP searching for this specific topic and try a completely different legal concept, or conclude that no information is available.
-"""
+            textwrap.dedent("""
+                [System Message]
+                No relevant law articles found. 
+                NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
+                Please STOP searching for this specific topic and try a completely different legal concept, \
+                or conclude that no information is available.
+                """)
         ), []
     serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return serialized, relevant_chunks
@@ -165,16 +168,16 @@ async def search_public_law_article(statute_name: str, article: int):
     relevant_chunks = await find_law_by_article(exact_title, article)
     if not relevant_chunks:
         return (
-            """
-[System Message]
-No relevant information found.
-""",
+            textwrap.dedent("""
+                [System Message]
+                법령 조문 검색 실패.
+                """),
             [],
         )
     serialized = (
-        header
-        + f"법령명: {exact_title}\n"
-        + "\n".join(doc.page_content for doc in relevant_chunks)
+            header
+            + f"법령명: {exact_title}\n"
+            + "\n".join(doc.page_content for doc in relevant_chunks)
     )
     return serialized, relevant_chunks
 
@@ -183,7 +186,7 @@ No relevant information found.
 class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
     query: str = Field(
         description=(
-            "The search query for precedents. This should be a concise and clear question or statement."
+            "The search query for precedents. This should be a concise and clear question or statement.\n"
             " DO NOT include statute article number(조), case number(사건번호) or year/date here."
         )
     )
@@ -197,9 +200,20 @@ class SearchPrecedentSemanticInput(BaseModel, extra="forbid"):
     )
 
 
+PRECEDENT_HEADERS = [
+    "사건번호", "사건명", "선고일자", "선고", "법원명",
+    "판결요지", "판시사항", "참조조문", "참조판례", "판결유형", "사건종류명"
+]
+
+COURT_PRECEDENT_HEADERS = [
+    "사건번호", "사건명", "종국일자", "선고",
+    "판결요지", "판시사항", "심판대상조문", "참조조문", "참조판례", "판결유형", "사건종류명"
+]
+
+
 @tool(response_format="content_and_artifact", args_schema=SearchPrecedentSemanticInput)
 async def search_precedent_semantic(
-    query: str, start_date: date | None = None, end_date: date | None = None
+        query: str, start_date: date | None = None, end_date: date | None = None
 ):
     """
     Searches for legal precedents (court rulings) based on semantic meaning.
@@ -216,12 +230,12 @@ async def search_precedent_semantic(
     )
     if not relevant_chunks:
         return (
-            """
-[System Message]
-No relevant precedents found. 
-NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
-Please STOP searching for this specific topic and try a completely different legal concept, or conclude that no information is available.
-""",
+            textwrap.dedent("""
+                [System Message]
+                No relevant precedents found. 
+                NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
+                Please STOP searching for this specific topic and try a completely different legal concept, or conclude that no information is available.
+                """),
             [],
         )
     serialized = "\n\n".join(
@@ -234,43 +248,43 @@ class SearchPrecedentCaseNumber(BaseModel, extra="forbid"):
     query: str = Field(
         description="The semantic query to run INSIDE the specified case document (e.g., 'What was the sentence?', '판결요지')."
     )
-    case_numbers: list[str] = Field(
-        description="List of exact case numbers to filter by. (e.g., ['2025도903', '2024가합123'])"
+    case_number: str = Field(
+        description="The exact case number to filter by. (e.g., '2025도903', '2024가합123')"
     )
 
 
 @tool(response_format="content_and_artifact", args_schema=SearchPrecedentCaseNumber)
-async def search_precedent_by_case_number(query: str, case_numbers: list[str]):
+async def search_precedent_by_case_number(query: str, case_number: str):
     """
-    Searches for precedents within specific 'Case Numbers'(사건번호).
-    Use this tool ONLY when the user provides exact case numbers (e.g., '2025도903').
+    Searches for precedents within specific 'Case Number'(사건번호).
+    Use this tool ONLY when the user provides exact case number (e.g., '2025도903').
 
     ⚠️ CRITICAL INSTRUCTION:
     The 'query' parameter must NOT contain the case number itself. It should be the topic to search *inside* that case.
     If there is no specific topic, use a general summary query like "판결요지".
     """
-    # 사건번호에 공백이 있는 경우 모두 제거
-    case_numbers = [cn.replace(" ", "") for cn in case_numbers]
-    precedent_filter = PrecedentFilter(case_numbers=case_numbers)
+    # 사건번호에 공백이 있는 경우 제거
+    case_number = case_number.replace(" ", "")
+    precedent_filter = PrecedentFilter(case_number=case_number)
     relevant_chunks = await legal_similarity_search(
         query, "precedent", precedent_filter=precedent_filter, k=3
     )
     if not relevant_chunks:
         return (
-            """
-[System Message]
-No relevant information found.
-""",
+            textwrap.dedent("""
+                [System Message]
+                사건번호 검색 실패.
+                """),
             [],
         )
-    header = f"[사건번호] {','.join(case_numbers)}\n"
+    header = f"사건번호: {case_number}\n"
     excluded_keys = EXCLUDED_PRECEDENT_KEYS
     # 판례 1개에 대해서만 검색하는 경우 판결요지 포함
-    if relevant_chunks and len(case_numbers) == 1:
-        header += f"[판결요지] {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
-        header += f"[판시사항] {relevant_chunks[0].metadata.get('판시사항', '없음')}\n"
+    if relevant_chunks:
+        header += f"판결요지: {relevant_chunks[0].metadata.get('판결요지', '없음')}\n"
+        header += f"판시사항: {relevant_chunks[0].metadata.get('판시사항', '없음')}\n"
         excluded_keys.add("판시사항")
-    serialized = header + "\n\n".join(
+    serialized = f"{header}검색결과:\n" + "\n\n".join(
         format_doc(doc, excluded_keys) for doc in relevant_chunks
     )
     return serialized, relevant_chunks
@@ -290,17 +304,15 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
     Args:
         query (str): The search query for private documents.
     """
-    target_doc_ids = await fetch_target_ids(
-        DocumentScope.private, runtime.context.space_id
-    )
+    target_doc_ids = await fetch_target_ids(runtime.context.space_id)
     if target_doc_ids:
         relevant_chunks = await query_in_target(query, target_doc_ids, k=2)
     else:
         return (
-            """
-[System Message]
-There is no document attached to the chat session. DO NOT call this tool again.
-""",
+            textwrap.dedent("""
+                [System Message]
+                There is no document attached to the chat session. DO NOT call this tool again.
+                """),
             [],
         )
     serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
