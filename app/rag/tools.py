@@ -195,7 +195,7 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
 
 
 class SearchLawArticleInput(BaseModel):
-    statute_name: str = Field(
+    statute_title: str = Field(
         description="The name or abbreviation of the statute(법령명) to search for."
     )
     article: int = Field(
@@ -207,7 +207,7 @@ class SearchLawArticleInput(BaseModel):
 
 
 @tool(args_schema=SearchLawArticleInput)
-async def search_public_law_article(statute_name: str, article: int, runtime: ToolRuntime[Context]):
+async def search_public_law_article(statute_title: str, article: int, runtime: ToolRuntime[Context]):
     """
     Retrieves the exact TEXT of a specific law article.
     Use this tool ONLY when you have the specific 'Statute Name'(법령명) AND 'Article Number'(조).
@@ -221,16 +221,16 @@ async def search_public_law_article(statute_name: str, article: int, runtime: To
     2. Do NOT use this tool if you have only 'Statute Name'(법령명) without 'Article Number'(조). Use "search_public_law_semantic" instead.
     """
     header = ""
-    exact_title, is_exact = await find_statute_title(statute_name)
+    exact_title, is_exact = await find_statute_title(statute_title)
     if not is_exact:
         exact_title = exact_title[0]
         header = (
-            f"[System Message]\n'{statute_name}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
+            f"[System Message]\n'{statute_title}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
             f"Results are from the following statute instead: {exact_title}\n")
     else:
-        if statute_name in COMMON_MISNOMERS:
+        if statute_title in COMMON_MISNOMERS:
             header = (
-                f"[System Message]\n'{statute_name}' is NOT a valid Korean statute title.\n"
+                f"[System Message]\n'{statute_title}' is NOT a valid Korean statute title.\n"
                 f"Use the following statute title instead: {exact_title}\n")
     relevant_chunks = await find_law_by_article(exact_title, article)
     if not relevant_chunks:
@@ -243,7 +243,7 @@ async def search_public_law_article(statute_name: str, article: int, runtime: To
             [],
         )
     # already_searched: set[int] = runtime.state.get("searched_chunks", set())
-    # new_searches = [doc.metadata.get("chunk_id") for doc in relevant_chunks]
+    # new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
     serialized = (
             header
             + f"'법령명': {exact_title}\n"

@@ -33,7 +33,7 @@ class CustomState(AgentState):
 
 def agent_generator(include_law: bool = False, include_precedent: bool = False):
     tools = [search_private_documents]
-    middlewares = [ToolCallLimitMiddleware(run_limit=5)]
+    middlewares = [ToolCallLimitMiddleware(run_limit=12)]
 
     # [최적화 1] 역할 정의 및 기본 문서(Private) 우선순위 명시
     # 단순한 helpful assistant보다 'Legal Research Assistant'라는 페르소나를 부여하고,
@@ -55,10 +55,12 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
                "If the user query contains specific identifiers, IGNORE semantic search and use these tools:\n")
     if include_law:
         tools.append(search_public_law_article)
+        middlewares.append(ToolCallLimitMiddleware(tool_name="search_public_law_article", run_limit=6))
         prompt += "- **Law Article** (e.g., '형법 제250조'): MUST use `search_public_law_article`.\n"
 
     if include_precedent:
         tools.append(search_precedent_by_case_number)
+        middlewares.append(ToolCallLimitMiddleware(tool_name="search_precedent_by_case_number", run_limit=4))
         prompt += "- **Case Number** (e.g., '2016헌마723'): MUST use `search_precedent_by_case_number`.\n"
 
     # 2. 의미 기반 검색 (Semantic Search Strategy) - 여기가 핵심 수정 부분
@@ -69,7 +71,9 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
     # [핵심] 판례와 법령의 역할을 비교하여 우선순위 조정
     if include_law and include_precedent:
         tools.append(search_public_law_semantic)
+        middlewares.append(ToolCallLimitMiddleware(tool_name="search_public_law_semantic", run_limit=4))
         tools.append(search_precedent_semantic)
+        middlewares.append(ToolCallLimitMiddleware(tool_name="search_precedent_semantic", run_limit=4))
         prompt += textwrap.dedent("""
             **Decision Rule: Precedent vs. Law**
             1. **PRIORITIZE `search_precedent_semantic`** when:
@@ -92,10 +96,12 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         # 하나만 켜져 있는 경우의 예외 처리
     elif include_precedent:
         tools.append(search_precedent_semantic)
+        middlewares.append(ToolCallLimitMiddleware(tool_name="search_precedent_semantic", run_limit=4))
         prompt += "- Use `search_precedent_semantic` for all concept and situation queries.\n"
 
     elif include_law:
         tools.append(search_public_law_semantic)
+        middlewares.append(ToolCallLimitMiddleware(tool_name="search_public_law_semantic", run_limit=4))
         prompt += "- Use `search_public_law_semantic` for all concept and definition queries.\n"
 
     if include_precedent:
