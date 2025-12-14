@@ -6,7 +6,6 @@ from sqlalchemy import TIMESTAMP, Column, Text, func, BIGINT
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Index, Relationship, SQLModel, text
 
-
 if TYPE_CHECKING:
     from models.document import Document
 
@@ -58,6 +57,18 @@ class DocumentChunk(DocumentChunkBase, table=True):
             postgresql_with={"m": 16, "ef_construction": 64},
             # 5. (embedding vector_cosine_ops)
             postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index(
+            "trgm_private_title_idx",
+            text("(meta ->> 'title') gin_trgm_ops"),
+            postgresql_using="gin",
+            postgresql_where="(meta ->> 'title') IS NOT NULL"
+        ),
+        Index(
+            "trgm_private_keyword_idx",
+            text("(meta ->> 'keywords') gin_trgm_ops"),
+            postgresql_using="gin",
+            postgresql_where="(meta ->> 'keywords') IS NOT NULL"
         ),
         Index(
             "ix_law_name",
