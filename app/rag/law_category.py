@@ -331,6 +331,7 @@ WITH semantic_search AS (SELECT id,
 -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
                             (immutable_array_to_string(alias::TEXT[]
                                  , ' ') % :query_text)
+                            {filter_clause}
                         LIMIT 40)
 SELECT COALESCE(s.id, k.id)                          AS id,
        COALESCE(s.title, k.title)                    AS title,

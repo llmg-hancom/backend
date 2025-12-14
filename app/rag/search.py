@@ -173,7 +173,7 @@ async def legal_similarity_search(
         # 4. 결과 매핑 (인덱스를 이용해 원본 내용 가져오기)
         for i in selected_indices:
             added_meta = candidates[i].meta.copy()
-            added_meta["document_id"] = candidates[i].document_id
+            added_meta.update({"document_id": candidates[i].document_id, "chunk_id": candidates[i].chunk_id})
             relevant_chunks.append(
                 LCDocument(page_content=candidates[i].content, metadata=added_meta)
             )
@@ -224,6 +224,76 @@ async def find_law_by_article(
         raw_chunks = results.all()
         for chunk in raw_chunks:
             md = {k: v for k, v in chunk.meta.items() if v != "정보없음"}
-            relevant_chunks.append(LCDocument(page_content=chunk.content, metadata=md))
+            relevant_chunks.append(
+                LCDocument(page_content=chunk.content, metadata=md.update({"chunk_id": chunk.chunk_id})))
 
     return relevant_chunks
+
+
+async def query_private_document(
+        query_text: str,
+        space_id: int,
+        k: int = 3,
+        fetch_k: int = 40,
+        ef_search: int = 80,
+) -> list[LCDocument]:
+    target_doc_ids = await fetch_target_ids(space_id)
+    # 질문 임베딩
+    query_vector = await embeddings.aembed_query(query_text)
+
+    sql_query = text(f"""
+WITH semantic_search AS (SELECT chunk_id,
+                                document_id,
+                                content,
+                                meta,
+                                1.0 / (ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) + 60) AS score
+                         FROM document_chunks
+                         WHERE document_id = ANY (:target_doc_ids)
+                         ORDER BY embedding <=> :embedding
+                         LIMIT :fetch_k),
+     keyword_search AS (SELECT chunk_id,
+                               document_id,
+                               content,
+                               meta,
+                               -- 점수 계산 시에도 동일 함수 사용
+                               GREATEST(
+                                       similarity((meta ->> 'title'), :query_text),
+                                       similarity((meta ->> 'keyword'), :query_text)
+                               )           AS sim_score,
+                               -- 랭킹용 점수 계산
+                               1.0 / (ROW_NUMBER() OVER (
+                                   ORDER BY
+                                       -- 1순위: 완전 일치 여부 (True가 False보다 위로)
+                                       (meta ->> 'title') = :query_text DESC,
+                                       GREATEST(
+                                               similarity((meta ->> 'title'), :query_text),
+                                               similarity((meta ->> 'keyword'), :query_text)) DESC
+                                   ) + 60) AS score
+                        FROM document_chunks
+                        WHERE document_id = ANY (:target_doc_ids)
+                          AND ((((meta ->> 'title') % :query_text) AND (meta ->> 'title') IS NOT NULL)
+                            OR
+                            -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
+                               (((meta ->> 'keyword') % :query_text) AND (meta ->> 'keyword') IS NOT NULL))
+                        LIMIT :fetch_k)
+SELECT COALESCE(s.chunk_id, k.chunk_id)              AS chunk_id,
+       COALESCE(s.document_id, k.document_id)        AS document_id,
+       COALESCE(s.content, k.content)                AS content,
+       COALESCE(s.meta, k.meta)                      AS meta,
+       (COALESCE(s.score, 0) + COALESCE(k.score, 0)) AS final_score
+FROM semantic_search s
+         FULL OUTER JOIN keyword_search k ON s.chunk_id = k.chunk_id
+ORDER BY final_score DESC
+LIMIT :k
+""")
+
+    params = {"target_doc_ids": target_doc_ids, "embedding": str(query_vector), "query_text": query_text, "k": k,
+              "fetch_k": fetch_k}
+    async with get_db_session() as db:
+        await db.exec(text(f"SET hnsw.ef_search = {ef_search}"))
+        results = (await db.exec(sql_query, params=params)).all()
+
+    return [
+        LCDocument(page_content=r[2], metadata=r[3].copy().update({"chunk_id": r[0], "document_id": r[1]}))
+        for r in results
+    ]

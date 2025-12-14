@@ -16,7 +16,7 @@ from rag.search import (
     query_in_target,
     legal_similarity_search,
     StatuteFilter,
-    PrecedentFilter,
+    PrecedentFilter, query_private_document,
 )
 from rag.law_category import StatuteTitle, LAW_ALIAS_MAP, search_statute_title
 
@@ -379,7 +379,7 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context, Cus
     """
     target_doc_ids = await fetch_target_ids(runtime.context.space_id)
     if target_doc_ids:
-        relevant_chunks = await query_in_target(query, target_doc_ids, k=3)
+        relevant_chunks = await query_private_document(query, runtime.context.space_id)
     else:
         return (
             textwrap.dedent("""
