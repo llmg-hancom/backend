@@ -1,3 +1,4 @@
+import json
 import textwrap
 from datetime import date
 
@@ -378,7 +379,7 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context, Cus
     """
     target_doc_ids = await fetch_target_ids(runtime.context.space_id)
     if target_doc_ids:
-        relevant_chunks = await query_in_target(query, target_doc_ids, k=2)
+        relevant_chunks = await query_in_target(query, target_doc_ids, k=3)
     else:
         return (
             textwrap.dedent("""
