@@ -225,7 +225,8 @@ async def find_law_by_article(
         for chunk in raw_chunks:
             md = {k: v for k, v in chunk.meta.items() if v != "정보없음"}
             relevant_chunks.append(
-                LCDocument(page_content=chunk.content, metadata=md.update({"chunk_id": chunk.chunk_id})))
+                LCDocument(page_content=chunk.content,
+                           metadata=md | {"chunk_id": chunk.chunk_id, "document_id": chunk.document_id}))
 
     return relevant_chunks
 
