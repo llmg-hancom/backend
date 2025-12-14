@@ -22,7 +22,7 @@ from models import ChatSpaceDocument, DocumentChunk
 pg_engine = PGEngine.from_engine(async_engine)
 
 
-async def create_vector_store(fetch_k: int = 20, ef_search: int = 40) -> PGVectorStore:
+async def create_vector_store(fetch_k: int = 40, ef_search: int = 80) -> PGVectorStore:
     vector_store = await PGVectorStore.create(
         engine=pg_engine,
         embedding_service=embeddings,
@@ -202,6 +202,7 @@ async def query_in_target(
     )
 
     return relevant_chunks
+
 
 async def find_law_by_article(
         statute_title: StatuteTitle | str, article: int
