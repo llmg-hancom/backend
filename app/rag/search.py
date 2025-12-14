@@ -294,6 +294,6 @@ LIMIT :k
         results = (await db.exec(sql_query, params=params)).all()
 
     return [
-        LCDocument(page_content=r[2], metadata=r[3].copy().update({"chunk_id": r[0], "document_id": r[1]}))
+        LCDocument(page_content=r[2], metadata=(r[3] or {}) | {"chunk_id": r[0], "document_id": r[1]})
         for r in results
     ]
