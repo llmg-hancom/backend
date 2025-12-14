@@ -283,7 +283,7 @@ SELECT COALESCE(s.chunk_id, k.chunk_id)              AS chunk_id,
        (COALESCE(s.score, 0) + COALESCE(k.score, 0)) AS final_score
 FROM semantic_search s
          FULL OUTER JOIN keyword_search k ON s.chunk_id = k.chunk_id
-ORDER BY (metadata ->> 'title') = :query_text DESC,
+ORDER BY (COALESCE(s.meta, k.meta) ->> 'title') = %(query_text)s DESC,
          final_score DESC
 LIMIT :k
 """)
