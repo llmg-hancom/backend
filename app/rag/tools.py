@@ -196,13 +196,12 @@ async def search_public_law_semantic(runtime: ToolRuntime[Context], query: str, 
     already_searched: set[int] = runtime.state.get("searched_chunks", set())
     new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
     updated_set = already_searched.union(new_searches)
-    serialized = f"{header}{"\n\n".join(format_doc(doc) for doc in relevant_chunks)}\n"
+    serialized = (f"{header}{"\n\n".join(format_doc(doc) for doc in relevant_chunks)}\n"
+                  f"[System Message]\n**WARNING**: DO NOT call 'search_public_law_semantic' with similar query even if the results are irrelevant.")
     return Command(
         update={"searched_chunks": updated_set,
                 "messages": [
                     ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
-                    SystemMessage(
-                        content="**WARNING**: DO NOT call 'search_public_law_semantic' with similar query even if the results are irrelevant.")
                 ]})
 
 
