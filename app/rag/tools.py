@@ -368,6 +368,7 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context, Cus
     """
     Searches for information within the USER UPLOADED private documents based on semantic meaning.
     Use this tool when the user asks about their own files, contracts, or specific documents they provided.
+    Also use this tool when the user asks about a situation associated with specific Korean names(e.g. 오민한, 강용원) without providing enough background information.
 
     ⚠️ CRITICAL INSTRUCTION:
     1. If the user query contains a specific case number (e.g., '2001나60578'), DO NOT use this tool. Use 'search_precedent_by_case_number'.
