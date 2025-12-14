@@ -391,9 +391,7 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context, Cus
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
     new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
     updated_set = already_searched.union(new_searches)
-    serialized = ("\n\n".join(format_doc(doc) for doc in relevant_chunks) +
-                  f"\n[System Message]\n"
-                  f"**WARNING**: This is a semantic search. DO NOT call 'search_private_documents' with similar query even if the results are irrelevant.")
+    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return Command(
         update={"searched_chunks": list(updated_set),
                 "messages": [
