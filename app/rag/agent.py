@@ -5,7 +5,7 @@ import textwrap
 from collections import defaultdict
 
 import unicodedata
-from langchain.agents import create_agent, AgentState
+from langchain.agents import create_agent
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
 from rag.context_manager import get_db_session
@@ -17,7 +17,7 @@ from rag.tools import (
     search_public_law_article,
     search_public_law_semantic,
     analyze_legal_problem,
-    search_precedent_semantic,
+    search_precedent_semantic, CustomState,
 )
 
 from models import ChatSession
@@ -27,13 +27,10 @@ from schemas.chat import ChatRequest
 logger = logging.getLogger(__name__)
 
 
-class CustomState(AgentState):
-    searched_chunks: set[int]
-
-
 def agent_generator(include_law: bool = False, include_precedent: bool = False):
     tools = [search_private_documents]
-    middlewares = [ToolCallLimitMiddleware(run_limit=12)]
+    middlewares = [ToolCallLimitMiddleware(run_limit=12),
+                   ToolCallLimitMiddleware(tool_name="search_private_documents", run_limit=4)]
 
     # [최적화 1] 역할 정의 및 기본 문서(Private) 우선순위 명시
     # 단순한 helpful assistant보다 'Legal Research Assistant'라는 페르소나를 부여하고,
@@ -88,7 +85,7 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             
             🛑 SEMANTIC SEARCH TOOL USAGE GUIDELINES
             - **Legal Document Nature**: In most "consultation" style queries, \
-            Precedents provide more valuable insights than raw Statutes. **Lean towards Precedents.**
+            Precedents provide more valuable insights than raw Statutes. **Lean towards Precedents.** 
             - **Semantic Search Nature**: The search tools use **Vector Embeddings**, not Keyword Matching.
             - **Do NOT Rephrase**: Asking the same question with slightly different words or orders (e.g., changing "연령 퇴직" to "은퇴 나이") will yield the **EXACT SAME results**.
             - **Stop Condition**: If a search returns no relevant results, **do NOT try again** with a synonym. Assume the information does not exist in the database and move on.
@@ -194,13 +191,13 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     sources_id: set[int] = set()
     statute_articles: defaultdict[str, set] = defaultdict(set)
     async for chunk, metadata in agent.astream(
-            {"messages": [{"role": "user", "content": normalized_query}], "searched_chunks": set()},
+            {"messages": [{"role": "user", "content": normalized_query}], "searched_chunks": []},
             stream_mode="messages",
             context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response.append(chunk.content)
-        if metadata["langgraph_node"] == "tools" and chunk.artifact:
+        if metadata["langgraph_node"] == "tools" and chunk.get("artifact"):
 
             for doc in chunk.artifact:
                 if doc.metadata.get("document_id") in sources_id:

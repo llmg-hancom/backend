@@ -1,6 +1,7 @@
 import textwrap
 from datetime import date
 
+from langchain.agents import AgentState
 from langchain.tools import ToolRuntime, tool
 from langchain_core.documents import Document as LCDocument
 from langchain_core.messages import ToolMessage, SystemMessage
@@ -33,30 +34,12 @@ COMMON_MISNOMERS = {"법인법", "회사법", "주식회사법", "기업법", "�
                     "계약법", "불법행위법", "채권법", "친족상속법", "가정법원법"}
 
 
+class CustomState(AgentState):
+    searched_chunks: list[int]
+
+
 class Context(BaseModel):
     space_id: int
-
-
-def format_precedent(doc: LCDocument):
-    meta_parts: list[str] = []
-    if "선고일자" in doc.metadata:  # 일반 판례인 경우
-        meta_parts = [
-            f"'{k}': {v}"
-            for k in PRECEDENT_HEADERS
-            # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
-            if (v := doc.metadata.get(k)) and v != "정보없음"
-        ]
-    elif "종국일자" in doc.metadata:
-        meta_parts = [
-            f"'{k}': {v}"
-            for k in COURT_PRECEDENT_HEADERS
-            # 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
-            if (v := doc.metadata.get(k)) and v != "정보없음"
-        ]
-    # 3. 메타데이터와 본문 결합
-    meta_str = "법원명: 헌법재판소, " + ", ".join(meta_parts)
-
-    return f"Source: {meta_str}\nContent: {doc.page_content}"
 
 
 def format_doc(doc: LCDocument) -> str:
@@ -147,7 +130,8 @@ class SearchLawSemanticInput(BaseModel):
 
 
 @tool(args_schema=SearchLawSemanticInput)
-async def search_public_law_semantic(runtime: ToolRuntime[Context], query: str, statute_name: str | None = None, ):
+async def search_public_law_semantic(runtime: ToolRuntime[Context, CustomState],
+                                     query: str, statute_name: str | None = None, ):
     """
     Searches for public laws based on semantic meaning.
     Use this tool for searching legal concepts, definitions related to specific laws.
@@ -193,13 +177,13 @@ async def search_public_law_semantic(runtime: ToolRuntime[Context], query: str, 
                 try 'search_precedent_semantic' instead, or conclude that no information is available.
                 """)
         ), []
-    already_searched: set[int] = runtime.state.get("searched_chunks", set())
+    already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
     new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
     updated_set = already_searched.union(new_searches)
     serialized = (f"{header}{"\n\n".join(format_doc(doc) for doc in relevant_chunks)}\n"
                   f"[System Message]\n**WARNING**: DO NOT call 'search_public_law_semantic' with similar query even if the results are irrelevant.")
     return Command(
-        update={"searched_chunks": updated_set,
+        update={"searched_chunks": list(updated_set),
                 "messages": [
                     ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
                 ]})
@@ -218,7 +202,7 @@ class SearchLawArticleInput(BaseModel):
 
 
 @tool(args_schema=SearchLawArticleInput)
-async def search_public_law_article(statute_title: str, article: int, runtime: ToolRuntime[Context]):
+async def search_public_law_article(runtime: ToolRuntime[Context, CustomState], statute_title: str, article: int):
     """
     Retrieves the exact TEXT of a specific law article.
     Use this tool ONLY when you have the specific 'Statute Name'(법령명) AND 'Article Number'(조).
@@ -253,7 +237,7 @@ async def search_public_law_article(statute_title: str, article: int, runtime: T
                 """),
             [],
         )
-    already_searched: set[int] = runtime.state.get("searched_chunks", set())
+    already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
     new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
     updated_set = already_searched.union(new_searches)
     serialized = (
@@ -262,7 +246,7 @@ async def search_public_law_article(statute_title: str, article: int, runtime: T
             + "\n".join(doc.page_content for doc in relevant_chunks)
     )
     return Command(
-        update={"searched_chunks": updated_set,
+        update={"searched_chunks": list(updated_set),
                 "messages": [
                     ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
                 ]}
@@ -287,10 +271,9 @@ class SearchPrecedentSemanticInput(BaseModel):
     )
 
 
-@tool(response_format="content_and_artifact", args_schema=SearchPrecedentSemanticInput)
-async def search_precedent_semantic(
-        query: str, start_date: date | None = None, end_date: date | None = None
-):
+@tool(args_schema=SearchPrecedentSemanticInput)
+async def search_precedent_semantic(runtime: ToolRuntime[Context, CustomState],
+                                    query: str, start_date: date | None = None, end_date: date | None = None):
     """
     Searches for legal precedents (court rulings) based on semantic meaning.
     Use this tool for searching legal concepts, definitions, or precedents related to specific laws.
@@ -311,14 +294,23 @@ async def search_precedent_semantic(
                 [System Message]
                 No relevant precedents found. 
                 NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
-                Please STOP searching for this specific topic and try a completely different legal concept, or conclude that no information is available.
+                Please STOP searching for this specific topic and try a completely different legal concept,\
+                try 'search_public_law_semantic' instead, or conclude that no information is available.or conclude that no information is available.
                 """),
             [],
         )
+    already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
+    new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
+    updated_set = already_searched.union(new_searches)
     serialized = ("\n\n".join(format_doc(doc) for doc in relevant_chunks) +
                   f"\n[System Message]\n"
                   f"**WARNING**: DO NOT call 'search_precedent_semantic' with similar query even if the results are irrelevant.")
-    return serialized, relevant_chunks
+    return Command(
+        update={"searched_chunks": list(updated_set),
+                "messages": [
+                    ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
+                ]}
+    )
 
 
 class SearchPrecedentCaseNumber(BaseModel):
@@ -330,8 +322,8 @@ class SearchPrecedentCaseNumber(BaseModel):
     )
 
 
-@tool(response_format="content_and_artifact", args_schema=SearchPrecedentCaseNumber)
-async def search_precedent_by_case_number(query: str, case_number: str):
+@tool(args_schema=SearchPrecedentCaseNumber)
+async def search_precedent_by_case_number(runtime: ToolRuntime[Context, CustomState], query: str, case_number: str):
     """
     Searches for precedents within specific 'Case Number'(사건번호).
     Use this tool ONLY when you have exact case number (e.g., '2025도903').
@@ -354,23 +346,32 @@ async def search_precedent_by_case_number(query: str, case_number: str):
                 """),
             [],
         )
+    already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
+    new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
+    updated_set = already_searched.union(new_searches)
     header = format_doc(relevant_chunks[0])
     serialized = f"{header}\nContents:\n" + "\n\n".join(
         f"{f"섹션명: {section}\n" if (section := doc.metadata.get('섹션명')) else f"검색 결과{i + 1} "}내용: {doc.page_content}"
         for i, doc in enumerate(relevant_chunks))
-    return serialized, relevant_chunks
+    return Command(
+        update={"searched_chunks": list(updated_set),
+                "messages": [
+                    ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
+                ]}
+    )
 
 
 # noinspection PyIncorrectDocstring
-@tool(response_format="content_and_artifact", parse_docstring=True)
-async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
+@tool(parse_docstring=True)
+async def search_private_documents(query: str, runtime: ToolRuntime[Context, CustomState]):
     """
-    Searches for information within the USER UPLOADED private documents.
+    Searches for information within the USER UPLOADED private documents based on semantic meaning.
     Use this tool when the user asks about their own files, contracts, or specific documents they provided.
 
     ⚠️ CRITICAL INSTRUCTION:
     1. If the user query contains a specific case number (e.g., '2001나60578'), DO NOT use this tool. Use 'search_precedent_by_case_number'.
     2. Do not use this for general legal knowledge or public laws unless the user specifically asks about their file's content regarding it.
+    3. **Do NOT Rephrase**: Asking the same question with slightly different words or order will yield the **EXACT SAME results**.
 
     Args:
         query (str): The search query for private documents.
@@ -386,8 +387,18 @@ async def search_private_documents(query: str, runtime: ToolRuntime[Context]):
                 """),
             [],
         )
-    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
-    return serialized, relevant_chunks
+    already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
+    new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
+    updated_set = already_searched.union(new_searches)
+    serialized = ("\n\n".join(format_doc(doc) for doc in relevant_chunks) +
+                  f"\n[System Message]\n"
+                  f"**WARNING**: This is a semantic search. DO NOT call 'search_private_documents' with similar query even if the results are irrelevant.")
+    return Command(
+        update={"searched_chunks": list(updated_set),
+                "messages": [
+                    ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
+                ]}
+    )
 
 
 @tool(response_format="content_and_artifact", parse_docstring=True)
