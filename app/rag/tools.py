@@ -3,8 +3,10 @@ from datetime import date
 
 from langchain.tools import ToolRuntime, tool
 from langchain_core.documents import Document as LCDocument
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import ToolMessage, SystemMessage
+from langgraph.types import Command
 from pydantic import BaseModel, Field
+
 from models.statute import StatuteType
 from rag.search import (
     fetch_target_ids,
@@ -144,8 +146,8 @@ class SearchLawSemanticInput(BaseModel):
     )
 
 
-@tool(response_format="content_and_artifact", args_schema=SearchLawSemanticInput)
-async def search_public_law_semantic(query: str, statute_name: str | None = None):
+@tool(args_schema=SearchLawSemanticInput)
+async def search_public_law_semantic(runtime: ToolRuntime[Context], query: str, statute_name: str | None = None, ):
     """
     Searches for public laws based on semantic meaning.
     Use this tool for searching legal concepts, definitions related to specific laws.
@@ -191,10 +193,17 @@ async def search_public_law_semantic(query: str, statute_name: str | None = None
                 try 'search_precedent_semantic' instead, or conclude that no information is available.
                 """)
         ), []
-    serialized = (f"{header}{"\n\n".join(format_doc(doc) for doc in relevant_chunks)}\n"
-                  f"\n[System Message]\n"
-                  f"**WARNING**: DO NOT call 'search_public_law_semantic' with similar query even if the results are irrelevant.")
-    return serialized, relevant_chunks
+    already_searched: set[int] = runtime.state.get("searched_chunks", set())
+    new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
+    updated_set = already_searched.union(new_searches)
+    serialized = f"{header}{"\n\n".join(format_doc(doc) for doc in relevant_chunks)}\n"
+    return Command(
+        update={"searched_chunks": updated_set,
+                "messages": [
+                    ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
+                    SystemMessage(
+                        content="**WARNING**: DO NOT call 'search_public_law_semantic' with similar query even if the results are irrelevant.")
+                ]})
 
 
 class SearchLawArticleInput(BaseModel):
@@ -245,14 +254,20 @@ async def search_public_law_article(statute_title: str, article: int, runtime: T
                 """),
             [],
         )
-    # already_searched: set[int] = runtime.state.get("searched_chunks", set())
-    # new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
+    already_searched: set[int] = runtime.state.get("searched_chunks", set())
+    new_searches = {ci for doc in relevant_chunks if (ci := doc.metadata.get("chunk_id")) not in already_searched}
+    updated_set = already_searched.union(new_searches)
     serialized = (
             header
             + f"'법령명': {exact_title}\n"
             + "\n".join(doc.page_content for doc in relevant_chunks)
     )
-    return ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id)
+    return Command(
+        update={"searched_chunks": updated_set,
+                "messages": [
+                    ToolMessage(content=serialized, artifact=relevant_chunks, tool_call_id=runtime.tool_call_id),
+                ]}
+    )
 
 
 # 입력 스키마 정의
@@ -407,7 +422,7 @@ async def analyze_legal_problem(problem_text: str):
     # 1. LLM을 이용해 문제를 A, B, C, D 지문으로 분리 (파이썬 로직 또는 가벼운 LLM 호출)
     background, statements = split_problem_into_statements_regex(problem_text)
     if background == "":
-        return "유효한 객관식 문제가 아닙니다. 다른 도구를 이용하세요.", []
+        return "[System Message]유효한 객관식 문제가 아닙니다. 다른 도구를 이용하세요.", []
 
     target_statutes = await search_statute_title(
         background, statute_type=StatuteType.ACT
