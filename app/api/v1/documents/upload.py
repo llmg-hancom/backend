@@ -2,9 +2,10 @@ import hashlib
 from typing import Annotated
 import uuid
 
+import unicodedata
 from celery import chain
 from fastapi import APIRouter, Depends, File, Security, UploadFile, status
-from rag.tasks import chunk_user_document
+from rag.tasks import chunk_user_document, embed_document_chunk
 from sqlalchemy.util.concurrency import asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -17,6 +18,7 @@ from models.user import User
 from schemas.document import UploadResponse
 from services.document.storage_service import storage_service
 from utils.auth import get_current_user
+from utils.tasks import handle_chain_error
 
 
 router = APIRouter(prefix="/documents")
@@ -52,23 +54,28 @@ async def upload_documents(
     await file.seek(0)
 
     # 3. [중복 검사] DB에서 동일한 해시가 있는지 확인
-    result = await db.exec(select(Document).where(Document.file_hash == file_hash))
-
-    existing_doc = result.first()
+    existing_doc = (
+        await db.exec(select(Document).where(Document.file_hash == file_hash))
+    ).first()
 
     if existing_doc:
-        raise DuplicateFilesError()
+        if existing_doc.deleted_at:
+            await db.delete(existing_doc)
+            await db.flush()
+        else:
+            raise DuplicateFilesError()
 
     # 4. [document 업로드] 고유한 document 경로 생성 및 업로드
     # 경로: private/user_{id}/{uuid}/{filename}
     unique_id = uuid.uuid4()
-    file_key = f"private/user_{current_user.user_id}/{unique_id}/{file.filename}"
+    file_name = unicodedata.normalize("NFC", file.filename)
+    file_key = f"private/user_{current_user.user_id}/{unique_id}/{file_name}"
 
     s3_path = await storage_service.upload_file(file, file_key)
 
     # 5. [DB 저장] 메타데이터 저장
     new_doc = Document(
-        file_name=file.filename,
+        file_name=file_name,
         file_path=s3_path,
         file_hash=file_hash,
         uploaded_by_user_id=current_user.user_id,
@@ -82,9 +89,14 @@ async def upload_documents(
     workflow = chain(
         process_document.s(doc_id=new_doc.document_id),
         chunk_user_document.s(doc_id=new_doc.document_id),
+        embed_document_chunk.s(doc_id=new_doc.document_id),
     )
     # 6. [비동기 작업 요청] Celery에 문서 처리(Embedding) 요청
-    await asyncio.to_thread(workflow.delay)
+    await asyncio.to_thread(
+        lambda: workflow.apply_async(
+            link_error=handle_chain_error.s(new_doc.document_id)
+        )
+    )
 
     # 7. [즉시 응답] 202 Accepted
     return UploadResponse(

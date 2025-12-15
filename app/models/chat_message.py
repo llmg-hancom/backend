@@ -38,7 +38,7 @@ class ChatMessage(ChatMessageBase, table=True):
     )
 
     # [RAG 핵심] 답변의 근거가 된 출처 (JSONB)
-    sources: dict[str, Any] | None = Field(default=None, sa_column=Column(JSONB))
+    sources: list[dict[str, Any]] | None = Field(default=None, sa_column=Column(JSONB))
 
     created_at: datetime = Field(
         sa_column=Column(

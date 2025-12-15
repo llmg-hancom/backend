@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import Session, col, update
 
 from core.config import settings
+from errors.general import IllegalStateError
 from models.refresh_token import RefreshToken
 from models.user import User
 from utils.auth import create_jwt, create_refresh_token, hash_refresh_token
@@ -18,7 +19,7 @@ class Tokens:
 def token_regenerate(user: User, token_id: int | None, db: Session) -> Tokens:
     # user_id가 None일 경우 예외 처리
     if user.user_id is None:
-        raise ValueError("User must have a valid user_id")
+        raise IllegalStateError()
 
     # 액세스 토큰 생성
     access_token = create_jwt(user.user_id)

@@ -3,6 +3,7 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from psycopg import InternalError
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel
 from starlette.middleware.cors import CORSMiddleware
@@ -13,7 +14,6 @@ from db.session import engine
 from errors.base import BackendBaseError
 import models  # noqa: F401
 from utils.charset import CharsetMiddleware
-
 
 # 로깅 설정
 if settings.ENVIRONMENT == "development":
@@ -40,6 +40,26 @@ async def lifespan(_app: FastAPI):
     with Session(engine) as session:
         # 1. vector 확장 기능 활성화
         session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        session.exec(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        session.commit()
+        if settings.ENVIRONMENT == "development":
+            try:
+                session.exec(
+                    text("""CREATE OR REPLACE FUNCTION immutable_array_to_string(arr TEXT[], sep TEXT)
+                        RETURNS TEXT AS
+                    $$
+                    SELECT ARRAY_TO_STRING(arr, sep);
+                    $$ LANGUAGE sql IMMUTABLE
+                                    PARALLEL SAFE""")
+                )
+                session.commit()
+            except InternalError as e:
+                # "tuple concurrently updated" 에러라면 무시
+                if "tuple concurrently updated" in str(e):
+                    session.rollback()
+                    print("Function already created by another worker. Skipping.")
+                else:
+                    raise e  # 다른 에러면 예외 발생
         session.commit()
 
         # 2. 테이블 생성

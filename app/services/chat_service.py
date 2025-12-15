@@ -3,12 +3,14 @@ from typing import Annotated, Literal, Self
 
 from fastapi import Depends, Security
 from pydantic import PositiveInt
+from sqlalchemy import update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload
 from sqlmodel import col, delete, exists, literal, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.session import get_async_db
+from errors.chat import ForbiddenChatSessionAccessError
 from errors.document import ForbiddenDocumentAccessError
 from errors.general import IllegalStateError
 from errors.groups import UserIsNotGroupAdminError, UserIsNotGroupMemberError
@@ -42,9 +44,9 @@ class ChatService:
 
     @classmethod
     def factory(
-        cls,
-        actor: Annotated[User, Security(get_current_user)],
-        db: Annotated[AsyncSession, Depends(get_async_db)],
+            cls,
+            actor: Annotated[User, Security(get_current_user)],
+            db: Annotated[AsyncSession, Depends(get_async_db)],
     ) -> Self:
         return cls(actor, db)
 
@@ -53,10 +55,12 @@ class ChatService:
         Actor에게 챗스페이스 읽기 권한이 있는지 검사합니다.
         권한이 없다면 오류가 발생합니다.
         """
+        if space.deleted_at is not None:
+            raise SpaceNotFoundError(space_id=space.space_id)
         # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
         if (
-            space.owner_user_id is not None
-            and space.owner_user_id != self.actor.user_id
+                space.owner_user_id is not None
+                and space.owner_user_id != self.actor.user_id
         ):
             raise ForbiddenSpaceAccessError()
 
@@ -82,8 +86,8 @@ class ChatService:
 
         # 개인 챗스페이스이고, actor가 스페이스를 생성한 사람이 아닌 경우
         if (
-            space.owner_user_id is not None
-            and space.owner_user_id != self.actor.user_id
+                space.owner_user_id is not None
+                and space.owner_user_id != self.actor.user_id
         ):
             raise ForbiddenSpaceAccessError()
 
@@ -144,7 +148,7 @@ class ChatService:
         return space
 
     async def get_group_chat_spaces(
-        self, group: Group, offset: int, limit: int
+            self, group: Group, offset: int, limit: int
     ) -> list[ChatSpace]:
         """
         그룹에 속한 챗스페이스의 목록을 조회합니다.
@@ -190,10 +194,17 @@ class ChatService:
         if space.owner_user_id != self.actor.user_id:
             raise ForbiddenSpaceAccessError()
 
+        # 챗스페이스에 속한 세션도 soft delete 설정
+        await self.db.exec(
+            update(ChatSession)
+            .where(col(ChatSession.space_id) == space.space_id)
+            .values(deleted_at=datetime.now(tz=timezone.utc))
+        )
         space.deleted_at = datetime.now(tz=timezone.utc)
+        self.db.add(space)
 
     async def get_chat_space_documents(
-        self, space_id: int, offset: int, limit: int
+            self, space_id: int, offset: int, limit: int
     ) -> list[Document]:
         """
         현재 챗 스페이스에 연결된 문서 목록을 조회합니다.
@@ -216,7 +227,7 @@ class ChatService:
         return list(result)
 
     async def add_document(
-        self, space: ChatSpace, document_ids: set[int]
+            self, space: ChatSpace, document_ids: set[int]
     ) -> dict[Literal["success", "skipped"], set[int]]:
         """
         챗스페이스에 문서를 추가합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
@@ -273,7 +284,7 @@ class ChatService:
         return {"success": success_ids, "skipped": skipped_ids}
 
     async def delete_document(
-        self, space: ChatSpace, document_ids: set[int]
+            self, space: ChatSpace, document_ids: set[int]
     ) -> dict[Literal["success", "skipped"], set[int]]:
         """
         챗스페이스에 연결된 문서를 삭제합니다. 개인 챗스페이스일 경우 스페이스를 생성한 사람이,
@@ -318,7 +329,7 @@ class ChatService:
         return new_session
 
     async def get_chat_sessions(
-        self, space: ChatSpace, offset: PositiveInt, limit: PositiveInt
+            self, space: ChatSpace, offset: PositiveInt, limit: PositiveInt
     ) -> list[ChatSession]:
         if self.actor.user_id is None:
             raise IllegalStateError()
@@ -343,18 +354,18 @@ class ChatService:
         return list(result.all())
 
     async def update_chat_session_title(
-        self, title: str, session: ChatSession
+            self, title: str, session: ChatSession
     ) -> ChatSession:
         if self.actor.user_id is None:
             raise IllegalStateError()
 
         # actor의 session인지 확인
         if self.actor.user_id != session.user_id:
-            raise
+            raise ForbiddenChatSessionAccessError()
 
         session.title = title
         self.db.add(session)
         await self.db.flush()
         await self.db.refresh(session)
-        
+
         return session

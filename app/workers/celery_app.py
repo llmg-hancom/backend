@@ -67,20 +67,18 @@ def shutdown_jvm(sender=None, **kwargs):
 # 4.Celery Beat 스케줄러 설정 (배치 작업)
 # Soft Delete 후속 작업
 celery_app.conf.beat_schedule = {
-    # 스케줄 이름
-    "process-json-precedents-task": {
-        # 실행할 태스크 이름
-        "task": "process-json-precedents",
+    "hard-delete": {
+        "task": "hard-delete-task",
         "schedule": crontab(
-            minute=0, hour=13, day_of_month=24, month_of_year=11, day_of_week="*"
-        ),
+            minute=0, hour=4
+        ),  # ⭐️ 매일 새벽 4시에 실행하도록 스케줄 설정
     },
     "update-rag-daily": {
         # 'law.tasks.update_rag_index' 함수를 호출하도록 지정
         "task": "update-rag-index-task",
         "schedule": crontab(
-            minute=0, hour=4
-        ),  # ⭐️ 매일 새벽 4시에 실행하도록 스케줄 설정
+            minute=10, hour=4
+        ),  # ⭐️ 매일 새벽 4:10에 실행하도록 스케줄 설정
     },
     # (필요시 다른 스케줄 작업 추가)
 }

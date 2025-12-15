@@ -82,6 +82,13 @@ class Document(DocumentBase, table=True):
             "deleted_at",
             postgresql_where=Column("deleted_at").is_not(None),
         ),
+        Index(
+            "trgm_documents_file_name_idx",
+            "file_name",
+            postgresql_using="gin",
+            postgresql_where=(Column("document_scope") == DocumentScope.private.value),
+            postgresql_ops={"file_name": "gin_trgm_ops"},
+        ),
     )
 
 

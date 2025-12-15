@@ -4,7 +4,6 @@ import unicodedata
 from bs4 import BeautifulSoup
 import pandas as pd
 
-
 # RAG/LLM 성능을 저해하는 유니코드 "제어" 및 "포맷" 문자 카테고리
 # Cc (Control), Cf (Format), Co (Private Use), Cs (Surrogate)
 BLACKLISTED_CATEGORIES: set[str] = {"Cc", "Cf", "Co", "Cs"}
@@ -102,9 +101,9 @@ def process_html_with_tables(html_content: str) -> str:
         )
 
         is_layout = (
-            (table.find("table") is not None)
-            or (long_text_cells > 0)
-            or (total_cells < 2)
+                (table.find("table") is not None)
+                or (long_text_cells > 0)
+                or (total_cells < 2)
         )
 
         # --- [B] 처리 로직 ---
@@ -214,8 +213,83 @@ def normalize_regex_pattern(pattern: str) -> str:
     # 예: \n(?=\d+\.) -> (?:^|\n)(?=\d+\.)
     # 설명: 단순히 \n으로 시작하면 문서 맨 첫 줄(앞에 \n 없음)을 놓치므로 (?:^|\n)으로 교체
     if clean_pat.startswith("\n") and "(?=" in clean_pat:
-        content = clean_pat[1:] # 맨 앞 \n 제거
+        content = clean_pat[1:]  # 맨 앞 \n 제거
         return f"(?:^|\n){content}"
 
     # Case 3: 그 외 일반 패턴 (\n\n, \s 등) -> 그대로 반환
     return clean_pat
+
+
+def split_problem_into_statements_regex(text: str) -> tuple[str, list[str]]:
+    """
+    1. 지문을 분할하고
+    2. 각 지문 끝에 붙은 보기(A:...)를 청소하고(Cleaning)
+    3. 내용이 없는 보기 전용 지문(D. ㄱ,ㄴ)은 버립니다(Filtering).
+    """
+
+    # 1. 지문 구분 패턴
+    # (?<!\d\.) : 바로 앞에 '숫자' + '점'이 있으면 매칭하지 않음 (날짜 방지)
+    # \s        : 공백 (필수)
+    # (?: ... ) : 지문 기호 그룹
+    statement_marker_pattern = re.compile(
+        r"(?<!\d\.)(\s(?:ㄱ|ㄴ|ㄷ|ㄹ|ㅁ|ㅂ|ㅅ|ㅇ|1|2|3|4|5|①|②|③|④|⑤|[A-Za-z])[.):])"
+    )
+
+    # 2. 객관식 보기/선택지 제거 패턴 (Noise Removal)
+    # 줄바꿈(\n)이나 2칸 이상의 공백 뒤에 오는 '선택지 마커'부터 끝까지를 찾습니다.
+    # 예: " ... 한다.\n A: ㄱ, ㄴ" 또는 " ... 한다. ① ㄱ, ㄷ"
+    # Options: A., A:, ①, 1., (1) 등으로 시작하는 마지막 블록
+    options_removal_pattern = re.compile(
+        r"(\n|\r\n|\s{2,})(?:정답|선택지|보기)?\s*(?:[A-Ea-e][:.]|[①-⑤]|1\.|One\.|Option\sA).*$",
+        re.DOTALL | re.IGNORECASE,
+    )
+    option_only_content_pattern = re.compile(
+        r'^[\s,.()ㄱ-ㅎ가-힣a-zA-Z\d○×]+$'
+    )
+
+    # 2. 텍스트를 패턴 기준으로 분리
+    # split을 하면 [사실관계, 지문기호1, 지문내용1, 지문기호2, 지문내용2...] 순서로 나옴
+    parts = statement_marker_pattern.split(text)
+
+    if len(parts) < 2:
+        return "", [text]  # 분할 실패 시 원본 반환
+
+    # 첫 번째 요소는 무조건 '사실 관계(Background Context)'임
+    background_context = parts[0].strip()
+
+    individual_queries = []
+
+    # 지문 기호와 내용을 합치면서 loop
+    # parts[1]부터는 (기호, 내용) 쌍으로 존재함
+    for i in range(1, len(parts), 2):
+        symbol = parts[i]  # 예: "ㄱ."
+        content = parts[i + 1]  # 예: "매매계약 체결 당시..."
+
+        # 내용에서 객관식 보기 제거
+        # 보통 마지막 지문에만 붙어있지만, 안전을 위해 모든 지문 검사
+        cleaned_content = options_removal_pattern.sub("", content).strip()
+
+        if len(cleaned_content) < 2:
+            cleaned_content = content.strip()
+
+        # 만약 지우고 났더니 내용이 너무 짧다면(오탐지 가능성), 원본 유지 (Safety check)
+        if len(cleaned_content) < 5:
+            continue
+
+        # 2) 내용이 단순히 "ㄱ, ㄴ, ㄷ" 같은 기호 나열인지 확인
+        if option_only_content_pattern.match(cleaned_content):
+            # 한글 단어(2글자 이상)가 포함되어 있는지 확인 (예: "무효", "취소"는 살려야 함)
+            korean_word_check = re.search(r'[가-힣]{2,}', cleaned_content)
+
+            # 한글 단어가 아예 없으면 -> 이건 100% 보기(Option)다 -> 제거
+            if not korean_word_check:
+                continue
+
+            # "모두 정답" 같은 텍스트도 제거
+            if cleaned_content in ["모두 정답", "정답 없음", "없음", "모두 고른 것"]:
+                continue
+        # [핵심] 사실관계 + 지문 병합
+        full_query = f"{symbol} {cleaned_content}"
+        individual_queries.append(full_query)
+
+    return background_context, individual_queries
