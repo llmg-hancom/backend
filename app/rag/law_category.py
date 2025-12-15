@@ -115,6 +115,8 @@ LAW_ALIAS_MAP = {
     "인터넷법": StatuteTitle.ACT_PROMOTION_INFORMATION,
     "정보통신법": StatuteTitle.ACT_PROMOTION_INFORMATION,
     "정보통신망법": StatuteTitle.ACT_PROMOTION_INFORMATION,
+    # 27. 고등교육법
+    "대학법": StatuteTitle.EDUCATION_HIGHER,
     # === 약칭은 아니지만 LLM이 자주 실수하는 법령명 목록 ===
     # 상법 (Commercial)
     "법인법": StatuteTitle.COMMERCIAL,
