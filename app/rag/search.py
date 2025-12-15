@@ -1,6 +1,5 @@
 from datetime import date
 from typing import Any, Sequence, Literal
-from warnings import deprecated
 
 import numpy as np
 from langchain_core.documents import Document as LCDocument
@@ -242,52 +241,60 @@ async def query_private_document(
     # 질문 임베딩
     query_vector = await embeddings.aembed_query(query_text)
 
-    sql_query = text(f"""
+    sql_query = text("""
 WITH semantic_search AS (SELECT chunk_id,
-                                document_id,
-                                content,
-                                meta,
-                                1.0 / (ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) + 60) AS score
-                         FROM document_chunks
-                         WHERE document_id = ANY (:target_doc_ids)
-                         ORDER BY embedding <=> :embedding
-                         LIMIT :fetch_k),
-     keyword_search AS (SELECT chunk_id,
-                               document_id,
-                               content,
-                               meta,
-                               -- 점수 계산 시에도 동일 함수 사용
-                               GREATEST(
-                                       similarity((meta ->> 'title'), :query_text),
-                                       similarity((meta ->> 'keyword'), :query_text)
-                               )           AS sim_score,
-                               -- 랭킹용 점수 계산
-                               1.0 / (ROW_NUMBER() OVER (
-                                   ORDER BY
-                                       -- 1순위: 완전 일치 여부 (True가 False보다 위로)
-                                       (meta ->> 'title') = :query_text DESC,
-                                       GREATEST(
-                                               similarity((meta ->> 'title'), :query_text),
-                                               similarity((meta ->> 'keyword'), :query_text)) DESC
-                                   ) + 60) AS score
-                        FROM document_chunks
-                        WHERE document_id = ANY (:target_doc_ids)
-                          AND ((((meta ->> 'title') % :query_text) AND (meta ->> 'title') IS NOT NULL)
-                            OR
-                            -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
-                               (((meta ->> 'keyword') % :query_text) AND (meta ->> 'keyword') IS NOT NULL))
-                        LIMIT :fetch_k)
+                             document_id,
+                             content,
+                             meta,
+                             1.0 / (ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) + 60) AS score
+                      FROM document_chunks
+                      WHERE document_id = ANY (:target_doc_ids)
+                      ORDER BY embedding <=> :embedding
+                      LIMIT :fetch_k),
+  keyword_search AS (SELECT d.file_name,
+                            d.document_scope,
+                            dc.chunk_id,
+                            dc.document_id,
+                            content,
+                            meta,
+                            -- 점수 계산 시에도 동일 함수 사용
+                            GREATEST(
+                                    similarity(d.file_name, :query_text),
+                                    similarity((meta ->> 'title'), :query_text),
+                                    similarity((meta ->> 'keyword'), :query_text)
+                            )           AS sim_score,
+                            -- 랭킹용 점수 계산
+                            1.0 / (ROW_NUMBER() OVER (
+                                ORDER BY
+                                    -- 1순위: 완전 일치 여부 (True가 False보다 위로)
+                                    (meta ->> 'title') = :query_text DESC,
+                                    GREATEST(
+                                            similarity(d.file_name, :query_text),
+                                            similarity((meta ->> 'title'), :query_text),
+                                            similarity((meta ->> 'keyword'), :query_text)) DESC
+                                ) + 60) AS score
+                     FROM document_chunks dc
+                              LEFT JOIN public.documents d ON d.document_id = dc.document_id
+                     WHERE dc.document_id = ANY (:target_doc_ids)
+                       AND (((d.file_name) % :query_text AND
+                             d.document_scope = 'private'::documentscope)
+                         OR
+                            (((meta ->> 'title') % :query_text) AND (meta ->> 'title') IS NOT NULL)
+                         OR
+                         -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
+                            (((meta ->> 'keyword') % :query_text) AND (meta ->> 'keyword') IS NOT NULL))
+                     LIMIT :fetch_k)
 SELECT COALESCE(s.chunk_id, k.chunk_id)              AS chunk_id,
-       COALESCE(s.document_id, k.document_id)        AS document_id,
-       COALESCE(s.content, k.content)                AS content,
-       COALESCE(s.meta, k.meta)                      AS metadata,
-       (COALESCE(s.score, 0) + COALESCE(k.score, 0)) AS final_score
+    COALESCE(s.document_id, k.document_id)        AS document_id,
+    COALESCE(s.content, k.content)                AS content,
+    COALESCE(s.meta, k.meta)                      AS metadata,
+    (COALESCE(s.score, 0) + COALESCE(k.score, 0)) AS final_score
 FROM semantic_search s
-         FULL OUTER JOIN keyword_search k ON s.chunk_id = k.chunk_id
+      FULL OUTER JOIN keyword_search k ON s.chunk_id = k.chunk_id
 ORDER BY (COALESCE(s.meta, k.meta) ->> 'title') = :query_text DESC,
-         final_score DESC
+      final_score DESC
 LIMIT :k
-""")
+                     """)
 
     params = {"target_doc_ids": target_doc_ids, "embedding": str(query_vector), "query_text": query_text, "k": k,
               "fetch_k": fetch_k}
