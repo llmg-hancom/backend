@@ -244,7 +244,7 @@ def embed_document_chunk(self, s3_path: str, doc_id: int) -> dict[str, Any]:
         chunk_contents: list[str] = [chunk["page_content"] for chunk in chunks]
         if not chunk_contents:
             raise FileNotFoundError
-        vectors: list[list[float]] = embeddings.embed_documents(chunk_contents)
+        vectors = np.array(embeddings.embed_documents(chunk_contents))
         with get_db_session() as session:
             document = session.exec(
                 select(Document).where(Document.document_id == doc_id)
