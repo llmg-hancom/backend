@@ -7,16 +7,15 @@ from langchain_core.vectorstores.utils import maximal_marginal_relevance
 from langchain_postgres import PGEngine, PGVectorStore
 from langchain_postgres.v2.indexes import HNSWQueryOptions
 from pydantic import BaseModel
-
-from models.statute import StatuteType
-from rag.context_manager import get_db_session
-from rag.law_category import StatuteTitle
-from rag.model import embeddings
 from sqlalchemy import Row, RowMapping, text
 from sqlmodel import select, or_
 
 from db.session import async_engine
 from models import ChatSpaceDocument, DocumentChunk
+from models.statute import StatuteType
+from rag.context_manager import get_db_session
+from rag.law_category import StatuteTitle
+from rag.model import embeddings
 
 pg_engine = PGEngine.from_engine(async_engine)
 
@@ -233,7 +232,7 @@ async def find_law_by_article(
 async def query_private_document(
         query_text: str,
         space_id: int,
-        k: int = 3,
+        k: int = 5,
         fetch_k: int = 40,
         ef_search: int = 80,
 ) -> list[LCDocument]:
@@ -241,59 +240,60 @@ async def query_private_document(
     # 질문 임베딩
     query_vector = await embeddings.aembed_query(query_text)
 
-    sql_query = text("""
+    sql_query = text(
+"""
 WITH semantic_search AS (SELECT chunk_id,
-                             document_id,
-                             content,
-                             meta,
-                             1.0 / (ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) + 60) AS score
-                      FROM document_chunks
-                      WHERE document_id = ANY (:target_doc_ids)
-                      ORDER BY embedding <=> :embedding
-                      LIMIT :fetch_k),
-  keyword_search AS (SELECT d.file_name,
-                            d.document_scope,
-                            dc.chunk_id,
-                            dc.document_id,
-                            content,
-                            meta,
-                            -- 점수 계산 시에도 동일 함수 사용
-                            GREATEST(
-                                    similarity(d.file_name, :query_text),
-                                    similarity((meta ->> 'title'), :query_text),
-                                    similarity((meta ->> 'keyword'), :query_text)
-                            )           AS sim_score,
-                            -- 랭킹용 점수 계산
-                            1.0 / (ROW_NUMBER() OVER (
-                                ORDER BY
-                                    -- 1순위: 완전 일치 여부 (True가 False보다 위로)
-                                    (meta ->> 'title') = :query_text DESC,
-                                    GREATEST(
-                                            similarity(d.file_name, :query_text),
-                                            similarity((meta ->> 'title'), :query_text),
-                                            similarity((meta ->> 'keyword'), :query_text)) DESC
-                                ) + 60) AS score
-                     FROM document_chunks dc
-                              LEFT JOIN public.documents d ON d.document_id = dc.document_id
-                     WHERE dc.document_id = ANY (:target_doc_ids)
-                       AND (((d.file_name) % :query_text AND
-                             d.document_scope = 'private'::documentscope)
-                         OR
-                            (((meta ->> 'title') % :query_text) AND (meta ->> 'title') IS NOT NULL)
-                         OR
-                            (((meta ->> 'keyword') LIKE '%' || :query_text || '%') AND (meta ->> 'keyword') IS NOT NULL))
-                     LIMIT :fetch_k)
+                                document_id,
+                                content,
+                                meta,
+                                1.0 / (ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) + 60) AS score
+                         FROM document_chunks
+                         WHERE document_id = ANY (:target_doc_ids)
+                         ORDER BY embedding <=> :embedding
+                         LIMIT :fetch_k),
+     keyword_search AS (SELECT d.file_name,
+                               d.document_scope,
+                               dc.chunk_id,
+                               dc.document_id,
+                               content,
+                               meta,
+                               -- 점수 계산 시에도 동일 함수 사용
+                               GREATEST(
+                                       similarity(d.file_name, :query_text),
+                                       similarity((meta ->> 'title'), :query_text),
+                                       similarity((meta ->> 'keyword'), :query_text)
+                               )           AS sim_score,
+                               -- 랭킹용 점수 계산
+                               1.0 / (ROW_NUMBER() OVER (
+                                   ORDER BY
+                                       -- 1순위: 완전 일치 여부 (True가 False보다 위로)
+                                       (meta ->> 'title') = :query_text DESC,
+                                       GREATEST(
+                                               similarity(d.file_name, :query_text),
+                                               similarity((meta ->> 'title'), :query_text),
+                                               similarity((meta ->> 'keyword'), :query_text)) DESC
+                                   ) + 60) AS score
+                        FROM document_chunks dc
+                                 LEFT JOIN public.documents d ON d.document_id = dc.document_id
+                        WHERE dc.document_id = ANY (:target_doc_ids)
+                          AND (((d.file_name) % :query_text AND
+                                d.document_scope = 'private'::documentscope)
+                            OR
+                               (((meta ->> 'title') % :query_text) AND (meta ->> 'title') IS NOT NULL)
+                            OR
+                               (((meta ->> 'keyword') LIKE '%' || :query_text || '%') AND
+                                (meta ->> 'keyword') IS NOT NULL))
+                        LIMIT :fetch_k)
 SELECT COALESCE(s.chunk_id, k.chunk_id)              AS chunk_id,
-    COALESCE(s.document_id, k.document_id)        AS document_id,
-    COALESCE(s.content, k.content)                AS content,
-    COALESCE(s.meta, k.meta)                      AS metadata,
-    (COALESCE(s.score, 0) + COALESCE(k.score, 0)) AS final_score
+       COALESCE(s.document_id, k.document_id)        AS document_id,
+       COALESCE(s.content, k.content)                AS content,
+       COALESCE(s.meta, k.meta)                      AS metadata,
+       (COALESCE(s.score, 0) + COALESCE(k.score, 0)) AS final_score
 FROM semantic_search s
-      FULL OUTER JOIN keyword_search k ON s.chunk_id = k.chunk_id
+         FULL OUTER JOIN keyword_search k ON s.chunk_id = k.chunk_id
 ORDER BY (COALESCE(s.meta, k.meta) ->> 'title') = :query_text DESC,
-      final_score DESC
-LIMIT :k
-                     """)
+         final_score DESC
+LIMIT :k""")
 
     params = {"target_doc_ids": target_doc_ids, "embedding": str(query_vector), "query_text": query_text, "k": k,
               "fetch_k": fetch_k}
