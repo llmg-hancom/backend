@@ -5,7 +5,6 @@ from workers.tasks import get_db_session
 from models import Document
 from models.document import DocumentStatus
 
-
 logger = get_task_logger(__name__)
 
 
