@@ -1,7 +1,6 @@
 import os
 from typing import Any, Dict, override
-from modules.base.base_downloader import BaseDownloader
-
+from pipeline.modules.base.base_downloader import BaseDownloader
 
 
 # ----------------------------------------------------------------------
@@ -15,7 +14,8 @@ class EflawDownloader(BaseDownloader):
         super().__init__(
             target='eflaw',
             output_dir=output_dir
-            )
+        )
+
     @override
     def _request_api(self, url: str, params: Dict[str, Any]) -> Dict[str, Any] | None:
         # 법령 목록 조회할때는 현행 법령만 조회 하도록 
@@ -23,14 +23,12 @@ class EflawDownloader(BaseDownloader):
             extra_params = {'nw': 3}
             params = params | extra_params
         return super()._request_api(url, params)
-    
+
     @override
     def request_list_and_save(self) -> str | None:
-        return '/Users/yanghuiyeon/Desktop/rag_team/test/pipeline/src/downloaded_data/Eflaw_Data/eflaw_list.json'
-        # return super().request_list_and_save()
+        # return '/Users/yanghuiyeon/Desktop/rag_team/test/pipeline/src/downloaded_data/Eflaw_Data/eflaw_list.json'
+        return super().request_list_and_save()
+
     @override
     def request_detail_and_save(self, list_file_path: str) -> str | None:
         return super().request_detail_and_save(list_file_path)
-
-
- 

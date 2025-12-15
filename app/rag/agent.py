@@ -226,16 +226,16 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     sources_id: set[int] = set()
     statute_articles: defaultdict[str, set] = defaultdict(set)
     async for chunk, metadata in agent.astream(
-        {
-            "messages": [{"role": "user", "content": normalized_query}],
-            "searched_chunks": [],
-        },
-        stream_mode="messages",
-        context=Context(space_id=session.space_id),
+            {
+                "messages": [{"role": "user", "content": normalized_query}],
+                "searched_chunks": [],
+            },
+            stream_mode="messages",
+            context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response.append(chunk.content)
-        if metadata["langgraph_node"] == "tools" and chunk.artifact:
+        if metadata["langgraph_node"] == "tools" and chunk.type == "tool" and chunk.artifact:
             for doc in chunk.artifact:
                 if doc.metadata.get("document_id") in sources_id:
                     statute: str | None = doc.metadata.get("법령명")
