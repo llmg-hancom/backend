@@ -281,8 +281,7 @@ WITH semantic_search AS (SELECT chunk_id,
                          OR
                             (((meta ->> 'title') % :query_text) AND (meta ->> 'title') IS NOT NULL)
                          OR
-                         -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
-                            (((meta ->> 'keyword') % :query_text) AND (meta ->> 'keyword') IS NOT NULL))
+                            (((meta ->> 'keyword') LIKE '%' || :query_text || '%') AND (meta ->> 'keyword') IS NOT NULL))
                      LIMIT :fetch_k)
 SELECT COALESCE(s.chunk_id, k.chunk_id)              AS chunk_id,
     COALESCE(s.document_id, k.document_id)        AS document_id,
