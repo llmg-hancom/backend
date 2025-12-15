@@ -34,6 +34,12 @@ class StatuteTitle(StrEnum):
     DOMESTIC_VIOLENCE = "가정폭력범죄의 처벌 등에 관한 특례법"
     CONSUMERS = "소비자기본법"
     IMPROPER_SOLICITATION = "부정청탁 및 금품등 수수의 금지에 관한 법률"
+    EDUCATION_ELEMENTARY = "초ㆍ중등교육법"
+    EDUCATION_HIGHER = "고등교육법"
+    FRAMEWORK_EDUCATION = "교육기본법"
+    ACT_AGGRAVATED_PUNISHMENT = "특정범죄 가중처벌 등에 관한 법률"
+    ACT_LAND_PLANNING = "국토의 계획 및 이용에 관한 법률"
+    ACT_PROMOTION_INFORMATION = '정보통신망 이용촉진 및 정보보호 등에 관한 법률'
 
 
 # 법률 이름 약어 매핑
@@ -48,7 +54,6 @@ LAW_ALIAS_MAP = {
     "근로계약법": StatuteTitle.LABOR,
     "근기법": StatuteTitle.LABOR,
     "근로법": StatuteTitle.LABOR,
-    "노동법": StatuteTitle.LABOR,  # 엄밀히는 노동조합법 등도 포함하지만, 일반인은 근기법을 의도하는 경우가 많음
     # 4. 최저임금법 (Minimum Wage)
     "최임법": StatuteTitle.MINIMUM_WAGE,
     # 5. 개인정보 보호법 (Personal Info) -> 매우 흔함
@@ -75,7 +80,6 @@ LAW_ALIAS_MAP = {
     # 13. 가족관계의 등록 등에 관한 법률 (Family) -> 이름이 길어서 필수
     "가족관계등록법": StatuteTitle.FAMILY,
     "가족관계법": StatuteTitle.FAMILY,
-    "가족법": StatuteTitle.FAMILY,  # 민법 친족/상속편을 의미할 수도 있으나, 맥락상 허용
     # 14. 도로교통법 (Traffic)
     "교통법": StatuteTitle.TRAFFIC,
     # 15. 주택임대차보호법 (Housing)
@@ -99,6 +103,18 @@ LAW_ALIAS_MAP = {
     "청탁금지법": StatuteTitle.IMPROPER_SOLICITATION,
     "부정청탁법": StatuteTitle.IMPROPER_SOLICITATION,
     "김영란법": StatuteTitle.IMPROPER_SOLICITATION,
+    # 23. 교육기본법 (FRAMEWORK ACT ON EDUCATION)
+    "교기법": StatuteTitle.FRAMEWORK_EDUCATION,
+    # 24. 특정범죄 가중처벌 등에 관한 법률 (Act on the Aggravated Punishment)
+    "특가법": StatuteTitle.ACT_AGGRAVATED_PUNISHMENT,
+    # 25. 국토의 계획 및 이용에 관한 법률 (National Land Planning and Utilization Act)
+    "토지법": StatuteTitle.ACT_LAND_PLANNING,
+    "국토법": StatuteTitle.ACT_LAND_PLANNING,
+    # 26. 정보통신망 이용촉진 및 정보보호 등에 관한 법률 (Act on Promotion of Information and Communications Network Utilization and Information Protection)
+    "정통망법": StatuteTitle.ACT_PROMOTION_INFORMATION,
+    "인터넷법": StatuteTitle.ACT_PROMOTION_INFORMATION,
+    "정보통신법": StatuteTitle.ACT_PROMOTION_INFORMATION,
+    "정보통신망법": StatuteTitle.ACT_PROMOTION_INFORMATION,
     # === 약칭은 아니지만 LLM이 자주 실수하는 법령명 목록 ===
     # 상법 (Commercial)
     "법인법": StatuteTitle.COMMERCIAL,
@@ -106,11 +122,18 @@ LAW_ALIAS_MAP = {
     "주식회사법": StatuteTitle.COMMERCIAL,
     "기업법": StatuteTitle.COMMERCIAL,
     "상사법": StatuteTitle.COMMERCIAL,
+    "보험법": StatuteTitle.COMMERCIAL,  # 상법 제4편 보험 (보험업법 아님)
     # 민법 (Civil)
     "계약법": StatuteTitle.CIVIL,  # '계약법'이라는 단행법도 없음 (민법 채권편)
     "불법행위법": StatuteTitle.CIVIL,  # 마찬가지
     "채권법": StatuteTitle.CIVIL,
     "친족상속법": StatuteTitle.CIVIL,
+    "물권법": StatuteTitle.CIVIL,  # 민법 제2편 물권
+    "손해배상법": StatuteTitle.CIVIL,  # 별도 법 없음 (민법 제750조 등)
+    "유언법": StatuteTitle.CIVIL,
+    # 형법 (Criminial)
+    "폭력법": StatuteTitle.CRIMINAL,
+    "사기법": StatuteTitle.CRIMINAL,
 }
 LAW_KEYWORDS_MAP: dict[str, list[str]] = {
     # 1. 민법 (가장 중요: 모든 사적 분쟁의 기본)
@@ -330,7 +353,7 @@ WITH semantic_search AS (SELECT id,
                            OR
 -- [핵심] 인덱스 정의와 똑같은 함수를 써야 인덱스를 탑니다!
                             (immutable_array_to_string(alias::TEXT[]
-                                 , ' ') % :query_text)
+                                 , ' ') LIKE '%' || :query_text || '%')
                             {filter_clause}
                         LIMIT 40)
 SELECT COALESCE(s.id, k.id)                          AS id,

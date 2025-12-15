@@ -17,7 +17,8 @@ from rag.tools import (
     search_public_law_article,
     search_public_law_semantic,
     analyze_legal_problem,
-    search_precedent_semantic, CustomState,
+    search_precedent_semantic,
+    CustomState,
 )
 
 from models import ChatSession
@@ -29,8 +30,10 @@ logger = logging.getLogger(__name__)
 
 def agent_generator(include_law: bool = False, include_precedent: bool = False):
     tools = [search_private_documents]
-    middlewares = [ToolCallLimitMiddleware(run_limit=12),
-                   ToolCallLimitMiddleware(tool_name="search_private_documents", run_limit=4)]
+    middlewares = [
+        ToolCallLimitMiddleware(run_limit=12),
+        ToolCallLimitMiddleware(tool_name="search_private_documents", run_limit=4),
+    ]
 
     # [최적화 1] 역할 정의 및 기본 문서(Private) 우선순위 명시
     # 단순한 helpful assistant보다 'Legal Research Assistant'라는 페르소나를 부여하고,
@@ -49,29 +52,43 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         """)
 
     # 1. 특정 번호/기호가 있는 경우 (Fast Track) - 가장 먼저 처리
-    prompt += ("\n### 1. Fast Track: Specific References (Highest Priority)\n"
-               "If the user query contains specific identifiers, IGNORE semantic search and use these tools:\n")
+    prompt += (
+        "\n### 1. Fast Track: Specific References (Highest Priority)\n"
+        "If the user query contains specific identifiers, IGNORE semantic search and use these tools:\n"
+    )
     if include_law:
         tools.append(search_public_law_article)
-        middlewares.append(ToolCallLimitMiddleware(tool_name="search_public_law_article", run_limit=6))
+        middlewares.append(
+            ToolCallLimitMiddleware(tool_name="search_public_law_article", run_limit=6)
+        )
         prompt += "- **Law Article** (e.g., '형법 제250조'): MUST use `search_public_law_article`.\n"
 
     if include_precedent:
         tools.append(search_precedent_by_case_number)
-        middlewares.append(ToolCallLimitMiddleware(tool_name="search_precedent_by_case_number", run_limit=4))
+        middlewares.append(
+            ToolCallLimitMiddleware(
+                tool_name="search_precedent_by_case_number", run_limit=4
+            )
+        )
         prompt += "- **Case Number** (e.g., '2016헌마723'): MUST use `search_precedent_by_case_number`.\n"
 
     # 2. 의미 기반 검색 (Semantic Search Strategy) - 여기가 핵심 수정 부분
     if include_law or include_precedent:
-        prompt += ("\n### 2. Semantic Search Strategy (Concept & Application)\n"
-                   "When the user asks about legal concepts, situations, or interpretations without specific numbers:\n")
+        prompt += (
+            "\n### 2. Semantic Search Strategy (Concept & Application)\n"
+            "When the user asks about legal concepts, situations, or interpretations without specific numbers:\n"
+        )
 
     # [핵심] 판례와 법령의 역할을 비교하여 우선순위 조정
     if include_law and include_precedent:
         tools.append(search_public_law_semantic)
-        middlewares.append(ToolCallLimitMiddleware(tool_name="search_public_law_semantic", run_limit=4))
+        middlewares.append(
+            ToolCallLimitMiddleware(tool_name="search_public_law_semantic", run_limit=4)
+        )
         tools.append(search_precedent_semantic)
-        middlewares.append(ToolCallLimitMiddleware(tool_name="search_precedent_semantic", run_limit=4))
+        middlewares.append(
+            ToolCallLimitMiddleware(tool_name="search_precedent_semantic", run_limit=4)
+        )
         prompt += textwrap.dedent("""
             **Decision Rule: Precedent vs. Law**
             1. **PRIORITIZE `search_precedent_semantic`** when:
@@ -94,12 +111,18 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         # 하나만 켜져 있는 경우의 예외 처리
     elif include_precedent:
         tools.append(search_precedent_semantic)
-        middlewares.append(ToolCallLimitMiddleware(tool_name="search_precedent_semantic", run_limit=4))
-        prompt += "- Use `search_precedent_semantic` for all concept and situation queries.\n"
+        middlewares.append(
+            ToolCallLimitMiddleware(tool_name="search_precedent_semantic", run_limit=4)
+        )
+        prompt += (
+            "- Use `search_precedent_semantic` for all concept and situation queries.\n"
+        )
 
     elif include_law:
         tools.append(search_public_law_semantic)
-        middlewares.append(ToolCallLimitMiddleware(tool_name="search_public_law_semantic", run_limit=4))
+        middlewares.append(
+            ToolCallLimitMiddleware(tool_name="search_public_law_semantic", run_limit=4)
+        )
         prompt += "- Use `search_public_law_semantic` for all concept and definition queries.\n"
 
     if include_precedent:
@@ -114,7 +137,9 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
     # 3. 복합 전략 및 문제 풀이 (기존 로직 유지하되 다듬음)
     if include_law and include_precedent:
         tools.append(analyze_legal_problem)
-        middlewares.append(ToolCallLimitMiddleware(tool_name="analyze_legal_problem", run_limit=1))
+        middlewares.append(
+            ToolCallLimitMiddleware(tool_name="analyze_legal_problem", run_limit=1)
+        )
         prompt += textwrap.dedent("""
 
             ### 3. Advanced & Complex Strategies
@@ -201,14 +226,16 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     sources_id: set[int] = set()
     statute_articles: defaultdict[str, set] = defaultdict(set)
     async for chunk, metadata in agent.astream(
-            {"messages": [{"role": "user", "content": normalized_query}], "searched_chunks": []},
-            stream_mode="messages",
-            context=Context(space_id=session.space_id),
+        {
+            "messages": [{"role": "user", "content": normalized_query}],
+            "searched_chunks": [],
+        },
+        stream_mode="messages",
+        context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response.append(chunk.content)
         if metadata["langgraph_node"] == "tools" and chunk.artifact:
-
             for doc in chunk.artifact:
                 if doc.metadata.get("document_id") in sources_id:
                     statute: str | None = doc.metadata.get("법령명")
@@ -220,14 +247,16 @@ async def event_generator(session: ChatSession, request: ChatRequest):
                 copied_doc = doc.copy()
                 sources_id.add(copied_doc.metadata.get("document_id"))
                 if "법령명" in copied_doc.metadata:
-                    statute_articles[copied_doc.metadata.get("법령명")].add(copied_doc.metadata.get("조", "없음"))
+                    statute_articles[copied_doc.metadata.get("법령명")].add(
+                        copied_doc.metadata.get("조", "없음")
+                    )
                     copied_doc.metadata["type"] = "public_law"
                 elif "사건번호" in copied_doc.metadata:
                     copied_doc.metadata["type"] = "precedent"
                 else:
                     copied_doc.metadata["type"] = "private"
                 sources.append(copied_doc.metadata)
-        yield f"data: {json.dumps({'token': chunk.content}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'token': chunk.content, 'node': metadata['langgraph_node']}, ensure_ascii=False)}\n\n"
     new_answer = ChatMessage(
         content="".join(full_response),
         session_id=session.session_id,
