@@ -1,11 +1,12 @@
 import html
-from contextlib import contextmanager
 import json
-from pathlib import Path
 import re
 import time
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Sequence
 
+import numpy as np
 from celery.utils.log import get_task_logger
 from langchain.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
@@ -13,24 +14,20 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 from sqlalchemy.sql.functions import count
+from sqlmodel import Session, select, col
 
 from core.config import settings
+from db.session import engine
 from models import Document, DocumentChunk, Statute
 from models.document import DocumentStatus
-
 # from models.document_chunk import DocumentChunk
 # from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
 from rag.cleaning import (
     normalize_regex_pattern,
 )
-from sqlmodel import Session, select, col
-
 from rag.model import embeddings
 from workers.celery_app import celery_app
 from workers.tasks import cleanup_temp_dir, download_from_s3, upload_tmp_s3
-
-from db.session import engine
-import numpy as np
 
 logger = get_task_logger(__name__)
 
@@ -247,7 +244,7 @@ def embed_document_chunk(self, s3_path: str, doc_id: int) -> dict[str, Any]:
         chunk_contents: list[str] = [chunk["page_content"] for chunk in chunks]
         if not chunk_contents:
             raise FileNotFoundError
-        vectors: list[list[float]] = embeddings.embed_documents(chunk_contents)
+        vectors = np.array(embeddings.embed_documents(chunk_contents))
         with get_db_session() as session:
             document = session.exec(
                 select(Document).where(Document.document_id == doc_id)
@@ -259,7 +256,7 @@ def embed_document_chunk(self, s3_path: str, doc_id: int) -> dict[str, Any]:
                 chunk_obj = DocumentChunk(
                     document_id=doc_id,
                     content=chunk_data["page_content"],
-                    embeddings=vectors[i],
+                    embedding=vectors[i],
                     meta=chunk_data["metadata"],
                 )
                 session.add(chunk_obj)
