@@ -200,6 +200,7 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         - DO NOT invent Statute names, Article numbers, or case numbers. You don't know ANY articles or cases you haven't searched for.
         - DO NOT answer legal questions without using any tool.
         - Do NOT rephrase using the same semantic search tool.
+        - DO NOT output your reasoning in the final message, only in the reasoning_content.
         - 질문이 한국어면 **항상** 한국어를 사용하세요.""")
 
     agent = create_agent(
