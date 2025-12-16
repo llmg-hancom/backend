@@ -63,6 +63,10 @@ COMMON_MISNOMERS = {
     "전세법",
     "건물법",
     "등기법",
+    "재단법",
+    "재단법인법",
+    "비영리법인법",
+    "사단법인법",
     # ---------------------------------------------------------
     # 3. 노동/고용 관련 (노동법이라는 단일 법은 없음)
     # ---------------------------------------------------------
@@ -118,8 +122,8 @@ def format_doc(doc: LCDocument) -> str:
         meta_parts = [
             f"'{k}': {v}"
             for k, v in doc.metadata.items()
-            # key가 document_id가 아니고, 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
-            if k != "document_id" and v and v != "정보없음"
+            # key가 document_id나 chunk_id가 아니고, value가 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+            if k != "document_id" and k != "chunk_id" and v and v != "정보없음"
         ]
 
         # 3. 메타데이터와 본문 결합
@@ -272,11 +276,21 @@ async def search_public_law_semantic(
                 """)
         ), []
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    if duplicates := already_searched & new_searches:
+        if new_searches <= already_searched:
+            return (
+                    header + textwrap.dedent("""
+                    **WARNING**: No results returned because all results are duplicates.
+                    This is a semantic search, rephrasing the query with synonyms will return the same results.
+                    Please STOP searching for this specific topic and try a completely different legal concept, \
+                    try 'search_precedent_semantic' instead, or conclude that no information is available.
+                """)
+            ), []
+        else:
+            relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
+            header += (f"{len(duplicates)} duplicate results from the previous queries are removed."
+                       "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.")
     updated_set = already_searched.union(new_searches)
     serialized = (
         f"{header}{'\n\n'.join(format_doc(doc) for doc in relevant_chunks)}"
@@ -349,11 +363,21 @@ async def search_public_law_article(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    if duplicates := already_searched & new_searches:
+        if new_searches <= already_searched:
+            return (
+                    header + textwrap.dedent("""
+                    **WARNING**: No results returned because all results are duplicates.
+                    This is a semantic search, rephrasing the query with synonyms will return the same results.
+                    Please STOP searching for this specific topic and try a completely different legal concept, \
+                    try 'search_precedent_semantic' instead, or conclude that no information is available.
+                """)
+            ), []
+        else:
+            relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
+            header += (f"{len(duplicates)} duplicate results from the previous queries are removed."
+                       "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.")
     updated_set = already_searched.union(new_searches)
     serialized = (
             header
@@ -425,11 +449,8 @@ async def search_precedent_semantic(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    duplicates = len(already_searched.intersection(new_searches))
     updated_set = already_searched.union(new_searches)
     serialized = (
             "\n\n".join(format_doc(doc) for doc in relevant_chunks) + "\n[System Message]\n"
@@ -485,11 +506,8 @@ async def search_precedent_by_case_number(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    duplicates = len(already_searched.intersection(new_searches))
     updated_set = already_searched.union(new_searches)
     header = format_doc(relevant_chunks[0])
     serialized = f"{header}\nContents:\n" + "\n\n".join(
@@ -540,11 +558,8 @@ async def search_private_documents(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    duplicates = len(already_searched.intersection(new_searches))
     updated_set = already_searched.union(new_searches)
     serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return Command(
