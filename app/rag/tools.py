@@ -521,7 +521,6 @@ async def search_precedent_by_case_number(
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
     new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
-    duplicates = len(already_searched.intersection(new_searches))
     updated_set = already_searched.union(new_searches)
     header = format_doc(relevant_chunks[0])
     serialized = f"{header}\nContents:\n" + "\n\n".join(
@@ -574,9 +573,18 @@ async def search_private_documents(
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
     new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
-    duplicates = len(already_searched.intersection(new_searches))
+    header = ""
+    if duplicates := already_searched & new_searches:
+        if new_searches <= already_searched:
+            return textwrap.dedent("""
+                    [System Message]    
+                    **WARNING**: No results returned because all results are duplicates.
+                """), []
+        else:
+            relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
+            header = f"[System Message]\n{len(duplicates)} duplicates from previous searches have been excluded."
     updated_set = already_searched.union(new_searches)
-    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
+    serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return Command(
         update={
             "searched_chunks": list(updated_set),
