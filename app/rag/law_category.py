@@ -39,7 +39,8 @@ class StatuteTitle(StrEnum):
     FRAMEWORK_EDUCATION = "교육기본법"
     ACT_AGGRAVATED_PUNISHMENT = "특정범죄 가중처벌 등에 관한 법률"
     ACT_LAND_PLANNING = "국토의 계획 및 이용에 관한 법률"
-    ACT_PROMOTION_INFORMATION = '정보통신망 이용촉진 및 정보보호 등에 관한 법률'
+    ACT_PROMOTION_INFORMATION = "정보통신망 이용촉진 및 정보보호 등에 관한 법률"
+    ACT_EDUCATIONAL_OFFICIALS = "교육공무원법"
 
 
 # 법률 이름 약어 매핑
@@ -117,6 +118,8 @@ LAW_ALIAS_MAP = {
     "정보통신망법": StatuteTitle.ACT_PROMOTION_INFORMATION,
     # 27. 고등교육법
     "대학법": StatuteTitle.EDUCATION_HIGHER,
+    # 28. 교육공무원법
+    "교원법": StatuteTitle.ACT_EDUCATIONAL_OFFICIALS,
     # === 약칭은 아니지만 LLM이 자주 실수하는 법령명 목록 ===
     # 상법 (Commercial)
     "법인법": StatuteTitle.COMMERCIAL,
@@ -133,9 +136,16 @@ LAW_ALIAS_MAP = {
     "물권법": StatuteTitle.CIVIL,  # 민법 제2편 물권
     "손해배상법": StatuteTitle.CIVIL,  # 별도 법 없음 (민법 제750조 등)
     "유언법": StatuteTitle.CIVIL,
+    "재단법": StatuteTitle.CIVIL,
+    "재단법인법": StatuteTitle.CIVIL,  # 이것도 민법
+    "비영리법인법": StatuteTitle.CIVIL,  # 이것도 민법
+    "사단법인법": StatuteTitle.CIVIL,  # 사단법인도 민법
+
     # 형법 (Criminial)
     "폭력법": StatuteTitle.CRIMINAL,
     "사기법": StatuteTitle.CRIMINAL,
+    "학교재단법": "사립학교법",
+    "공익법인법": "공익법인의 설립ㆍ운영에 관한 법률",
 }
 LAW_KEYWORDS_MAP: dict[str, list[str]] = {
     # 1. 민법 (가장 중요: 모든 사적 분쟁의 기본)
