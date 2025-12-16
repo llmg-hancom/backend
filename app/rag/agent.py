@@ -164,7 +164,10 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
                2. Search for precedents or statutes related to the legal issues related to the user query and background information.\
                 Carefully choose tools depending on the information given, leaning towards precedents.
                3. If you have enough information, formulate a concise response based on the search results.
-            - **Warning**: NEVER answer legal questions without searching for any precedents or statutes.
+            - **Warning**: 
+               1. NEVER answer legal questions without searching for any precedents or statutes.
+               2. DO NOT treat legal arguments in user documents as absolute facts. \
+               They may be misrepresenting legal facts, either intentionally or out of ignorance.
             
             **Strategy C: Legal Exam / Multiple-Choice Questions**
             - **Trigger**: User provides a structured exam question (e.g., "문 5.", Options A/B/C/D).
