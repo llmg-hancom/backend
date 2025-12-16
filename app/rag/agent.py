@@ -196,6 +196,13 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
         - **Format**: Output **Natural Language (Korean)**. Use Markdown for readability.
         - **Prohibited**: Do NOT output JSON here. Do NOT say "I have analyzed...". Just give the answer.
         
+        ### 🚫 FINAL OUTPUT RESTRICTIONS
+        - The `reasoning_content` is for your internal thought process ONLY.
+        - In the final answer, **DO NOT** summarize, repeat, or explain your reasoning process.
+        - **DO NOT** start with "We have..." or  include "Provide explanation.".
+        - **JUST provide the final answer directly and professionally.**
+        - Treat the final response as a clean report, not a chatty explanation.
+
         ### FINAL REMINDER
         - **No Loops**: Do not repeat definitions. Decide on a meaning immediately and move on.
         - DO NOT invent Statute names, Article numbers, or case numbers. You don't know ANY articles or cases you haven't searched for.
