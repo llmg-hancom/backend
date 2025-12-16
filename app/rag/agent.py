@@ -143,9 +143,12 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             ### ⚖️ LEGAL TERMINOLOGY INTERPRETATION RULE
             1. **Context over Literal Meaning**: Many Korean legal terms sound like common words but have different meanings due to their Hanja (Chinese character) origins.
             2. **Ambiguity Handling**:
-               - If a word's common meaning contradicts the legal context (e.g., suing to "maintain(유지)" a harmful act), **ASSUME it is a specific legal homonym**.
+               - If a word's common meaning contradicts the legal context (e.g., suing to "maintain(유지)" a harmful act), **ASSUME it is a specific legal homonym**. 
                - Example: '선의' means 'Ignorance of fact', not 'Kind heart'. '악의' means 'Knowledge of fact', not 'Evil mind'. '유지'(Injunction) means 'To Stop', not 'To Keep'.
-            3. **Action**: If confused, DO NOT loop. Assume it is a legal term.
+            3. **Synonyms in Legal context**
+               - Synonyms might have different meanings in legal context. Don't assume they are the same.
+               - Example: '허가', '인가', '승인' all have different conditions and effects when used in legal context.
+            4. **Action**: If confused, DO NOT loop. Assume it is a legal term, and threat it differently with synonyms.
 
             ### 3. Advanced & Complex Strategies
             **Strategy A: Precedents by Law Article**
