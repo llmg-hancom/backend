@@ -43,7 +43,6 @@ COURT_PRECEDENT_HEADERS = [
     "사건종류명",
 ]
 COMMON_MISNOMERS = {
-    "법인법",
     "회사법",
     "주식회사법",
     "기업법",
@@ -63,6 +62,10 @@ COMMON_MISNOMERS = {
     "전세법",
     "건물법",
     "등기법",
+    "재단법",
+    "재단법인법",
+    "비영리법인법",
+    "사단법인법",
     # ---------------------------------------------------------
     # 3. 노동/고용 관련 (노동법이라는 단일 법은 없음)
     # ---------------------------------------------------------
@@ -118,8 +121,8 @@ def format_doc(doc: LCDocument) -> str:
         meta_parts = [
             f"'{k}': {v}"
             for k, v in doc.metadata.items()
-            # key가 document_id가 아니고, 값이 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
-            if k != "document_id" and v and v != "정보없음"
+            # key가 document_id나 chunk_id가 아니고, value가 존재하고(None 아님) 빈 문자열이나 "정보없음"도 아닌 경우
+            if k != "document_id" and k != "chunk_id" and v and v != "정보없음"
         ]
 
         # 3. 메타데이터와 본문 결합
@@ -162,10 +165,21 @@ async def find_statute_title(
             return member, True
 
     match query:
+        case "법인" | "법인법":
+            return [StatuteTitle.CIVIL, StatuteTitle.COMMERCIAL, "공익법인법"], False
+        case "금융위원회":
+            return ["금융위원회의 설치 등에 관한 법률", "금융위원회의 설치 등에 관한 법률 시행령", "금융위원회와 그 소속기관 직제"], False
+        case "기업공시법":
+            return ["자본시장과 금융투자업에 관한 법률", "자본시장과 금융투자업에 관한 법률 시행령",
+                    "자본시장과 금융투자업에 관한 법률 시행규칙", "독점규제 및 공정거래에 관한 법률"], False
         case "고용법" | "노동법" | "알바법" | "해고법":
             return [StatuteTitle.LABOR, StatuteTitle.MINIMUM_WAGE,
                     "고용정책 기본법", "노동조합법", StatuteTitle.EQUAL_EMPLOYMENT,
                     "고용상 연령차별금지 및 고령자고용촉진에 관한 법률", "산업안전보건법"], False
+        case "고용차별금지법":
+            return [StatuteTitle.EQUAL_EMPLOYMENT,
+                    "고용상 연령차별금지 및 고령자고용촉진에 관한 법률",
+                    "남녀고용평등과 일ㆍ가정 양립 지원에 관한 법률"], False
         case "지적재산권법" | "지식재산권법":
             return ["특허법", "디자인보호법", "상표법", "저작권법"], False
         case "어음수표법" | "수표어음법":
@@ -217,6 +231,7 @@ class SearchLawSemanticInput(BaseModel):
         default=None,
         description="Optional. The name or abbreviation of the statute(법령명) to search for.",
     )
+    reasoning: str = Field(description="Why you are performing this search. Explain your logic briefly.")
 
 
 @tool(args_schema=SearchLawSemanticInput)
@@ -224,6 +239,7 @@ async def search_public_law_semantic(
         runtime: ToolRuntime[Context, CustomState],
         query: str,
         statute_name: str | None = None,
+        **kwargs
 ):
     """
     Searches for public laws based on semantic meaning.
@@ -236,7 +252,7 @@ async def search_public_law_semantic(
     3. Do NOT invent statute names.
     4. **Do NOT Rephrase**: Asking the same question with slightly different words or order will yield the **EXACT SAME results**.
     """
-    header = ""
+    header = "[System Message]\n"
     # 법령명이 주어졌을때, 법령명이 약칭을 포함해 정확하면 그 법령명에서만 검색, 정확하지 않으면 관련성 높은 5개 법령명에서 검색
     if statute_name:
         exact_name, is_exact = await find_statute_title(statute_name)
@@ -244,8 +260,8 @@ async def search_public_law_semantic(
             statute_filter = StatuteFilter(titles=[exact_name])
         else:
             statute_filter = StatuteFilter(titles=exact_name)
-            header = (
-                f"\n[System Message]\n'{statute_name}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
+            header += (
+                f"'{statute_name}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
                 f"Results are from the following statutes instead: {', '.join(exact_name)}\n"
             )
     # 법령명이 주어지지 않으면 전체 범위에서 검색
@@ -264,7 +280,6 @@ async def search_public_law_semantic(
         return (
                 header
                 + textwrap.dedent("""
-                [System Message]
                 No relevant law articles found. 
                 NOTE: Since this is a semantic search, rephrasing the query with synonyms will likely fail again.
                 Please STOP searching for this specific topic and try a completely different legal concept, \
@@ -272,11 +287,21 @@ async def search_public_law_semantic(
                 """)
         ), []
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    if duplicates := already_searched & new_searches:
+        if new_searches <= already_searched:
+            return (
+                    header + textwrap.dedent("""\
+                    **WARNING**: No results returned because all results are duplicates.
+                    This is a semantic search, rephrasing the query with synonyms will return the same results.
+                    Please STOP searching for this specific topic and try a completely different legal concept, \
+                    try 'search_precedent_semantic' instead, or conclude that no information is available.
+                """)
+            ), []
+        else:
+            relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
+            header += (f"{len(duplicates)} duplicates from previous searches have been excluded.\n"
+                       "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.")
     updated_set = already_searched.union(new_searches)
     serialized = (
         f"{header}{'\n\n'.join(format_doc(doc) for doc in relevant_chunks)}"
@@ -306,11 +331,12 @@ class SearchLawArticleInput(BaseModel):
             "You need to input number that comes before `조`, NOT after. (e.g. `제5조의10` -> `5`)"
         )
     )
+    reasoning: str = Field(description="Why you are performing this search. Explain your logic briefly.")
 
 
 @tool(args_schema=SearchLawArticleInput)
 async def search_public_law_article(
-        runtime: ToolRuntime[Context, CustomState], statute_title: str, article: int
+        runtime: ToolRuntime[Context, CustomState], statute_title: str, article: int, **kwargs
 ):
     """
     Retrieves the exact TEXT of a specific law article.
@@ -349,11 +375,7 @@ async def search_public_law_article(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
     updated_set = already_searched.union(new_searches)
     serialized = (
             header
@@ -390,6 +412,7 @@ class SearchPrecedentSemanticInput(BaseModel):
         default=None,
         description="Optional. The end date for filtering precedents by its decision date. Only precedents up to this date will be considered.",
     )
+    reasoning: str = Field(description="Why you are performing this search. Explain your logic briefly.")
 
 
 @tool(args_schema=SearchPrecedentSemanticInput)
@@ -398,6 +421,7 @@ async def search_precedent_semantic(
         query: str,
         start_date: date | None = None,
         end_date: date | None = None,
+        **kwargs
 ):
     """
     Searches for legal precedents (court rulings) based on semantic meaning.
@@ -425,13 +449,23 @@ async def search_precedent_semantic(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    header = ""
+    if duplicates := already_searched & new_searches:
+        if new_searches <= already_searched:
+            return textwrap.dedent("""
+                    [System Message]    
+                    **WARNING**: No results returned because all results are duplicates.
+                    This is a semantic search, rephrasing the query with synonyms will return the same results.
+                    Please STOP searching for this specific topic and try a completely different legal concept, \
+                    try 'search_public_law_semantic' instead, or conclude that no information is available.
+                """), []
+        else:
+            relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
+            header = (f"[System Message]\n{len(duplicates)} duplicates from previous searches have been excluded."
+                      "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.")
     updated_set = already_searched.union(new_searches)
-    serialized = (
+    serialized = header + (
             "\n\n".join(format_doc(doc) for doc in relevant_chunks) + "\n[System Message]\n"
                                                                       "**WARNING**: DO NOT call 'search_precedent_semantic' with similar query even if the results are irrelevant."
     )
@@ -456,11 +490,12 @@ class SearchPrecedentCaseNumber(BaseModel):
     case_number: str = Field(
         description="The exact case number to filter by. (e.g., '2025도903', '2024가합123')"
     )
+    reasoning: str = Field(description="Why you are performing this search. Explain your logic briefly.")
 
 
 @tool(args_schema=SearchPrecedentCaseNumber)
 async def search_precedent_by_case_number(
-        runtime: ToolRuntime[Context, CustomState], query: str, case_number: str
+        runtime: ToolRuntime[Context, CustomState], query: str, case_number: str, **kwargs
 ):
     """
     Searches for precedents within specific 'Case Number'(사건번호).
@@ -485,11 +520,7 @@ async def search_precedent_by_case_number(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
     updated_set = already_searched.union(new_searches)
     header = format_doc(relevant_chunks[0])
     serialized = f"{header}\nContents:\n" + "\n\n".join(
@@ -513,7 +544,7 @@ async def search_precedent_by_case_number(
 # noinspection PyIncorrectDocstring
 @tool(parse_docstring=True)
 async def search_private_documents(
-        query: str, runtime: ToolRuntime[Context, CustomState]
+        query: str, runtime: ToolRuntime[Context, CustomState], **kwargs
 ):
     """
     Searches for information within the USER UPLOADED private documents based on semantic meaning.
@@ -527,6 +558,7 @@ async def search_private_documents(
 
     Args:
         query (str): The search query for private documents.
+        reasoning (str) Why you are performing this search. Explain your logic briefly.
     """
     target_doc_ids = await fetch_target_ids(runtime.context.space_id)
     if target_doc_ids:
@@ -540,13 +572,19 @@ async def search_private_documents(
             [],
         )
     already_searched: set[int] = set(runtime.state.get("searched_chunks", []))
-    new_searches = {
-        ci
-        for doc in relevant_chunks
-        if (ci := doc.metadata.get("chunk_id")) not in already_searched
-    }
+    new_searches = {doc.metadata.get("chunk_id") for doc in relevant_chunks}
+    header = ""
+    if duplicates := already_searched & new_searches:
+        if new_searches <= already_searched:
+            return textwrap.dedent("""
+                    [System Message]    
+                    **WARNING**: No results returned because all results are duplicates.
+                """), []
+        else:
+            relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
+            header = f"[System Message]\n{len(duplicates)} duplicates from previous searches have been excluded."
     updated_set = already_searched.union(new_searches)
-    serialized = "\n\n".join(format_doc(doc) for doc in relevant_chunks)
+    serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return Command(
         update={
             "searched_chunks": list(updated_set),
