@@ -301,7 +301,7 @@ async def search_public_law_semantic(
         else:
             relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
             header += (f"{len(duplicates)} duplicates from previous searches have been excluded.\n"
-                       "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.")
+                       "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.\n")
     updated_set = already_searched.union(new_searches)
     serialized = (
         f"{header}{'\n\n'.join(format_doc(doc) for doc in relevant_chunks)}"
@@ -462,8 +462,8 @@ async def search_precedent_semantic(
                 """), []
         else:
             relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
-            header = (f"[System Message]\n{len(duplicates)} duplicates from previous searches have been excluded."
-                      "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.")
+            header = (f"[System Message]\n{len(duplicates)} duplicates from previous searches have been excluded.\n"
+                      "NOTE: This is a semantic search, rephrasing the query with synonyms will return the same results.\n")
     updated_set = already_searched.union(new_searches)
     serialized = header + (
             "\n\n".join(format_doc(doc) for doc in relevant_chunks) + "\n[System Message]\n"
@@ -582,7 +582,7 @@ async def search_private_documents(
                 """), []
         else:
             relevant_chunks = [doc for doc in relevant_chunks if doc.metadata.get("chunk_id") not in already_searched]
-            header = f"[System Message]\n{len(duplicates)} duplicates from previous searches have been excluded."
+            header = f"[System Message]\n{len(duplicates)} duplicates from previous searches have been excluded.\n"
     updated_set = already_searched.union(new_searches)
     serialized = header + "\n\n".join(format_doc(doc) for doc in relevant_chunks)
     return Command(
