@@ -122,7 +122,6 @@ LAW_ALIAS_MAP = {
     "교원법": StatuteTitle.ACT_EDUCATIONAL_OFFICIALS,
     # === 약칭은 아니지만 LLM이 자주 실수하는 법령명 목록 ===
     # 상법 (Commercial)
-    "법인법": StatuteTitle.COMMERCIAL,
     "회사법": StatuteTitle.COMMERCIAL,  # '회사법'도 자주 틀리는 용어 (상법의 일부임)
     "주식회사법": StatuteTitle.COMMERCIAL,
     "기업법": StatuteTitle.COMMERCIAL,
@@ -133,6 +132,7 @@ LAW_ALIAS_MAP = {
     "불법행위법": StatuteTitle.CIVIL,  # 마찬가지
     "채권법": StatuteTitle.CIVIL,
     "친족상속법": StatuteTitle.CIVIL,
+    "가정법": StatuteTitle.CIVIL,
     "물권법": StatuteTitle.CIVIL,  # 민법 제2편 물권
     "손해배상법": StatuteTitle.CIVIL,  # 별도 법 없음 (민법 제750조 등)
     "유언법": StatuteTitle.CIVIL,

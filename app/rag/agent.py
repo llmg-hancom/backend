@@ -8,6 +8,8 @@ import unicodedata
 from langchain.agents import create_agent
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
+from models import ChatSession
+from models.chat_message import ChatMessage, ChatRole
 from rag.context_manager import get_db_session
 from rag.model import llm
 from rag.tools import (
@@ -20,9 +22,6 @@ from rag.tools import (
     search_precedent_semantic,
     CustomState,
 )
-
-from models import ChatSession
-from models.chat_message import ChatMessage, ChatRole
 from schemas.chat import ChatRequest
 
 logger = logging.getLogger(__name__)
@@ -141,6 +140,12 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
             ToolCallLimitMiddleware(tool_name="analyze_legal_problem", run_limit=1)
         )
         prompt += textwrap.dedent("""
+            ### ⚖️ LEGAL TERMINOLOGY INTERPRETATION RULE
+            1. **Context over Literal Meaning**: Many Korean legal terms sound like common words but have different meanings due to their Hanja (Chinese character) origins.
+            2. **Ambiguity Handling**:
+               - If a word's common meaning contradicts the legal context (e.g., suing to "maintain(유지)" a harmful act), **ASSUME it is a specific legal homonym**.
+               - Example: '선의' means 'Ignorance of fact', not 'Kind heart'. '악의' means 'Knowledge of fact', not 'Evil mind'. '유지'(Injunction) means 'To Stop', not 'To Keep'.
+            3. **Action**: If confused, DO NOT loop. Assume it is a legal term.
 
             ### 3. Advanced & Complex Strategies
             **Strategy A: Precedents by Law Article**
@@ -169,8 +174,12 @@ def agent_generator(include_law: bool = False, include_precedent: bool = False):
 
     # 기존의 무조건적인 "JSON ONLY" 제약을 조건부로 변경합니다.
     prompt += textwrap.dedent("""
-        ### 🛑 CRITICAL FORMATTING RULES (READ CAREFULLY)
+        ### REASONING LIMIT
+        - Keep your internal reasoning (`private_thought`) concise.
+        - **Do NOT exceed 3 sentences** for translation or definition checks.
+        - If you are unsure about a term, pick the most likely legal definition and proceed immediately.
         
+        ### 🛑 CRITICAL FORMATTING RULES (READ CAREFULLY)
         **CASE 1: When you need more information (TOOL CALLING PHASE)**
         - If you need to search private documents, laws, precedents, or analyze the problem, you MUST invoke a tool.
         - **Format**: Output **ONLY the raw JSON** for the tool call.
@@ -226,12 +235,12 @@ async def event_generator(session: ChatSession, request: ChatRequest):
     sources_id: set[int] = set()
     statute_articles: defaultdict[str, set] = defaultdict(set)
     async for chunk, metadata in agent.astream(
-        {
-            "messages": [{"role": "user", "content": normalized_query}],
-            "searched_chunks": [],
-        },
-        stream_mode="messages",
-        context=Context(space_id=session.space_id),
+            {
+                "messages": [{"role": "user", "content": normalized_query}],
+                "searched_chunks": [],
+            },
+            stream_mode="messages",
+            context=Context(space_id=session.space_id),
     ):
         if metadata["langgraph_node"] == "model":
             full_response.append(chunk.content)
