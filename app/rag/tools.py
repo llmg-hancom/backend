@@ -252,7 +252,7 @@ async def search_public_law_semantic(
     3. Do NOT invent statute names.
     4. **Do NOT Rephrase**: Asking the same question with slightly different words or order will yield the **EXACT SAME results**.
     """
-    header = "[System Message]\n"
+    header = ""
     # 법령명이 주어졌을때, 법령명이 약칭을 포함해 정확하면 그 법령명에서만 검색, 정확하지 않으면 관련성 높은 5개 법령명에서 검색
     if statute_name:
         exact_name, is_exact = await find_statute_title(statute_name)
@@ -260,10 +260,10 @@ async def search_public_law_semantic(
             statute_filter = StatuteFilter(titles=[exact_name])
         else:
             statute_filter = StatuteFilter(titles=exact_name)
-            header += (
-                f"'{statute_name}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
-                f"Results are from the following statutes instead: {', '.join(exact_name)}\n"
-            )
+            header += ("[System Message]\n"
+                       f"'{statute_name}' is NOT a valid Korean statute title. DO NOT invent statute names.\n"
+                       f"Results are from the following statutes instead: {', '.join(exact_name)}\n"
+                       )
     # 법령명이 주어지지 않으면 전체 범위에서 검색
     else:
         statute_filter = None
