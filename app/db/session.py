@@ -4,7 +4,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from core.config import settings
 
-
 # settings에서 database_url 프로퍼티 사용
 engine = create_engine(
     settings.database_url, echo=(settings.ENVIRONMENT == "development")

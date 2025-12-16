@@ -8,7 +8,7 @@ llm = ChatOllama(
     base_url=settings.OLLAMA_BASE_URL,
     reasoning=True,
     temperature=0.1,
-    repeat_penalty=1.2,
+    repeat_penalty=1.3,
     keep_alive="4h",
 )
 embeddings = OllamaEmbeddings(model="bge-m3:567m", base_url=settings.OLLAMA_BASE_URL)

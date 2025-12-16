@@ -11,8 +11,6 @@ from sqlalchemy import delete
 
 from models import Group, ChatSpace, ChatSession, RefreshToken
 
-# from models.document_chunk import DocumentChunk
-# from rag.embedding import embed_texts  # (BGE-m3-ko 1024d)
 from rag.cleaning import (
     clean_common_noise,
     clean_rag_text,
@@ -24,10 +22,6 @@ from workers.celery_app import celery_app
 from db.session import engine
 from models.document import Document, DocumentStatus
 from services.document.storage_service import storage_service
-
-
-# (Chunking 로직은 별도 파일로 분리하거나 여기에 구현해야 함)
-# from rag.chunking import get_chunks_from_structured_data
 
 logger = get_task_logger(__name__)
 
