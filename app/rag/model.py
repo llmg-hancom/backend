@@ -12,7 +12,6 @@ llm = ChatOllama(
     mirostat=2,
     mirostat_tau=5,
     mirostat_eta=0.1,
-    num_predict=512,
     keep_alive="4h",
 )
 embeddings = OllamaEmbeddings(model="bge-m3:567m", base_url=settings.OLLAMA_BASE_URL)
